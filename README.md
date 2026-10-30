@@ -74,8 +74,9 @@ port is not finished:
 
 - the files are read and written the same way on every architecture
   (`rcsdisk.c`): resource files are big-endian with records of 34 (ICONBLK) and
-  14 (BITBLK) bytes, the `.DFN` files little-endian, the `.INF` file
-  big-endian, and in memory the records are the host's own (native byte order
+  14 (BITBLK) bytes, the `.DFN` files little-endian (the `.DEF`/`.RSD` files of
+  EmuTOS and the original RCS are read too, when there is no `.DFN`), the `.INF`
+  file big-endian, and in memory the records are the host's own (native byte order
   and padding, aligned). The image data and the strings are kept as the bytes
   of the file, which is what the VDI expects. What has not been tried on ARM is
   the editing itself (icon editor, dragging, the dialogs), and the `.H` file
