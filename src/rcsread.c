@@ -18,6 +18,7 @@
 #include "rcsfiles.h"
 #include "rcswrite.h"
 #include "rcsread.h"
+#include "rcscicon.h"
 
 #define ROB_TYPE (psubstruct + 6)	/* Long pointer in OBJECT	*/
 #define ROB_FLAGS (psubstruct + 8)	/* Long pointer in OBJECT	*/
@@ -358,7 +359,7 @@ static void fix_objects(void)
 {
 	short		ii;
 	short		obtype, obflags;
-	long		psubstruct;
+	long		psubstruct, ciconblk;
 
 	for (ii = NUM_OBS-1; ii >= 0; ii--)
 	{
@@ -377,6 +378,21 @@ static void fix_objects(void)
 			case G_STRING:
 			case G_BUTTON:
 				fix_long(ROB_SPEC);
+				break;
+			case G_CICON:
+				/* the spec is the number of its CICONBLK; RCS shows and
+				   edits the mono icon, and keeps the rest for saving */
+				ciconblk = cicon_iconblk(*(unsigned long *)(ROB_SPEC));
+				if (ciconblk)
+				{
+					*(unsigned long *)(ROB_SPEC) = ciconblk;
+					*(short *)(ROB_TYPE) = G_ICON;
+				}
+				else
+				{
+					*(unsigned long *)(ROB_SPEC) = 0x00ff1100UL;
+					*(short *)(ROB_TYPE) = G_BOX;
+				}
 				break;
 			default:
 				break;
@@ -573,7 +589,9 @@ short read_files(void)
 	}
 	else
 	{
-		short	disksize = rd_be16((void *)RSH_RSSIZE(head));
+		long	disksize = rd_be16((void *)RSH_RSSIZE(head));
+		unsigned char	ext[12];
+		unsigned long	cicon_table = 0;
 
 		if (!dmcopy(rcs_rhndl, DISK_RSHDR_SIZE,
 				head + DISK_RSHDR_SIZE, disksize - DISK_RSHDR_SIZE))
@@ -584,7 +602,13 @@ short read_files(void)
 		}
 		else
 		{
+			/* the extension of a new format file: the table of colour icons */
+			cicon_reset();
+			if ((rd_be16((void *)RSH_VRSN(head)) & RCS_NEW_FORMAT) &&
+					dmcopy(rcs_rhndl, disksize, (long)ext, 12))
+				cicon_table = rd_be32(ext + 4);
 			fclose(rcs_rhndl);
+			cicon_scan(head, disksize, cicon_table);
 			rcs_free = head + (unsigned short)disksize;
 			if (rcs_free & 0x1) 
 	    		rcs_free++;
