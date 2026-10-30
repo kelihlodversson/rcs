@@ -35,6 +35,7 @@ extern  short    fgcolor, bgcolor;
 #define dos_write(x,y,z) write_piece(x,y,z)
 
 #define X_FWD 0x0100		/* extended object type codes */
+#define ADJ3D 2		/* pixels the AES adds around 3D indicators and activators */
 #define X_BAK 0x0200		/* for use with selector trees */
 #define X_SEL 0x0300
 

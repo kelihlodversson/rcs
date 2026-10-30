@@ -120,6 +120,25 @@ void show_hex(char *mesg)
 
 #endif
 
+/* The flags popup: the 3D kinds are one choice, and what RCS does not edit
+ * (the flags that only ViewMAX had) is greyed out. */
+static void ini_flagpop(void)
+{
+	static char	*d3text[3] = { "  3D indicator", "  3D activator", "  3D background" };
+	static short	d3obj[3] = { D3INDPOP, SYCOLPOP, D3BAKPOP };
+	static short	unused[] = { ESCPOP, BITBPOP, SCCTRPOP, HIGHLPOP, UHIGLPOP };
+	long	tree;
+	OBJECT	*o;
+	short	i;
+
+	ini_tree(&tree, POPSWTCH);
+	o = (OBJECT *)tree;
+	for (i = 0; i < 3; i++)
+		o[d3obj[i]].ob_spec = (OBSPEC)(long)d3text[i];
+	for (i = 0; i < (short)(sizeof(unused) / sizeof(unused[0])); i++)
+		o[unused[i]].ob_state |= DISABLED;
+}
+
 short ini_rsrc(void)	/* load RCS resources */
 {
 	long	tree;
@@ -139,6 +158,7 @@ short ini_rsrc(void)	/* load RCS resources */
 		}
 		for (i = 0; i<= CLIPFULL; i++)
 			trans_bitblk(image_addr(i));
+		ini_flagpop();
 		return (true);
 	}
 }
