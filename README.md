@@ -77,11 +77,16 @@ port is not finished:
   14 (BITBLK) bytes, the `.DFN` files little-endian (the `.DEF`/`.RSD` files of
   EmuTOS and the original RCS are read too, when there is no `.DFN`), the `.INF`
   file big-endian, and in memory the records are the host's own (native byte order
-  and padding, aligned). The image data and the strings are kept as the bytes
-  of the file, which is what the VDI expects. What has not been tried on ARM is
-  the editing itself (icon editor, dragging, the dialogs), and the `.H` file
-  the output writes comes out wrong after the first 8 KB on ARM (the text of
-  the first block is repeated), which looks like the stdio of libcmini there;
+  and padding, aligned). The words of the image data are converted to the words
+  of the host when a file is read and written back big-endian, because that is
+  what the AES and VDI expect; the strings stay as they are. The editor's images
+  are one-plane images in that format and do not depend on the pixel format of
+  the screen (`rcsmono.c`). Loading, merging, saving and the icon and image
+  editor have been run on m68k and ARM (pTOS under QEMU); the editor has not
+  been run on a planar screen. (Writing files from the guest to a QEMU `vvfat`
+  directory corrupts a file after the first 8 KB: the second cluster is a copy
+  of the first. It is QEMU, not RCS: on a real FAT16 disk image the files are
+  right, so test with a disk image.)
 - the code still treats addresses as `long`, which assumes 32-bit addresses
   (m68k, ARM and x32);
 - the flags that only ViewMAX (the DOS build) knew (`ESCCANCEL`, `BITBUTTON`,
