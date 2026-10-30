@@ -46,8 +46,25 @@ The original build of the Atari version is `src/atari/rcs.prj`, for Pure C
 
 There is no build system yet.
 
-## License
+## Origin and license
 
-The source files carry the header "Copyright 1999 by Caldera Thin Clients,
-Inc. This software is licensed under the GNU Public License". The file
-[LICENSE](LICENSE) is the text of the GNU General Public License, version 3.
+RCS was written at Digital Research (Pacific Grove, California) in 1984-85 as
+part of GEM; the file headers credit Tim Oren for most of it, with the VDI
+bindings converted from code by Lee Lorenzen. It was proprietary software: one
+file of the MS-DOS build, `src/pc/gemovlc.c`, still carries the "Copyright (c)
+1985 Digital Research Inc." notice. The Atari ST version in `src/atari/` is a
+port of this code, to Pure C; the files do not say who made it.
+
+Digital Research's assets went to Novell and then, in 1996, to Caldera. In April
+1999 Caldera Thin Clients released the source of GEM, and with it RCS, under
+the GNU General Public License (the code lives on as FreeGEM and OpenGEM). That
+is the origin of this source: the headers read "Copyright 1999 by Caldera Thin
+Clients, Inc. This software is licensed under the GNU Public License. Please see
+LICENSE.TXT for further information."
+
+The headers name no version. The `LICENSE` file here is the GNU General Public
+License, version 2, as shipped with FreeGEM, which is the version of the 1999
+release. That license lets a recipient choose "any later version" only when the
+program says so, and these files do not: this repository stays with version 2.
+I could not find the original Caldera archive, so the `LICENSE.TXT` it came
+with has not been compared with this one.
