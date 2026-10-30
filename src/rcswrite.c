@@ -5,6 +5,7 @@
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
 #include <gem.h>
+#include "rcsdisk.h"
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
@@ -78,26 +79,21 @@ static short dspace(short drv, unsigned short nbytes)
 		return (true);
 }
 
-/* the following two routines were written to simulate the */
-/* ibm pc file structure for "*.def" files. */
-
-unsigned short swap_bytes(unsigned short x)
-{
-	return ( ((unsigned short) ((x) & 0xff) << 8 ) | (unsigned short) (((x) >> 8) & 0xff) );
-}
+/* the "*.def" files keep the structure of the IBM PC: little-endian */
 
 static void wr_68kdef(void)
 {
-	unsigned short	idx, wr_ndxno,wr_val, wr_kind;
+	unsigned short	idx;
+	unsigned char	b[2];
 	
-	wr_ndxno = swap_bytes(rcs_ndxno);
-	fwrite( &wr_ndxno, 1, 2, rcs_dhndl );
+	wr_le16(b, rcs_ndxno);
+	fwrite( b, 1, 2, rcs_dhndl );
 	for ( idx = 0; idx < rcs_ndxno; idx++ )
 	{
-		wr_val = swap_bytes( (unsigned short) rcs_index[idx].val );
-		fwrite( &wr_val, 1, 2, rcs_dhndl );
-		wr_kind = swap_bytes( rcs_index[idx].kind );
-		fwrite( &wr_kind, 1, 2, rcs_dhndl );
+		wr_le16(b, (unsigned short) (long) rcs_index[idx].val );
+		fwrite( b, 1, 2, rcs_dhndl );
+		wr_le16(b, rcs_index[idx].kind );
+		fwrite( b, 1, 2, rcs_dhndl );
 		fwrite( &rcs_index[idx].name[0], 1, 10, rcs_dhndl );
 	}
 }
@@ -170,7 +166,7 @@ static void wr_sync(void)
 static void wr_header(void)
 {
 	fseek(rcs_rhndl, 0, SEEK_SET);
-	fwrite((void *)head, sizeof(RSHDR), 1, rcs_rhndl);
+	rsc_fwrite_header(rcs_rhndl, head);
 }
 
 static void c_defline(char *name, short val)
@@ -342,7 +338,7 @@ static void wr_freestr(void)
 		for (ifree = 0; ifree < nfree; c_freestr(ifree++))
 			;
 		nfree *= (short)sizeof(long);
-		fwrite((void *)str_ptr(0), 1, nfree, rcs_rhndl);
+		rsc_fwrite_longs(rcs_rhndl, str_ptr(0), nfree / (short)sizeof(long));
 		(*(unsigned short *)(RSH_FRSTR(head)) = (rcs_wraddr));
 		rcs_wraddr += nfree;
 	}
@@ -508,8 +504,8 @@ static void wr_iconblk(long tree, short which)
 		if ( iconblk != -1L)
 		{
 			SET_SPEC(tree, which, (long) rcs_wraddr & 0xffff);
-			fwrite((void *)iconblk, sizeof(ICONBLK), 1, rcs_rhndl);
-			rcs_wraddr += (short)sizeof(ICONBLK);
+			rsc_fwrite_iconblk(rcs_rhndl, iconblk);
+			rcs_wraddr += DISK_ICONBLK_SIZE;
 			LWINC(RSH_NIB(head));
 			c_iconblk(iconblk);
 		}
@@ -553,8 +549,8 @@ static void wr_bitblk(long tree, short which)
 		if ( bitblk != -1L)
 		{
 			SET_SPEC(tree, which, (long) rcs_wraddr & 0xffff);
-			fwrite((void *)bitblk, sizeof(BITBLK), 1, rcs_rhndl);
-			rcs_wraddr += (short)sizeof(BITBLK);
+			rsc_fwrite_bitblk(rcs_rhndl, bitblk);
+			rcs_wraddr += DISK_BITBLK_SIZE;
 			LWINC(RSH_NBB(head));
 			c_bitblk(bitblk);
 		}
@@ -574,8 +570,8 @@ static void map_frbit(void)
 			if ( (bitblk = img_addr(ifree)) == -1L)
 				break;
 			(*(long *)(img_ptr(ifree)) = ((long) rcs_wraddr & 0xffff));
-			fwrite((void *)bitblk, sizeof(BITBLK), 1, rcs_rhndl);
-			rcs_wraddr += (short)sizeof(BITBLK);
+			rsc_fwrite_bitblk(rcs_rhndl, bitblk);
+			rcs_wraddr += DISK_BITBLK_SIZE;
 			LWINC(RSH_NBB(head));
 			c_bitblk(bitblk);
 		}
@@ -598,7 +594,7 @@ static void c_frb(long addr)
 
 	if (rcs_cflag)
 	{
-		blkno = (short) ((addr - (*(unsigned short *)(RSH_BITBLK(head)))) / sizeof(BITBLK));
+		blkno = (short) ((addr - (*(unsigned short *)(RSH_BITBLK(head)))) / DISK_BITBLK_SIZE);
 		c_comma(c_nfrbit);
 		sprintf(hline, "%dL", blkno);
 		c_wrlin();
@@ -616,7 +612,7 @@ static void wr_frbit(void)
 		for (ifree = 0; ifree < nfree; ifree++)
 			c_frb(img_addr(ifree));
 		nfree *= (short)sizeof(long);
-		fwrite((void *)img_ptr(0), 1, nfree, rcs_rhndl);
+		rsc_fwrite_longs(rcs_rhndl, img_ptr(0), nfree / (short)sizeof(long));
 		(*(unsigned short *)(RSH_FRIMG(head)) = (rcs_wraddr));
 		rcs_wraddr += nfree;
 	}
@@ -665,8 +661,8 @@ static void wr_tedinfo(long tree, short which)
 		if ( tedinfo != -1L)
 		{
 			SET_SPEC(tree, which, (long) rcs_wraddr & 0xffff);
-			fwrite((void *)tedinfo, sizeof(TEDINFO), 1, rcs_rhndl);
-			rcs_wraddr += (short)sizeof(TEDINFO);
+			rsc_fwrite_tedinfo(rcs_rhndl, tedinfo);
+			rcs_wraddr += DISK_TEDINFO_SIZE;
 			LWINC(RSH_NTED(head));
 			c_tedinfo(tedinfo);
 		}
@@ -709,11 +705,11 @@ static void c_object(long tree)
 				break;
 			case G_IMAGE:
 				here.spec = ( (short) here.spec - (*(unsigned short *)(RSH_BITBLK(head))) )
-					/ sizeof(BITBLK);
+					/ DISK_BITBLK_SIZE;
 				break;
 			case G_ICON:
 				here.spec = ( (short) here.spec - (*(unsigned short *)(RSH_ICONBLK(head))) )
-					/ sizeof(ICONBLK);
+					/ DISK_ICONBLK_SIZE;
 				break;
 			default:
 				break;
@@ -761,8 +757,8 @@ static void wr_obj(short itree, long tree, short iobj)
 	unfix_chpos(OB_Y(where), 1);
 	unfix_chpos(OB_HEIGHT(where), 1);
 	object = tree + (unsigned short) (where * sizeof(OBJECT));
-	fwrite((void *)object, sizeof(OBJECT), 1, rcs_rhndl);
-	rcs_wraddr += (short)sizeof(OBJECT);
+	rsc_fwrite_object(rcs_rhndl, object);
+	rcs_wraddr += DISK_OBJECT_SIZE;
 	c_object(object);
 }
 
@@ -819,7 +815,7 @@ static void wr_trindex(void)
 	short	ntree, itree;
 
 	ntree = (*(unsigned short *)(RSH_NTREE(head)));
-	fwrite((void *)tree_ptr(0), sizeof(long), ntree, rcs_rhndl);
+	rsc_fwrite_longs(rcs_rhndl, tree_ptr(0), ntree);
 
 	for (itree = 0; itree < ntree; itree++)
 		c_tree(tree_addr(itree));

@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "rcsdefs.h"
+#include "rcsdisk.h"
 #include "rcs.h"
 #include "rcslib.h"
 #include "rcsintf.h"
@@ -558,6 +559,9 @@ long get_mem(unsigned short bytes)
 	long	ret;
 	long	left;
 
+	/* what is put here may be a structure the host wants aligned (ARM: 4) */
+	while (rcs_free % __alignof__(long))
+		rcs_free++;
 	ret = rcs_free;
 	if (bytes & 0x1)
 		bytes++;
@@ -924,7 +928,7 @@ static void tally_str(long addr)
 static void tally_bb(long addr)
 {
 	rcs_tally.nbb++;
-	rcs_tally.nbytes += (unsigned short) sizeof(BITBLK);
+	rcs_tally.nbytes += (unsigned short) DISK_BITBLK_SIZE;
 	if ((*(long *)(BI_PDATA(addr))) != -1L)
 	{
 		rcs_tally.nimg++;
@@ -945,7 +949,7 @@ void tally_free(void)
 
 	rcs_tally.nbb += (*(unsigned short *)(RSH_NIMAGES(head)));
 	rcs_tally.nbytes += (unsigned short) ((*(unsigned short *)(RSH_NIMAGES(head))) * 
-		(sizeof(long) + sizeof(BITBLK)));
+		(sizeof(long) + DISK_BITBLK_SIZE));
   	free = (long *) ( head + ((unsigned short)((*(unsigned short *)(RSH_FRIMG(head))))) );
 	for (i = 0; i < (*(unsigned short *)(RSH_NIMAGES(head))); i++)
 		tally_bb( *(free + i));
@@ -989,7 +993,7 @@ void tally_obj(long tree, short obj)
 			if (taddr == -1L)
 				return;
 			rcs_tally.nib++;
-			rcs_tally.nbytes += (unsigned short) sizeof(ICONBLK);
+			rcs_tally.nbytes += (unsigned short) DISK_ICONBLK_SIZE;
 			size = ((*(short *)(IB_WICON(taddr))) + 7) / 8;
 			size *= (*(short *)(IB_HICON(taddr)));
 			if ((*(long *)(IB_PDATA(taddr))) != -1L)

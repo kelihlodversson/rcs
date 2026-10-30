@@ -5,6 +5,7 @@
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
 #include <gem.h>
+#include "rcsdisk.h"
 #include <stdbool.h>
 #include <string.h>
 #include <mint/osbind.h>
@@ -835,9 +836,11 @@ static void set_opstate(short index)
 	deflt_options[index].state = true;
 }
 
+static unsigned char inf_buf[4 * NOPTS];
+
 void read_inf(short flag)
 {
-	short total_opt;
+	short total_opt, idx;
 
 	r_infhndl = fopen(&rcs_infile[0], "rb");
 	if (r_infhndl == NULL)
@@ -855,8 +858,14 @@ void read_inf(short flag)
 	}
 	else
 	{
-		total_opt = (short)sizeof(DEFLTS) * NOPTS;
-		dmcopy(r_infhndl, 0x0L, (long)((long)(&deflt_options)), total_opt);
+		/* the file keeps the options as big-endian words */
+		total_opt = 4 * NOPTS;
+		dmcopy(r_infhndl, 0x0L, (long)((long)(inf_buf)), total_opt);
+		for (idx = 0; idx < NOPTS; idx++)
+		{
+			deflt_options[idx].option = rd_be16(&inf_buf[4 * idx]);
+			deflt_options[idx].state = rd_be16(&inf_buf[4 * idx + 2]);
+		}
 		rcs_fsrtflag = get_opstate( find_opt( FSRTITEM ));
 		rcs_cflag = get_opstate( find_opt( SRCITEM));
 		rcs_hflag = get_opstate( find_opt( CITEM));
@@ -920,7 +929,12 @@ void wrte_inf(void)
 			set_opstate(find_opt(SAFELOCK));
 		if (rcs_xpert)
 			set_opstate(find_opt(SAFEXPRT));
-		fwrite( deflt_options, sizeof(DEFLTS), NOPTS, r_infhndl );
+		for ( idx = 0; idx < NOPTS; idx++ )
+		{
+			wr_be16(&inf_buf[4 * idx], deflt_options[idx].option);
+			wr_be16(&inf_buf[4 * idx + 2], deflt_options[idx].state);
+		}
+		fwrite( inf_buf, 1, 4 * NOPTS, r_infhndl );
 		fwrite( rsc_path, 1, 1, r_infhndl );
 		if (rsc_path[0])
 			fwrite( &rsc_path[1], 1, (size_t)(rsc_path[0]+1), r_infhndl );

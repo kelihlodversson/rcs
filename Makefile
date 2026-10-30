@@ -16,7 +16,8 @@ RCS_SRC  = $(wildcard src/rcs*.c)
 PRG_SRC  = src/atari/prostart.c $(RCS_SRC)
 PRG_NAME = RCS.PRG
 
-STD      = -std=gnu99
+# the sources read and write their records through casts of addresses
+STD      = -std=gnu99 -fno-strict-aliasing
 # the sources are 1985 code, warnings and all: not -Wextra or -Werror yet
 WARN     = -Wall
 # __GEMLIB_OLDNAMES: the old AES names (NORMAL, SELECTED, ...) the sources use

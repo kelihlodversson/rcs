@@ -529,14 +529,14 @@ void LWINC(long x)
 	(*(short *)(x) = (1 + (*(short *)(x))));
 }
 
-short dmcopy(FILE *stream, long msrc, long mdest, short mln)	/* disk to memory copy */
+short dmcopy(FILE *stream, long msrc, long mdest, long mln)	/* disk to memory copy */
 {
 	if (fseek(stream, msrc, SEEK_SET))
 		return( 0 );
-	else if ( fread( (void *)mdest, 1, mln, stream) < mln)
+	else if ( fread( (void *)mdest, 1, mln, stream) < (size_t)mln)
 		return( 0 );
 	else
-		return(mln);
+		return(mln != 0);
 } /* dmcopy */
 
 static long obj_addr(long tree, short obj, short offset)

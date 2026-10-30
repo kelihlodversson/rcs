@@ -5,6 +5,7 @@
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
 #include <gem.h>
+#include "rcsdisk.h"
 #include <string.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -41,9 +42,10 @@
 #define APP_LO2RESV (rs_global + 20)
 
 static short read_68k(short merge)
-/* simulate IBM PC data storage in "*.def" files. */
+/* the "*.def" files keep the structure of the IBM PC: little-endian */
 {
-	unsigned short	idx, old_ndxno, rd_ndxno, rd_val, rd_kind;
+	unsigned short	idx, old_ndxno;
+	unsigned char	b[2];
 
 	if ( merge )
 		old_ndxno = rcs_ndxno;
@@ -52,24 +54,24 @@ static short read_68k(short merge)
 
 	if ( fseek( rcs_dhndl, 0, SEEK_SET) )
 		return( rcs_ndxno = 0 );
-	else if (fread( &rd_ndxno, 1, 2, rcs_dhndl ) != 2)
+	else if (fread( b, 1, 2, rcs_dhndl ) != 2)
 		return( rcs_ndxno = 0);
 	else
 	{
-		rcs_ndxno = swap_bytes( rd_ndxno );
+		rcs_ndxno = rd_le16( b );
 		rcs_ndxno = old_ndxno + rcs_ndxno;
 		for ( idx = old_ndxno; idx < rcs_ndxno; idx++)
 		{
-			if (fread( &rd_val, 1, 2, rcs_dhndl ) != 2)
+			if (fread( b, 1, 2, rcs_dhndl ) != 2)
 				return( rcs_ndxno = 0 );
 			else
 			{
-				rcs_index[idx].val = (char *) ( ((short)(swap_bytes(rd_val))) & 0xffffL );
-				if (fread( &rd_kind, 1, 2, rcs_dhndl ) != 2)
+				rcs_index[idx].val = (char *) ( ((short)rd_le16( b )) & 0xffffL );
+				if (fread( b, 1, 2, rcs_dhndl ) != 2)
 					return( rcs_ndxno = 0 );
 				else
 				{
-					rcs_index[idx].kind = swap_bytes( rd_kind );
+					rcs_index[idx].kind = rd_le16( b );
 					if (fread( &rcs_index[idx].name[0], 1, 10, rcs_dhndl ) != 10)
 						return( rcs_ndxno = 0 );
 				}
@@ -427,23 +429,28 @@ short read_files(void)
 	if ( ad_clip ) 
 		clr_clip();
 	ini_buff();
-	if ( !dmcopy(rcs_rhndl, 0x0L, head, (short)sizeof(RSHDR)))
+	/* the file is big-endian: the header is read as it is on disk, and the
+	   whole image is turned into the host's form when it is all there */
+	if ( !dmcopy(rcs_rhndl, 0x0L, head, DISK_RSHDR_SIZE) ||
+		rd_be16((void *)RSH_RSSIZE(head)) < DISK_RSHDR_SIZE)
 	{
 		fclose(rcs_rhndl);
 		ini_buff();
 		return (false);
 	}
-	else if (avail_mem() < ((unsigned short)((*(unsigned short *)(RSH_RSSIZE(head)))))) 
+	else if (avail_mem() < (long)rd_be16((void *)RSH_RSSIZE(head))) 
 	{
+		fclose(rcs_rhndl);
 		hndl_alert(1, string_addr(STNROOM) );
 		ini_buff();
 		return (false);
 	}
 	else
 	{
-		if (!dmcopy(rcs_rhndl, (long)sizeof(RSHDR),
-				head + sizeof(RSHDR),
-				(*(unsigned short *)(RSH_RSSIZE(head))) - (short)sizeof(RSHDR)))
+		short	disksize = rd_be16((void *)RSH_RSSIZE(head));
+
+		if (!dmcopy(rcs_rhndl, DISK_RSHDR_SIZE,
+				head + DISK_RSHDR_SIZE, disksize - DISK_RSHDR_SIZE))
 		{
 			fclose(rcs_rhndl);
 			ini_buff();
@@ -452,10 +459,16 @@ short read_files(void)
 		else
 		{
 			fclose(rcs_rhndl);
-			rcs_free = (head + ((unsigned short)((*(unsigned short *)(RSH_RSSIZE(head))))) );
-
+			rcs_free = head + (unsigned short)disksize;
 			if (rcs_free & 0x1) 
 	    		rcs_free++;
+
+			if (!rsc_to_native(head, 0L))
+			{
+				hndl_alert(1, string_addr(STNROOM) );
+				ini_buff();
+				return (false);
+			}
 
 			rs_hdr = head;
 			fix_all();
@@ -516,46 +529,64 @@ short read_files(void)
 	}
 }
 
+/* the file image just read to merge is made the host's form; what follows
+   it is free again */
+static short native_image(long merge, long size)
+{
+	rcs_free = merge + size;
+	if (rcs_free & 1)
+		rcs_free++;
+	return rsc_to_native(merge, head + (*(unsigned short *)(RSH_OBJECT(head))));
+}
+
 short merge_files(void)
 {
-	unsigned short	foo, indoff;
+	unsigned short	indoff;
 	short	total, i, ii;
 	short	nobj, ntree, old_ntree;
-	long	merge, oldndx, newndx, old_ndxno, frstr, frimg, here;
+	long	merge, oldndx, newndx, old_ndxno, frstr, frimg;
+	long	size, objoff, foo_l;
 
-	merge = get_mem((short)sizeof(RSHDR));
-	if (!dmcopy(rcs_rhndl, 0x0L, merge, (short)sizeof(RSHDR) ))
+	/* the header, as it is on disk, tells how much to read and where the
+	   objects are */
+	merge = rcs_free;
+	if (avail_mem() < DISK_RSHDR_SIZE || !dmcopy(rcs_rhndl, 0x0L, merge, DISK_RSHDR_SIZE))
 	{ 
 		fclose(rcs_rhndl);
 		return(false);
 	}
-	else
+	size = rd_be16((void *)RSH_RSSIZE(merge));
+	objoff = rd_be16((void *)RSH_OBJECT(merge));
+	if (size < DISK_RSHDR_SIZE)
 	{
-		if (rcs_low || avail_mem() < (unsigned short) (*(unsigned short *)(RSH_RSSIZE(merge))) - 
-			(unsigned short) sizeof(RSHDR) )
+		fclose(rcs_rhndl);
+		return(false);
+	}
+	{
+		/* synchronize objects: the objects of the file go to an address
+		   that is a multiple of an OBJECT away from the ones of this file */
+		foo_l = ((merge + objoff) - (head + (*(unsigned short *)(RSH_OBJECT(head)))))
+			% (long)sizeof(OBJECT);
+		if (foo_l)
+			merge += (long)sizeof(OBJECT) - foo_l;
+
+		if (rcs_low || avail_mem() - (merge - rcs_free) < size)
 		{
+			fclose(rcs_rhndl);
 			hndl_alert(1, string_addr(STNROOM));
 			return(false);
 		}
 		else
 		{
-			/* synchronize objects */
-			foo = (unsigned short) (( merge + ((unsigned short)((*(unsigned short *)(RSH_OBJECT(merge))))) ) -
-				( head + ((unsigned short)((*(unsigned short *)(RSH_OBJECT(head))))) ));
-			foo %= (short)sizeof(OBJECT);
-			if (foo) 
-			{
-				get_mem(foo = (short)(sizeof(OBJECT) - foo));
-				merge = merge + foo;
-				dmcopy(rcs_rhndl, 0x0L, merge, (short)sizeof(RSHDR));
-			}
-
-			here = get_mem((unsigned short) (*(unsigned short *)(RSH_RSSIZE(merge))) - 
-				(unsigned short) sizeof(RSHDR));
-			if (!dmcopy (rcs_rhndl, (long) sizeof(RSHDR), 
-				here, (*(unsigned short *)(RSH_RSSIZE(merge)))))
+			if (!dmcopy(rcs_rhndl, 0x0L, merge, size))
 			{
 				fclose(rcs_rhndl);
+				return(false);
+			}
+			else if (!native_image(merge, size))
+			{
+				fclose(rcs_rhndl);
+				hndl_alert(1, string_addr(STNROOM));
 				return(false);
 			}
 			else
