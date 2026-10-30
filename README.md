@@ -44,7 +44,22 @@ The original build of the Atari version is `src/atari/rcs.prj`, for Pure C
 
 ## Building
 
-There is no build system yet.
+    git submodule update --init
+    make m68k      # build/m68k/SMOKE.PRG
+    make arm       # build/arm/SMOKE.PRG
+    make libs      # gemlib and libcmini for both targets only
+
+On macOS use `gmake`. `docs/toolchains.md` says which toolchains are needed.
+The libraries are the `kelihlodversson` forks of gemlib and libcmini, in
+`third_party/`.
+
+The build is the one of [TypeShelf](https://github.com/kelihlodversson/TypeShelf).
+What it builds so far is `SMOKE.PRG`, a few lines that link against gemlib and
+libcmini to show that each toolchain works, not RCS: the sources in `src/` still
+use the headers of the original GEM release (`portab.h`, `obdefs.h`,
+`gembind.h`, `rclib.h`), which neither library has, and have to be ported to
+gemlib first. They move into the Makefile's `PRG_SRC` as they are ported.
+CI (`.github/workflows/build.yml`) builds both targets on every pull request.
 
 ## Origin and license
 

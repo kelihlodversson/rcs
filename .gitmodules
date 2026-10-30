@@ -1,0 +1,8 @@
+[submodule "third_party/gemlib"]
+	path = third_party/gemlib
+	url = https://github.com/kelihlodversson/gemlib.git
+	ignore = dirty
+[submodule "third_party/libcmini"]
+	path = third_party/libcmini
+	url = https://github.com/kelihlodversson/libcmini.git
+	ignore = dirty
