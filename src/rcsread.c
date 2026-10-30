@@ -58,8 +58,10 @@ static short read_68k(short merge)
 		return( rcs_ndxno = 0);
 	else
 	{
-		rcs_ndxno = rd_le16( b );
-		rcs_ndxno = old_ndxno + rcs_ndxno;
+		/* a count that does not fit is not a file of this format */
+		if ( rd_le16( b ) > NDXSIZE - old_ndxno )
+			return( rcs_ndxno = 0 );
+		rcs_ndxno = old_ndxno + rd_le16( b );
 		for ( idx = old_ndxno; idx < rcs_ndxno; idx++)
 		{
 			if (fread( b, 1, 2, rcs_dhndl ) != 2)
