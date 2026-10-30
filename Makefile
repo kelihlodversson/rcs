@@ -26,9 +26,10 @@ INCLUDES = -Isrc -Isrc/atari -I$(GEMLIB) -I$(LIBCMINI)/include -D__GEMLIB_OLDNAM
 all: m68k
 
 # RCS loads RCS.RSC (RCSLOW.RSC on a low resolution screen) from the folder it
-# was started in, so they go next to the program; the .DFN files are the
-# definition files of those two resource files
-RES_FILES = RCS.RSC RCSLOW.RSC RCS.DFN RCSLOW.DFN
+# was started in, so they go next to the program.  The .DFN files in src/atari
+# name the objects of those resource files; they are only needed to regenerate
+# rcs.h, not to run the program.
+RES_FILES = RCS.RSC RCSLOW.RSC
 
 m68k: build/m68k/$(PRG_NAME) $(addprefix build/m68k/,$(RES_FILES))
 arm: build/arm/$(PRG_NAME) $(addprefix build/arm/,$(RES_FILES))
@@ -37,12 +38,6 @@ build/%/RCS.RSC: src/atari/rcs.rsc
 	@mkdir -p $(dir $@)
 	cp $< $@
 build/%/RCSLOW.RSC: src/atari/rcslow.rsc
-	@mkdir -p $(dir $@)
-	cp $< $@
-build/%/RCS.DFN: src/atari/rcs.dfn
-	@mkdir -p $(dir $@)
-	cp $< $@
-build/%/RCSLOW.DFN: src/atari/rcslow.dfn
 	@mkdir -p $(dir $@)
 	cp $< $@
 

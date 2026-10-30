@@ -45,7 +45,7 @@ The original build of the Atari version is `src/atari/rcs.prj`, for Pure C
 ## Building
 
     git submodule update --init
-    make m68k      # build/m68k/RCS.PRG, with RCS.RSC, RCSLOW.RSC and the .DFN files
+    make m68k      # build/m68k/RCS.PRG, with RCS.RSC and RCSLOW.RSC
     make arm       # build/arm/RCS.PRG, with the same resource files
     make libs      # gemlib and libcmini for both targets only
 
