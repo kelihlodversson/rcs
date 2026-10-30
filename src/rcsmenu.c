@@ -79,7 +79,7 @@ short blank_menu(long tree, short sobj)
 	blank_obj.ob_width = GET_WIDTH(tree, sobj);
 	blank_obj.ob_height = gl_hchar;
 	dobj_ptr = get_obmem();
-	memcpy((void *)(dobj_ptr), (void *)(((long)(&blank_obj))), sizeof(OBJECT));
+	memmove((void *)(dobj_ptr), (void *)(((long)(&blank_obj))), sizeof(OBJECT));
 	return (short) ((dobj_ptr - tree) / sizeof(OBJECT));
 }
 

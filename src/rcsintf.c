@@ -747,11 +747,11 @@ void info_dial(short obj)
 			clr_tally();
 			map_all((fkt_parm)tally_obj);
 			tally_free();
-			rcs_tally.nbytes += (*(short *)(RSH_NTREE(head))) * sizeof(long);
+			rcs_tally.nbytes += (*(unsigned short *)(RSH_NTREE(head))) * sizeof(long);
 			rcs_tally.nbytes += sizeof(RSHDR);
 			mouse_form(ARROW);
-			temp = (*(short *)(RSH_NTREE(head)));
-			sprintf(ntree, "%hd", temp);
+			temp = (*(unsigned short *)(RSH_NTREE(head)));
+			sprintf(ntree, "%d", temp);
 			SET_SPEC(tree, INFOTREE, (long)((long)(ntree)));
 		}
 		else
@@ -789,17 +789,17 @@ void info_dial(short obj)
 
 	SET_SPEC(tree, INFONAME, name);
 	SET_X(tree, INFONAME, (short)(gl_wchar * (25 - strlen((char *)(name)) / 2)));
-	sprintf(nobj, "%hd", rcs_tally.nobj);
+	sprintf(nobj, "%d", rcs_tally.nobj);
 	SET_SPEC(tree, INFOOBJ, (long)((long)(nobj)));
-	sprintf(nib, "%hd", rcs_tally.nib);
+	sprintf(nib, "%d", rcs_tally.nib);
 	SET_SPEC(tree, INFOIB, (long)((long)(nib)));
-	sprintf(nbb, "%hd", rcs_tally.nbb);
+	sprintf(nbb, "%d", rcs_tally.nbb);
 	SET_SPEC(tree, INFOBB, (long)((long)(nbb)));
-	sprintf(nti, "%hd", rcs_tally.nti);
+	sprintf(nti, "%d", rcs_tally.nti);
 	SET_SPEC(tree, INFOTI, (long)((long)(nti)));
-	sprintf(nimg, "%hd", rcs_tally.nimg);
+	sprintf(nimg, "%d", rcs_tally.nimg);
 	SET_SPEC(tree, INFOIMG, (long)((long)(nimg)));
-	sprintf(nstr, "%hd", rcs_tally.nstr);
+	sprintf(nstr, "%d", rcs_tally.nstr);
 	SET_SPEC(tree, INFOSTR, (long)((long)(nstr)));
 	sprintf(ntot, "%ld", rcs_tally.nbytes);
 	SET_SPEC(tree, INFOTOT, (long)((long)(ntot)));

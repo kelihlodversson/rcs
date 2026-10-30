@@ -49,7 +49,7 @@ short fit_htrees(void)
 
 short need_vtrees(void)
 {
-	return (1 + ((*(short *)(RSH_NTREE(head))) - 1) / max(1, fit_htrees()));
+	return (1 + ((*(unsigned short *)(RSH_NTREE(head))) - 1) / max(1, fit_htrees()));
 }
 
 short snap_trs(short tr)
@@ -88,14 +88,14 @@ void view_trees(void)
 	rcs_work[0].ob_width = view.g_w;
 	rcs_work[0].ob_height = view.g_h;
 
-	if (!(*(short *)(RSH_NTREE(head))))
+	if (!(*(unsigned short *)(RSH_NTREE(head))))
 	{
 		rcs_work[0].ob_head = NIL;
 		rcs_work[0].ob_tail = NIL;
 	}
 	else
 	{
-		nobj = min(VIEWSIZE, (*(short *)(RSH_NTREE(head))) - rcs_trpan); 
+		nobj = min(VIEWSIZE, (*(unsigned short *)(RSH_NTREE(head))) - rcs_trpan); 
 		nobj = min(nobj, fit_vtrees() * (nh = fit_htrees()));
 
 		rcs_work[0].ob_head = 1;	/* root pointers */
@@ -122,7 +122,7 @@ void view_trees(void)
 			where = find_tree(iobj + rcs_trpan - 1);
 			kind = get_kind(where);
 			iconad = GET_SPEC(tree, rcs_typ2icn[kind]);
-			memcpy((void *)(((long)(&rcs_icons[iobj]))), (void *)(iconad), sizeof(ICONBLK));	
+			memmove((void *)(((long)(&rcs_icons[iobj]))), (void *)(iconad), sizeof(ICONBLK));	
 			rcs_icons[iobj].ib_ptext = 		/* address of tree */
 				(char *)((long)(get_name(where)));
 			rcs_icons[iobj].ib_wtext =
@@ -162,8 +162,8 @@ void del_tree(short sobj)
 		hndl_locked();
 	else if (sobj != ROOT)
 	{
-		nobj = (*(short *)(RSH_NTREE(head)));
-		(*(short *)(RSH_NTREE(head)) = (--nobj));
+		nobj = (*(unsigned short *)(RSH_NTREE(head)));
+		(*(unsigned short *)(RSH_NTREE(head)) = (--nobj));
 
 		zap_objindex( tree_addr(sobj - 1), ROOT);
 		for (iobj = sobj; iobj <= nobj; iobj++)
@@ -194,7 +194,7 @@ static short posn_tree(short dobj, short dx, short dy)
 {
 	short	iobj, iy, nh, ix, nobj;
 
-	nobj = (*(short *)(RSH_NTREE(head)));
+	nobj = (*(unsigned short *)(RSH_NTREE(head)));
 	if (dobj == ROOT)
 	{
 		ix = 1 + (dx - view.g_x + MIN_WINT) / (ICON_W + MIN_WINT);
@@ -212,7 +212,7 @@ static long ins_tree(long stree, short sobj, short kind, short dobj, short dx, s
 	char	name[9];
 
 	dtree = copy_tree(stree, sobj, true);
-	unique_name(&name[0], "TREE%hd", (*(short *)(RSH_NTREE(head))) + 1);
+	unique_name(&name[0], "TREE%d", (*(unsigned short *)(RSH_NTREE(head))) + 1);
 	if (new_index( (char *) dtree, kind, &name[0]) == NIL)
 	{
 		hndl_alert(1, string_addr(STNFULL));
@@ -221,7 +221,7 @@ static long ins_tree(long stree, short sobj, short kind, short dobj, short dx, s
 	else
 	{
 		add_trindex(dtree);
-		dobj = mov_tree((*(short *)(RSH_NTREE(head))), dobj, dx, dy);
+		dobj = mov_tree((*(unsigned short *)(RSH_NTREE(head))), dobj, dx, dy);
 		select_tree(ad_view, trunpan_f(dobj));
 		name_tree(dobj);
 		dselct_tree(ad_view, trunpan_f(dobj));

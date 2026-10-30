@@ -262,32 +262,32 @@ unsigned short	color_map[16] = { 0x0000, 0x000f, 0x0001, 0x0002, 0x0004,
 	-1, -1, -1, G_BOX, HIDETREE, NORMAL, 0x00FF1100L, 0, 0, 8, 1 };
 
 	char	*hptns[] = {
-	"#define %s %hd  \t/* TREE */\n",
-	"#define %s %hd  \t/* STRING */\n",
-	"#define %s %hd  \t/* OBJECT in TREE #%hd */\n",
-	"#define %s %hd	\t/* FREE STRING */\n",
-	"#define %s %hd	\t/* FREE IMAGE */\n" };
+	"#define %s %d  \t/* TREE */\n",
+	"#define %s %d  \t/* STRING */\n",
+	"#define %s %d  \t/* OBJECT in TREE #%d */\n",
+	"#define %s %d	\t/* FREE STRING */\n",
+	"#define %s %d	\t/* FREE IMAGE */\n" };
 
 	char	*optns[] = {
-	"      %s = %hd;  \t(* TREE *)\n",
-	"      %s = %hd;  \t(* STRING *)\n",
-	"      %s = %hd;  \t(* OBJECT in TREE #%hd *)\n",
-	"      %s = %hd;  \t(* FREE STRING *)\n",
-	"      %s = %hd;  \t(* FREE IMAGE *)\n" };
+	"      %s = %d;  \t(* TREE *)\n",
+	"      %s = %d;  \t(* STRING *)\n",
+	"      %s = %d;  \t(* OBJECT in TREE #%d *)\n",
+	"      %s = %d;  \t(* FREE STRING *)\n",
+	"      %s = %d;  \t(* FREE IMAGE *)\n" };
 
 	char	*bptns[] = {
-	"      %s = %hd;  REM ---TREE---\n",
-	"      %s = %hd;  REM ---STRING---\n",
-	"      %s = %hd;  REM ---OBJECT in TREE #%hd---\n",
-	"      %s = %hd;  REM ---FREE STRING---\n",
-	"      %s = %hd;  REM ---FREE IMAGE---\n" };
+	"      %s = %d;  REM ---TREE---\n",
+	"      %s = %d;  REM ---STRING---\n",
+	"      %s = %d;  REM ---OBJECT in TREE #%d---\n",
+	"      %s = %d;  REM ---FREE STRING---\n",
+	"      %s = %d;  REM ---FREE IMAGE---\n" };
 
 	char	*fptns[] = {
-	"\tPARAMETER (%s = %hd)\n",
-	"\tPARAMETER (%s = %hd)\n",
-	"\tPARAMETER (%s = %hd)\n",
-	"\tPARAMETER (%s = %hd)\n",
-	"\tPARAMETER (%s = %hd)\n" };
+	"\tPARAMETER (%s = %d)\n",
+	"\tPARAMETER (%s = %d)\n",
+	"\tPARAMETER (%s = %d)\n",
+	"\tPARAMETER (%s = %d)\n",
+	"\tPARAMETER (%s = %d)\n" };
 
 	long	rs_hdr;
 	long	head;
@@ -312,17 +312,17 @@ void ini_buff(void)
 
 long tree_ptr(short n)
 {
-	return (head + ((short)((*(short *)(RSH_TRINDEX(head))))) + (long) (n * sizeof(long)));
+	return (head + ((unsigned short)((*(unsigned short *)(RSH_TRINDEX(head))))) + (long) (n * sizeof(long)));
 }  
 
 long str_ptr(short n)
 {
-	return (head + ((short)((*(short *)(RSH_FRSTR(head))))) + (long) (n * sizeof(long)));
+	return (head + ((unsigned short)((*(unsigned short *)(RSH_FRSTR(head))))) + (long) (n * sizeof(long)));
 }
 
 long img_ptr(short n)
 {
-	return (head + ((short)((*(short *)(RSH_FRIMG(head))))) + (long) (n * sizeof(long)));
+	return (head + ((unsigned short)((*(unsigned short *)(RSH_FRIMG(head))))) + (long) (n * sizeof(long)));
 }
 
 long tree_addr(short n)
@@ -375,7 +375,7 @@ static void del_index(short key)
 {
 	rcs_ndxno--;
 	if (key < rcs_ndxno)
-		memcpy((char *)&rcs_index[key],
+		memmove((char *)&rcs_index[key],
 			(char *)&rcs_index[key+1],
 			sizeof(INDEX) * (rcs_ndxno - key));
 }
@@ -580,7 +580,7 @@ long  get_obmem(void)
 {
 	unsigned short	foo;
 
-	foo = (unsigned short) (rcs_free - ( head + ((short)((*(short *)(RSH_OBJECT(head)))))));
+	foo = (unsigned short) (rcs_free - ( head + ((unsigned short)((*(unsigned short *)(RSH_OBJECT(head)))))));
 	
 	foo %= (unsigned short) sizeof(OBJECT);
  	/* synchronize to even OBJECT	*/
@@ -604,7 +604,7 @@ static long copy_ti(long source)
 	long	dest;
 
 	dest = get_mem((unsigned short) sizeof(TEDINFO));
-	memcpy((void *)(dest), (void *)(source), sizeof(TEDINFO));
+	memmove((void *)(dest), (void *)(source), sizeof(TEDINFO));
 	return (dest);
 }
 
@@ -613,7 +613,7 @@ static long copy_ib(long source)
 	long	dest;
 
 	dest = get_mem((unsigned short) sizeof(ICONBLK));
-	memcpy((void *)(dest), (void *)(source), sizeof(ICONBLK));
+	memmove((void *)(dest), (void *)(source), sizeof(ICONBLK));
 	return (dest);
 }
 
@@ -622,7 +622,7 @@ static long copy_bb(long source)
 	long	dest;
 
 	dest = get_mem((unsigned short) sizeof(BITBLK));
-	memcpy((void *)(dest), (void *)(source), sizeof(BITBLK));
+	memmove((void *)(dest), (void *)(source), sizeof(BITBLK));
 	return (dest);
 }
 
@@ -681,7 +681,7 @@ short copy_objs(long stree, short obj, long dtree, short specopy)
 	for (iobj = 0; iobj < wr_obnum; iobj++)
 	{
 		here = get_obmem();
-		memcpy((void *)(here), (void *)(stree + (unsigned short) (wr_obndx[iobj] * sizeof(OBJECT))), sizeof(OBJECT));
+		memmove((void *)(here), (void *)(stree + (unsigned short) (wr_obndx[iobj] * sizeof(OBJECT))), sizeof(OBJECT));
 		thisobj = (unsigned short) ((here - tree) / sizeof(OBJECT));
 		if (!iobj)
 		{
@@ -717,8 +717,8 @@ long mak_trindex(short nentry)
 	short	nobj, iobj;
 	unsigned short	indoff;
 
-	nobj = (*(short *)(RSH_NTREE(head)));
-	(*(short *)(RSH_NTREE(head)) = (nobj + nentry));
+	nobj = (*(unsigned short *)(RSH_NTREE(head)));
+	(*(unsigned short *)(RSH_NTREE(head)) = (nobj + nentry));
 
 	trindex = get_mem((unsigned short) sizeof(long) * (nobj + nentry));
 	indoff = (unsigned short) (trindex - head);
@@ -729,7 +729,7 @@ long mak_trindex(short nentry)
 		trindex += (unsigned short) sizeof(long);
 	}
 
-	(*(short *)(RSH_TRINDEX(head)) = (indoff));
+	(*(unsigned short *)(RSH_TRINDEX(head)) = (indoff));
 	return (trindex);
 }
 
@@ -747,8 +747,8 @@ long mak_frstr(short nentry)
 	short	nobj, iobj;
 	unsigned short	indoff;
 
-	nobj = (*(short *)(RSH_NSTRING(head)));
-	(*(short *)(RSH_NSTRING(head)) = (nobj + nentry));
+	nobj = (*(unsigned short *)(RSH_NSTRING(head)));
+	(*(unsigned short *)(RSH_NSTRING(head)) = (nobj + nentry));
 
 	frstr = get_mem((unsigned short) sizeof(long) * (nobj + nentry));
 	indoff = (unsigned short) (frstr - head);
@@ -759,7 +759,7 @@ long mak_frstr(short nentry)
 		frstr += (unsigned short) sizeof(long);
 	}
 
-	(*(short *)(RSH_FRSTR(head)) = (indoff));
+	(*(unsigned short *)(RSH_FRSTR(head)) = (indoff));
 	return (frstr);
 }
 
@@ -769,8 +769,8 @@ static long mak_frimg(short nentry)
 	short	nobj, iobj;
 	unsigned short	indoff;
 
-	nobj = (*(short *)(RSH_NIMAGES(head)));
-	(*(short *)(RSH_NIMAGES(head)) = (nobj + nentry));
+	nobj = (*(unsigned short *)(RSH_NIMAGES(head)));
+	(*(unsigned short *)(RSH_NIMAGES(head)) = (nobj + nentry));
 
 	frimg = get_mem((unsigned short) sizeof(long) * (nobj + nentry));
 	indoff = (unsigned short) (frimg - head);
@@ -781,7 +781,7 @@ static long mak_frimg(short nentry)
 		frimg += (unsigned short) sizeof(long);
 	}
 
-	(*(short *)(RSH_FRIMG(head)) = (indoff));
+	(*(unsigned short *)(RSH_FRIMG(head)) = (indoff));
 	return (frimg);
 }
 
@@ -838,7 +838,7 @@ void dcomp_free(void)
 	long	tree;
 	short	ntrind, nfrstr, nfrimg, itree, ndex, ntree;
 
-	ntrind = (*(short *)(RSH_NTREE(head)));
+	ntrind = (*(unsigned short *)(RSH_NTREE(head)));
 	for (d_nfrimg = d_nfrstr = itree = 0; itree < ntrind; itree++ )
 	{
 		tree = tree_addr(itree);
@@ -848,13 +848,13 @@ void dcomp_free(void)
 	}
 	if (d_nfrstr)
 	{
-		nfrstr = (*(short *)(RSH_NSTRING(head)));
+		nfrstr = (*(unsigned short *)(RSH_NSTRING(head)));
 		d_frstr = mak_frstr(d_nfrstr);
 		d_nfrstr = nfrstr;
 	}
 	if (d_nfrimg)
 	{
-		nfrimg = (*(short *)(RSH_NIMAGES(head)));
+		nfrimg = (*(unsigned short *)(RSH_NIMAGES(head)));
 		d_frimg = mak_frimg(d_nfrimg);
 		d_nfrimg = nfrimg;
 	} 
@@ -875,7 +875,7 @@ void dcomp_free(void)
 		}
 	}
 
-	(*(short *)(RSH_NTREE(head)) = (ntree));
+	(*(unsigned short *)(RSH_NTREE(head)) = (ntree));
 }
 
 char *c_lookup(unsigned short what, LOOKUP *where, unsigned short n, char *punt)
@@ -887,7 +887,7 @@ char *c_lookup(unsigned short what, LOOKUP *where, unsigned short n, char *punt)
 			return (&where->l_name[0]);
 		else
 			where++;
-	sprintf(punt, "0x%hX", &what);
+	sprintf(punt, "0x%X", (unsigned short)(long)&what);
 	return (punt);
 }
 
@@ -895,7 +895,7 @@ void map_all(short (*routine)())
 {
 	short	ntree, itree;
 
-	ntree = (*(short *)(RSH_NTREE(head)));
+	ntree = (*(unsigned short *)(RSH_NTREE(head)));
 
 	for (itree = 0; itree < ntree; itree++)
 		map_tree( tree_addr(itree), 0, -1, routine);
@@ -937,17 +937,17 @@ void tally_free(void)
 	long	*free;
 	short	i;
 
-	rcs_tally.nstr += (*(short *)(RSH_NSTRING(head)));
-	rcs_tally.nbytes += (unsigned short) ((*(short *)(RSH_NSTRING(head))) * sizeof(long));
-	free = (long *) ( head + ((short)((*(short *)(RSH_FRSTR(head))))) );
-	for (i = 0; i < (*(short *)(RSH_NSTRING(head))); i++)
+	rcs_tally.nstr += (*(unsigned short *)(RSH_NSTRING(head)));
+	rcs_tally.nbytes += (unsigned short) ((*(unsigned short *)(RSH_NSTRING(head))) * sizeof(long));
+	free = (long *) ( head + ((unsigned short)((*(unsigned short *)(RSH_FRSTR(head))))) );
+	for (i = 0; i < (*(unsigned short *)(RSH_NSTRING(head))); i++)
 		tally_str( *(free + i));
 
-	rcs_tally.nbb += (*(short *)(RSH_NIMAGES(head)));
-	rcs_tally.nbytes += (unsigned short) ((*(short *)(RSH_NIMAGES(head))) * 
+	rcs_tally.nbb += (*(unsigned short *)(RSH_NIMAGES(head)));
+	rcs_tally.nbytes += (unsigned short) ((*(unsigned short *)(RSH_NIMAGES(head))) * 
 		(sizeof(long) + sizeof(BITBLK)));
-  	free = (long *) ( head + ((short)((*(short *)(RSH_FRIMG(head))))) );
-	for (i = 0; i < (*(short *)(RSH_NIMAGES(head))); i++)
+  	free = (long *) ( head + ((unsigned short)((*(unsigned short *)(RSH_FRIMG(head))))) );
+	for (i = 0; i < (*(unsigned short *)(RSH_NIMAGES(head))); i++)
 		tally_bb( *(free + i));
 }
 

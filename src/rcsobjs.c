@@ -144,7 +144,7 @@ void type_obj(short obj)
 	hide_obj(tree, BOXTYPES);
 	hide_obj(tree, TXTTYPES);
 
-	sprintf(xtype, "%hd", obmsb);
+	sprintf(xtype, "%d", obmsb);
 	taddr = GET_SPEC(tree, XTYPE);
 	(*(long *)(TE_PTEXT(taddr)) = (((long)(xtype))));
 	(*(long *)(TE_TXTLEN(taddr)) = (0x4L));

@@ -143,7 +143,7 @@ void copy_colplanes(long longaddr, short color, short isdata)
 	for (i=0; i<gl_nplanes; i++)	    
 	{
 		if (plane & 1)	
-			memcpy((void *)(buffer), (void *)((*(long *)(BI_PDATA(longaddr)))), 2 * (gl_datasize));
+			memmove((void *)(buffer), (void *)((*(long *)(BI_PDATA(longaddr)))), 2 * (gl_datasize));
 		buffer += gl_datasize * 2;
 		plane = plane >> 1;
 	}
@@ -202,10 +202,10 @@ void save_fat(short undo)
 				plane = plane >> 1;
 				buffer += gl_datasize * 2;
 			}
-			memcpy((void *)((*(long *)(BI_PDATA(taddr)))), (void *)(buffer), 2 * (gl_datasize));
+			memmove((void *)((*(long *)(BI_PDATA(taddr)))), (void *)(buffer), 2 * (gl_datasize));
 		}
 		else
-			memcpy((void *)((*(long *)(BI_PDATA(taddr)))), (void *)(buffer), 2 * (gl_datasize));
+			memmove((void *)((*(long *)(BI_PDATA(taddr)))), (void *)(buffer), 2 * (gl_datasize));
 		hold_mfdb.fd_stand = 1;
 		vr_trnfm(gl_handle, &hold_mfdb, &hold_mfdb);
 		if (is_mask)
@@ -378,7 +378,7 @@ short __CDECL dr_code(PARMBLK *pparmbk)
 	GRECT area;
 	short xy[2];
 
-	memcpy((void *)(((long)(&pt))), (void *)pparmbk, sizeof(PARMBLK));
+	memmove((void *)(((long)(&pt))), (void *)pparmbk, sizeof(PARMBLK));
 	if ((long)pt.pb_tree != ad_view || pt.pb_obj != GRIDWIND ||
 		pt.pb_prevstate != pt.pb_currstate)
 	{

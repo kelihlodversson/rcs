@@ -123,7 +123,7 @@ static long get_sub(unsigned short rsindex, short rtype, short rsize)
 	offset = (*(short *)(rs_hdr + ((short)(rtype*2))));
 	/* get base of objects	*/
 	/*   and then index in	*/
-	return( rs_hdr + ((short)(offset)) + ((short)(rsize * rsindex)) );
+	return( rs_hdr + offset + (unsigned short)(rsize * rsindex) );
 }
 
 /* return address of given type and index, INTERNAL ROUTINE */
@@ -338,10 +338,10 @@ static void comp_str(long hdr)
 	short	istr, nstr, lstr, w, h, obj, ndex;
 	char	name[9];
 
-	nstr = (*(short *)(RSH_NSTRING(hdr)));
+	nstr = (*(unsigned short *)(RSH_NSTRING(hdr)));
 	if ( nstr )
 	{
-		frstr = hdr + ((short)((*(short *)(RSH_FRSTR(hdr)))));
+		frstr = hdr + ((unsigned short)((*(unsigned short *)(RSH_FRSTR(hdr)))));
 
 		ini_tree(&maddr, NEWPANEL);
 		tree = copy_tree(maddr, ROOT, true);
@@ -370,9 +370,9 @@ static void comp_str(long hdr)
 		arrange_tree(tree, 2 * gl_wchar, gl_hchar, &w, &h);
 		SET_HEIGHT(tree, ROOT, h);	/* each on a different line */
 		SET_WIDTH(tree, ROOT, max(w, 20 * gl_wchar));
-		unique_name(&name[0], "FRSTR%hd", 1);	/* make up a name */
+		unique_name(&name[0], "FRSTR%d", 1);	/* make up a name */
 		new_index((char *)tree, FREE, name);
-		(*(short *)(RSH_NSTRING(hdr)) = (0));
+		(*(unsigned short *)(RSH_NSTRING(hdr)) = (0));
 	}
 }
 
@@ -382,10 +382,10 @@ static void comp_img(long hdr)
 	short	iimg, nimg, w, h, obj, ndex;
 	char	name[9];
 
-	nimg = (*(short *)(RSH_NIMAGES(hdr)));
+	nimg = (*(unsigned short *)(RSH_NIMAGES(hdr)));
 	if ( nimg )
 	{
-		frimg = hdr + ((short)((*(short *)(RSH_FRIMG(hdr)))));
+		frimg = hdr + ((unsigned short)((*(unsigned short *)(RSH_FRIMG(hdr)))));
 
 		ini_tree(&maddr, NEWPANEL);
 		tree = copy_tree(maddr, ROOT, true);
@@ -412,9 +412,9 @@ static void comp_img(long hdr)
 		SET_HEIGHT(tree, ROOT, h);	
 		SET_WIDTH(tree, ROOT, w);
 		map_tree(tree, ROOT, NIL, (fkt_parm)trans_obj);
-		unique_name(&name[0], "FRIMG%hd", 1);	/* make up a name */
+		unique_name(&name[0], "FRIMG%d", 1);	/* make up a name */
 		new_index((char *)tree, FREE, name);
-		(*(short *)(RSH_NIMAGES(hdr)) = (0));
+		(*(unsigned short *)(RSH_NIMAGES(hdr)) = (0));
 	}
 }
 
@@ -433,7 +433,7 @@ short read_files(void)
 		ini_buff();
 		return (false);
 	}
-	else if (avail_mem() < ((short)((*(short *)(RSH_RSSIZE(head)))))) 
+	else if (avail_mem() < ((unsigned short)((*(unsigned short *)(RSH_RSSIZE(head)))))) 
 	{
 		hndl_alert(1, string_addr(STNROOM) );
 		ini_buff();
@@ -443,7 +443,7 @@ short read_files(void)
 	{
 		if (!dmcopy(rcs_rhndl, (long)sizeof(RSHDR),
 				head + sizeof(RSHDR),
-				(*(short *)(RSH_RSSIZE(head))) - (short)sizeof(RSHDR)))
+				(*(unsigned short *)(RSH_RSSIZE(head))) - (short)sizeof(RSHDR)))
 		{
 			fclose(rcs_rhndl);
 			ini_buff();
@@ -452,7 +452,7 @@ short read_files(void)
 		else
 		{
 			fclose(rcs_rhndl);
-			rcs_free = (head + ((short)((*(short *)(RSH_RSSIZE(head))))) );
+			rcs_free = (head + ((unsigned short)((*(unsigned short *)(RSH_RSSIZE(head))))) );
 
 			if (rcs_free & 0x1) 
 	    		rcs_free++;
@@ -504,14 +504,14 @@ short read_files(void)
 			comp_str(head);	/* scavenge all other freestrs	*/
 			comp_img(head);	/* and likewise for free images */
 			/* make sure all trees are indexed */
-			for (ii = 0; ii < (*(short *)(RSH_NTREE(head))); ii++)
+			for (ii = 0; ii < (*(unsigned short *)(RSH_NTREE(head))); ii++)
 				if (find_tree(ii) == NIL)
 				{
-					unique_name(name, "TREE%hd", ii + 1);
+					unique_name(name, "TREE%d", ii + 1);
 					new_index((char *) tree_addr(ii), UNKN, name);
 				}
 
-			return (*(short *)(RSH_RSSIZE(head)));
+			return (*(unsigned short *)(RSH_RSSIZE(head)));
 		}
 	}
 }
@@ -531,7 +531,7 @@ short merge_files(void)
 	}
 	else
 	{
-		if (rcs_low || avail_mem() < (unsigned short) (*(short *)(RSH_RSSIZE(merge))) - 
+		if (rcs_low || avail_mem() < (unsigned short) (*(unsigned short *)(RSH_RSSIZE(merge))) - 
 			(unsigned short) sizeof(RSHDR) )
 		{
 			hndl_alert(1, string_addr(STNROOM));
@@ -540,8 +540,8 @@ short merge_files(void)
 		else
 		{
 			/* synchronize objects */
-			foo = (unsigned short) (( merge + ((short)((*(short *)(RSH_OBJECT(merge))))) ) -
-				( head + ((short)((*(short *)(RSH_OBJECT(head))))) ));
+			foo = (unsigned short) (( merge + ((unsigned short)((*(unsigned short *)(RSH_OBJECT(merge))))) ) -
+				( head + ((unsigned short)((*(unsigned short *)(RSH_OBJECT(head))))) ));
 			foo %= (short)sizeof(OBJECT);
 			if (foo) 
 			{
@@ -550,10 +550,10 @@ short merge_files(void)
 				dmcopy(rcs_rhndl, 0x0L, merge, (short)sizeof(RSHDR));
 			}
 
-			here = get_mem((unsigned short) (*(short *)(RSH_RSSIZE(merge))) - 
+			here = get_mem((unsigned short) (*(unsigned short *)(RSH_RSSIZE(merge))) - 
 				(unsigned short) sizeof(RSHDR));
 			if (!dmcopy (rcs_rhndl, (long) sizeof(RSHDR), 
-				here, (*(short *)(RSH_RSSIZE(merge)))))
+				here, (*(unsigned short *)(RSH_RSSIZE(merge)))))
 			{
 				fclose(rcs_rhndl);
 				return(false);
@@ -564,26 +564,26 @@ short merge_files(void)
 				rs_hdr = merge;
 				fix_all();
 
-				old_ntree = (*(short *)(RSH_NTREE(head)));
-				if ((*(short *)(RSH_NTREE(merge))))
+				old_ntree = (*(unsigned short *)(RSH_NTREE(head)));
+				if ((*(unsigned short *)(RSH_NTREE(merge))))
 				{
-					total = (*(short *)(RSH_NTREE(head))) + (*(short *)(RSH_NTREE(merge)));
+					total = (*(unsigned short *)(RSH_NTREE(head))) + (*(unsigned short *)(RSH_NTREE(merge)));
 					newndx = get_mem((short)(sizeof(long) * total));
 					indoff = (unsigned short) (newndx - head);		
-					for (i = 0; i < (*(short *)(RSH_NTREE(head))); i++)
+					for (i = 0; i < (*(unsigned short *)(RSH_NTREE(head))); i++)
 					{
 						(*(long *)(newndx) = (tree_addr(i)));
 						newndx += sizeof(long);
 					}
-					oldndx = merge + ((short)((*(short *)(RSH_TRINDEX(merge)))));
-					for (i = 0; i < (*(short *)(RSH_NTREE(merge))); i++)
+					oldndx = merge + ((unsigned short)((*(unsigned short *)(RSH_TRINDEX(merge)))));
+					for (i = 0; i < (*(unsigned short *)(RSH_NTREE(merge))); i++)
 					{
 						(*(long *)(newndx) = ((*(long *)(oldndx))));
 						newndx += sizeof(long);
 						oldndx += sizeof(long);
 					}
-					(*(short *)(RSH_NTREE(head)) = (total));
-					(*(short *)(RSH_TRINDEX(head)) = (indoff));
+					(*(unsigned short *)(RSH_NTREE(head)) = (total));
+					(*(unsigned short *)(RSH_TRINDEX(head)) = (indoff));
 				}
 
 				if (rcs_dhndl)
@@ -598,9 +598,9 @@ short merge_files(void)
 					{	
 						if (find_name(&rcs_index[ii].name[0]) != NIL)
 							if (tree_kind(rcs_index[ii].kind))
-								unique_name(&rcs_index[ii].name[0], "TREE%hd", old_ntree);
+								unique_name(&rcs_index[ii].name[0], "TREE%d", old_ntree);
 							else
-								unique_name(&rcs_index[ii].name[0], "OBJ%hd", 0);
+								unique_name(&rcs_index[ii].name[0], "OBJ%d", 0);
 						switch (rcs_index[ii].kind)
 						{
 							case UNKN:
@@ -612,12 +612,12 @@ short merge_files(void)
 								break;
 							case ALRT:
 							case FRSTR:
-								frstr = merge +	((short)((*(short *)(RSH_FRSTR(merge)))));
+								frstr = merge +	((unsigned short)((*(unsigned short *)(RSH_FRSTR(merge)))));
 								rcs_index[ii].val = (char *) (*(long *)(frstr + 
 								(unsigned short) (sizeof(long) * (short) rcs_index[ii].val)));
 								break;
 							case FRIMG:
-								frimg = merge + ((short)((*(short *)(RSH_FRIMG(merge)))));
+								frimg = merge + ((unsigned short)((*(unsigned short *)(RSH_FRIMG(merge)))));
 								rcs_index[ii].val = (char *) (*(long *)(frimg +
 									(unsigned short) (sizeof(long) * (short)rcs_index[ii].val)));
 								break;
@@ -636,12 +636,12 @@ short merge_files(void)
 					fclose(rcs_dhndl);
 				}
 
-				for (i = old_ntree; i < (*(short *)(RSH_NTREE(head))); i++)
+				for (i = old_ntree; i < (*(unsigned short *)(RSH_NTREE(head))); i++)
 				{
 					map_tree(tree_addr(i), ROOT, NIL, (fkt_parm)trans_obj); 
 					if (find_tree(i) == NIL)
 					{
-						unique_name(&rcs_index[i].name[0], "TREE%hd", i + 1);
+						unique_name(&rcs_index[i].name[0], "TREE%d", i + 1);
 						if (new_index((char *) tree_addr(i), UNKN, &rcs_index[i].name[0]) == NIL)
 							break;
 					}

@@ -47,7 +47,7 @@ static void do_tally(void)
 	clr_tally();
 	map_all((fkt_parm)tally_obj);
 	tally_free();
-	rcs_tally.nbytes += (*(short *)(RSH_NTREE(head))) * sizeof(long);
+	rcs_tally.nbytes += (*(unsigned short *)(RSH_NTREE(head))) * sizeof(long);
 	rcs_tally.nbytes += sizeof(RSHDR);
 }
 
@@ -175,7 +175,7 @@ static void wr_header(void)
 
 static void c_defline(char *name, short val)
 {
-	sprintf(hline, "#define %s %hd\n", name, val);
+	sprintf(hline, "#define %s %d\n", name, val);
 	c_wrlin();
 }
 
@@ -183,7 +183,7 @@ static void c_baseline(short num, char *field, short val)
 {
 	char	name[9];
 
-	sprintf(name, "T%hd%s", num, field);
+	sprintf(name, "T%d%s", num, field);
 	c_defline(name, val);
 }
 
@@ -194,7 +194,7 @@ static void c_bases(void)
 	if (rcs_cflag)
 	{
 		clr_tally();
-		for (i = 0; i < (*(short *)(RSH_NTREE(head))); i++)
+		for (i = 0; i < (*(unsigned short *)(RSH_NTREE(head))); i++)
 		{
 			c_baseline(i, "OBJ", rcs_tally.nobj);
 /*			c_baseline(i, "IB", rcs_tally.nib);	*/
@@ -302,7 +302,7 @@ static void map_frstr(void)
 	short	ifree, nfree;
 
 	c_frstr = c_nstring;
-	nfree = (*(short *)(RSH_NSTRING(head)));
+	nfree = (*(unsigned short *)(RSH_NSTRING(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; ifree++)
@@ -326,7 +326,7 @@ static void c_freestr(short which)
 	{
 		c_comma(c_nfrstr);
 		which += c_frstr;
-		sprintf(hline, "%hdL", which);
+		sprintf(hline, "%dL", which);
 		c_wrlin();
 		c_nfrstr++;
 	}
@@ -336,14 +336,14 @@ static void wr_freestr(void)
 {
 	short	ifree, nfree;
 
-	nfree = (*(short *)(RSH_NSTRING(head)));
+	nfree = (*(unsigned short *)(RSH_NSTRING(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; c_freestr(ifree++))
 			;
 		nfree *= (short)sizeof(long);
 		fwrite((void *)str_ptr(0), 1, nfree, rcs_rhndl);
-		(*(short *)(RSH_FRSTR(head)) = (rcs_wraddr));
+		(*(unsigned short *)(RSH_FRSTR(head)) = (rcs_wraddr));
 		rcs_wraddr += nfree;
 	}
 }
@@ -354,7 +354,7 @@ static void c_imdata(long addr, short size)
 
 	if (rcs_cflag)
 	{
-		sprintf(hline, "\nWORD IMAG%hd[] = {", c_nimage);
+		sprintf(hline, "\nWORD IMAG%d[] = {", c_nimage);
 		c_wrlin();
 
 		for (iwd = 0; iwd < size; iwd += 2)
@@ -370,7 +370,7 @@ static void c_imdata(long addr, short size)
 				c_wrlin();
 			}
 			vwd = (*(short *)(addr + iwd));
-			sprintf(hline, "0x%hX", vwd);
+			sprintf(hline, "0x%X", (unsigned short)vwd);
 			c_wrlin();
 		}
 
@@ -431,7 +431,7 @@ static void map_frimg(void)
 	short	ifree, nfree, w, h;
 	long	bitblk;
 
-	nfree = (*(short *)(RSH_NIMAGES(head)));
+	nfree = (*(unsigned short *)(RSH_NIMAGES(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; ifree++)
@@ -459,7 +459,7 @@ static void c_foobar(void)
 		for (img = 0; img < c_nimage; img++)
 		{
 			c_comma(img);
-			sprintf(hline, "0, &IMAG%hd[0]", img);
+			sprintf(hline, "0, &IMAG%d[0]", img);
 			c_wrlin();
 		}
 
@@ -483,12 +483,12 @@ static void c_iconblk(long addr)
 
 	if (rcs_cflag)
 	{
-		memcpy((void *)(((long)(&here))), (void *)(addr), sizeof(ICONBLK));
+		memmove((void *)(((long)(&here))), (void *)(addr), sizeof(ICONBLK));
 		here.ib_pdata = (short  *) c_imgno((long)here.ib_pdata);
 		here.ib_pmask = (short  *) c_imgno((long)here.ib_pmask);
 		here.ib_ptext = (char  *) c_strno((long)here.ib_ptext);
 		c_comma(c_nib);
-		sprintf(hline, "%ldL, %ldL, %ldL, %hd,%hd,%hd, %hd,%hd,%hd,%hd, %hd,%hd,%hd,%hd",
+		sprintf(hline, "%ldL, %ldL, %ldL, %d,%d,%d, %d,%d,%d,%d, %d,%d,%d,%d",
 			(long)here.ib_pmask, (long)here.ib_pdata, (long)here.ib_ptext,
 			here.ib_char, here.ib_xchar, here.ib_ychar,
 			here.ib_xicon, here.ib_yicon, here.ib_wicon, here.ib_hicon,
@@ -532,10 +532,10 @@ static void c_bitblk(long addr)
 
 	if (rcs_cflag)
 	{
-		memcpy((void *)((long)((long)(&here))), (void *)(addr), sizeof(BITBLK));
+		memmove((void *)((long)((long)(&here))), (void *)(addr), sizeof(BITBLK));
 		here.bi_pdata = (short *) c_imgno((long)here.bi_pdata);
 		c_comma(c_nbb);
-		sprintf(hline, "%ldL, %hd, %hd, %hd, %hd, %hd",
+		sprintf(hline, "%ldL, %d, %d, %d, %d, %d",
 			(long)here.bi_pdata, here.bi_wb, here.bi_hl,
 			here.bi_x, here.bi_y, here.bi_color );
 		c_wrlin();
@@ -566,7 +566,7 @@ static void map_frbit(void)
 	short	ifree, nfree;
 	long	bitblk;
 
-	nfree = (*(short *)(RSH_NIMAGES(head)));
+	nfree = (*(unsigned short *)(RSH_NIMAGES(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; ifree++)
@@ -598,9 +598,9 @@ static void c_frb(long addr)
 
 	if (rcs_cflag)
 	{
-		blkno = (short) ((addr - (*(short *)(RSH_BITBLK(head)))) / sizeof(BITBLK));
+		blkno = (short) ((addr - (*(unsigned short *)(RSH_BITBLK(head)))) / sizeof(BITBLK));
 		c_comma(c_nfrbit);
-		sprintf(hline, "%hdL", blkno);
+		sprintf(hline, "%dL", blkno);
 		c_wrlin();
 		c_nfrbit++;
 	}
@@ -610,14 +610,14 @@ static void wr_frbit(void)
 {
 	short	ifree, nfree;
 
-	nfree = (*(short *)(RSH_NIMAGES(head)));
+	nfree = (*(unsigned short *)(RSH_NIMAGES(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; ifree++)
 			c_frb(img_addr(ifree));
 		nfree *= (short)sizeof(long);
 		fwrite((void *)img_ptr(0), 1, nfree, rcs_rhndl);
-		(*(short *)(RSH_FRIMG(head)) = (rcs_wraddr));
+		(*(unsigned short *)(RSH_FRIMG(head)) = (rcs_wraddr));
 		rcs_wraddr += nfree;
 	}
 } 
@@ -638,15 +638,15 @@ static void c_tedinfo(long addr)
 
 	if (rcs_cflag)
 	{
-		memcpy((void *)(((long)(&here))), (void *)(addr), sizeof(TEDINFO));
+		memmove((void *)(((long)(&here))), (void *)(addr), sizeof(TEDINFO));
 		here.te_ptext = (char *) c_strno((long)here.te_ptext);
 		here.te_pvalid = (char *) c_strno((long)here.te_pvalid);
 		here.te_ptmplt = (char *) c_strno((long)here.te_ptmplt);
 		c_comma(c_nted);
-		sprintf(hline, "%ldL, %ldL, %ldL, %hd, %hd, %hd, 0x%hX, 0x%hX, %hd, %hd,%hd",
+		sprintf(hline, "%ldL, %ldL, %ldL, %d, %d, %d, 0x%X, 0x%X, %d, %d,%d",
 			(long)here.te_ptext, (long)here.te_ptmplt, (long)here.te_pvalid,
-			here.te_font, here.te_fontid, here.te_just, here.te_color,
-			here.te_fontsize, here.te_thickness, here.te_txtlen, here.te_tmplen );
+			here.te_font, here.te_fontid, here.te_just, (unsigned short)here.te_color,
+			(unsigned short)here.te_fontsize, here.te_thickness, here.te_txtlen, here.te_tmplen );
 		c_wrlin();
 		c_nted++;
 	}
@@ -690,8 +690,8 @@ static void c_object(long tree)
 
 	if (rcs_cflag)
 	{
-		memcpy((void *)(((long)(&here.next))), (void *)(OB_NEXT(ROOT)), 3 * sizeof(short));
-		memcpy((void *)(((long)(&here.spec))), (void *)(OB_SPEC(ROOT)), sizeof(long) + 4 * sizeof(unsigned short));
+		memmove((void *)(((long)(&here.next))), (void *)(OB_NEXT(ROOT)), 3 * sizeof(short));
+		memmove((void *)(((long)(&here.spec))), (void *)(OB_SPEC(ROOT)), sizeof(long) + 4 * sizeof(unsigned short));
 
 		switch (((GET_TYPE(tree, ROOT)) & 0xff))
 		{
@@ -704,15 +704,15 @@ static void c_object(long tree)
 			case G_FTEXT:
 			case G_BOXTEXT:
 			case G_FBOXTEXT:
-				here.spec = ( (short) here.spec - (*(short *)(RSH_TEDINFO(head))) )
+				here.spec = ( (short) here.spec - (*(unsigned short *)(RSH_TEDINFO(head))) )
 					/ sizeof(TEDINFO);
 				break;
 			case G_IMAGE:
-				here.spec = ( (short) here.spec - (*(short *)(RSH_BITBLK(head))) )
+				here.spec = ( (short) here.spec - (*(unsigned short *)(RSH_BITBLK(head))) )
 					/ sizeof(BITBLK);
 				break;
 			case G_ICON:
-				here.spec = ( (short) here.spec - (*(short *)(RSH_ICONBLK(head))) )
+				here.spec = ( (short) here.spec - (*(unsigned short *)(RSH_ICONBLK(head))) )
 					/ sizeof(ICONBLK);
 				break;
 			default:
@@ -725,7 +725,7 @@ static void c_object(long tree)
 			N_FLAGS, flags);
 		here.state = c_lookup(GET_STATE(tree, ROOT), c_states, 
 			N_STATES, state);
-		sprintf(hline, "%hd, %hd, %hd, %s, %s, %s, 0x%lX, %hd,%hd, %hd, %hd",
+		sprintf(hline, "%d, %d, %d, %s, %s, %s, 0x%lX, %d,%d, %d, %d",
 			here.next, here.head, here.tail,
 			here.type, here.flags, here.state,
 			here.spec, here.x, here.y, here.w, here.h );
@@ -771,7 +771,7 @@ static void wr_trees(void)
 	long	tree;
 	short	ntree, itree, iobj, where, flags;
 
-	ntree = (*(short *)(RSH_NTREE(head)));
+	ntree = (*(unsigned short *)(RSH_NTREE(head)));
 
 	for (itree = 0; itree < ntree; itree++)
 	{
@@ -781,7 +781,7 @@ static void wr_trees(void)
 		(*(long *)(tree_ptr(itree)) = ((long) rcs_wraddr & 0xffff));
 		wr_obnum = 0;
 		map_tree(tree, 0, -1, (fkt_parm)indx_obs);
-		(*(short *)(RSH_NOBS(head)) = (wr_obnum + (*(short *)(RSH_NOBS(head)))));
+		(*(unsigned short *)(RSH_NOBS(head)) = (wr_obnum + (*(unsigned short *)(RSH_NOBS(head)))));
 		iobj = wr_obndx[wr_obnum - 1];
 		flags = GET_FLAGS(tree, iobj);
 		SET_FLAGS(tree, iobj, flags | LASTOB);
@@ -806,9 +806,9 @@ static void c_tree(long addr)
 
 	if (rcs_cflag)
 	{
-		objno = (short) (addr - (*(short *)(RSH_OBJECT(head))) / sizeof(OBJECT));
+		objno = (short) (addr - (*(unsigned short *)(RSH_OBJECT(head))) / sizeof(OBJECT));
 		c_comma(c_ntree);
-		sprintf(hline, "%hdL", objno);
+		sprintf(hline, "%dL", objno);
 		c_wrlin();
 		c_ntree++;
 	}
@@ -818,13 +818,13 @@ static void wr_trindex(void)
 {
 	short	ntree, itree;
 
-	ntree = (*(short *)(RSH_NTREE(head)));
+	ntree = (*(unsigned short *)(RSH_NTREE(head)));
 	fwrite((void *)tree_ptr(0), sizeof(long), ntree, rcs_rhndl);
 
 	for (itree = 0; itree < ntree; itree++)
 		c_tree(tree_addr(itree));
 
-	(*(short *)(RSH_TRINDEX(head)) = (rcs_wraddr));	/* Don't move this line! */
+	(*(unsigned short *)(RSH_TRINDEX(head)) = (rcs_wraddr));	/* Don't move this line! */
 	rcs_wraddr += ntree * (short)sizeof(long);
 }
 
@@ -837,14 +837,14 @@ static void c_defs(void)
 		strcpy(hline, "\n");
 		c_wrlin();
 		c_defline("NUM_STRINGS", c_nstring);
-		c_defline("NUM_FRSTR", (*(short *)(RSH_NSTRING(head))));
+		c_defline("NUM_FRSTR", (*(unsigned short *)(RSH_NSTRING(head))));
 		c_defline("NUM_IMAGES", c_nimage);
-		c_defline("NUM_BB", (*(short *)(RSH_NBB(head))));
-		c_defline("NUM_FRIMG", (*(short *)(RSH_NIMAGES(head))));
-		c_defline("NUM_IB", (*(short *)(RSH_NIB(head))));
-		c_defline("NUM_TI", (*(short *)(RSH_NTED(head))));
-		c_defline("NUM_OBS", (*(short *)(RSH_NOBS(head))));
-		c_defline("NUM_TREE", (*(short *)(RSH_NTREE(head))));
+		c_defline("NUM_BB", (*(unsigned short *)(RSH_NBB(head))));
+		c_defline("NUM_FRIMG", (*(unsigned short *)(RSH_NIMAGES(head))));
+		c_defline("NUM_IB", (*(unsigned short *)(RSH_NIB(head))));
+		c_defline("NUM_TI", (*(unsigned short *)(RSH_NTED(head))));
+		c_defline("NUM_OBS", (*(unsigned short *)(RSH_NOBS(head))));
+		c_defline("NUM_TREE", (*(unsigned short *)(RSH_NTREE(head))));
 		for (sptr = rptr = &rcs_rfile[0]; *sptr; sptr++)
 			if (*sptr == '\\' || *sptr == '\:')
 				rptr = sptr + 1;
@@ -921,11 +921,11 @@ static void wrsrt_inclfile(char *ext, char *ptns[])
 		else if (!form_error(errno))
 			return;
 	}
-	wr_include( UNKN,  (*(short *)(RSH_NTREE(head))), 0, ptns,true );
-	obj_include( (*(short *)(RSH_NTREE(head))), (*(short *)(RSH_NOBS(head))), ptns );
-	wr_include(ALRT, (*(short *)(RSH_NSTRING(head))), 1, ptns, false);
-	wr_include(FRSTR,(*(short *)(RSH_NSTRING(head))), 3, ptns, false);
-	wr_include(FRIMG,(*(short *)(RSH_NIMAGES(head))), 4, ptns, false);
+	wr_include( UNKN,  (*(unsigned short *)(RSH_NTREE(head))), 0, ptns,true );
+	obj_include( (*(unsigned short *)(RSH_NTREE(head))), (*(unsigned short *)(RSH_NOBS(head))), ptns );
+	wr_include(ALRT, (*(unsigned short *)(RSH_NSTRING(head))), 1, ptns, false);
+	wr_include(FRSTR,(*(unsigned short *)(RSH_NSTRING(head))), 3, ptns, false);
+	wr_include(FRIMG,(*(unsigned short *)(RSH_NIMAGES(head))), 4, ptns, false);
 	fclose(rcs_hhndl);
 }
 
@@ -1026,7 +1026,7 @@ short write_files(void)
 	show_prog(STHDR);
 	wr_header();
 	rcs_wraddr = (short)sizeof(RSHDR);
-	(*(short *)(RSH_STRING(head)) = (rcs_wraddr));
+	(*(unsigned short *)(RSH_STRING(head)) = (rcs_wraddr));
 	c_bases();
 
 	show_prog(STSTR);
@@ -1037,7 +1037,7 @@ short write_files(void)
 	wr_sync();
 
 	show_prog(STIMG);
-	(*(short *)(RSH_IMDATA(head)) = (rcs_wraddr));
+	(*(unsigned short *)(RSH_IMDATA(head)) = (rcs_wraddr));
 	c_nimage = 0;
 	map_all((fkt_parm)wr_image);
 	c_frimg = c_nimage;
@@ -1049,8 +1049,8 @@ short write_files(void)
 	c_tail(c_nfrstr);
 
 	show_prog(STBB);
-	(*(short *)(RSH_BITBLK(head)) = (rcs_wraddr));
-	(*(short *)(RSH_NBB(head)) = (0));
+	(*(unsigned short *)(RSH_BITBLK(head)) = (rcs_wraddr));
+	(*(unsigned short *)(RSH_NBB(head)) = (0));
 	c_bithead();
 	map_all((fkt_parm)wr_bitblk);
 	map_frbit();	
@@ -1062,22 +1062,22 @@ short write_files(void)
 	c_tail(c_nfrbit);
 
 	show_prog(STIB);
-	(*(short *)(RSH_ICONBLK(head)) = (rcs_wraddr));
-	(*(short *)(RSH_NIB(head)) = (0));
+	(*(unsigned short *)(RSH_ICONBLK(head)) = (rcs_wraddr));
+	(*(unsigned short *)(RSH_NIB(head)) = (0));
 	c_iconhead();
 	map_all((fkt_parm)wr_iconblk);
 	c_tail(c_nib);
 
 	show_prog(STTI);
-	(*(short *)(RSH_TEDINFO(head)) = (rcs_wraddr));
-	(*(short *)(RSH_NTED(head)) = (0));
+	(*(unsigned short *)(RSH_TEDINFO(head)) = (rcs_wraddr));
+	(*(unsigned short *)(RSH_NTED(head)) = (0));
 	c_tedhead();
 	map_all((fkt_parm)wr_tedinfo);
 	c_tail(c_nted);
 
 	show_prog(STOBJ);
-	(*(short *)(RSH_OBJECT(head)) = (rcs_wraddr));
-	(*(short *)(RSH_NOBS(head)) = (0));
+	(*(unsigned short *)(RSH_OBJECT(head)) = (rcs_wraddr));
+	(*(unsigned short *)(RSH_NOBS(head)) = (0));
 	c_objhead();
 	wr_trees();
 	c_tail(c_nobs);
@@ -1088,7 +1088,7 @@ short write_files(void)
 	c_tail(c_ntree);
 
 	show_prog(STHDR);
-	(*(short *)(RSH_RSSIZE(head)) = (rcs_wraddr));
+	(*(unsigned short *)(RSH_RSSIZE(head)) = (rcs_wraddr));
 	wr_header();		/* rewrite updated header	  */
 	fclose(rcs_rhndl);
 	c_foobar();

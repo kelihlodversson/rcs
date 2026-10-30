@@ -65,8 +65,8 @@ void comp_alerts(long hdr)
 	char	name[9];
 
 	ini_tree(&maddr, NEWALRT);
-	frstr = hdr + ((short)((*(short *)(RSH_FRSTR(hdr)))));
-	nfrstr = (*(short *)(RSH_NSTRING(hdr)));
+	frstr = hdr + ((unsigned short)((*(unsigned short *)(RSH_FRSTR(hdr)))));
+	nfrstr = (*(unsigned short *)(RSH_NSTRING(hdr)));
 	for (nalert = istr = 0; istr < nfrstr; istr++)
 	{
 		where = (*(long *)(frstr + (unsigned short) (istr * sizeof(long))));
@@ -77,7 +77,7 @@ void comp_alerts(long hdr)
 	{
 		trindex = mak_trindex(nalert);
 
-		for (istr = 0; istr < (*(short *)(RSH_NSTRING(hdr))); istr++)
+		for (istr = 0; istr < (*(unsigned short *)(RSH_NSTRING(hdr))); istr++)
 		{
 			where = (*(long *)(frstr + (unsigned short) (istr * sizeof(long))));
 			if (is_alert(where))
@@ -92,13 +92,13 @@ void comp_alerts(long hdr)
 					set_value(ndex, (char *) tree);
 				else
 				{
-					unique_name(&name[0], "ALERT%hd", istr);
+					unique_name(&name[0], "ALERT%d", istr);
 					ndex = new_index((char *) tree, ALRT, name);
 				}
 			}
 		}
-		if (nalert == (*(short *)(RSH_NSTRING(hdr))))
-			(*(short *)(RSH_NSTRING(hdr)) = (0));
+		if (nalert == (*(unsigned short *)(RSH_NSTRING(hdr))))
+			(*(unsigned short *)(RSH_NSTRING(hdr)) = (0));
 	} 
 }
 
@@ -165,7 +165,7 @@ void dcomp_alerts(void)
 	long	frstr, where, tree;
 	short	nalert, ntrind, nfrstr, itree, ntree, ndex;
 
-	ntrind = (*(short *)(RSH_NTREE(head)));
+	ntrind = (*(unsigned short *)(RSH_NTREE(head)));
 	for (nalert = itree = 0; itree < ntrind; itree++)
 	{
 		ndex = find_value((char *) tree_addr(itree));
@@ -175,7 +175,7 @@ void dcomp_alerts(void)
 
 	if (nalert)
 	{
-		nfrstr = (*(short *)(RSH_NSTRING(head)));
+		nfrstr = (*(unsigned short *)(RSH_NSTRING(head)));
 		frstr = mak_frstr(nalert);
 
 		for (ntree = itree = 0; itree < ntrind; itree++)
@@ -197,7 +197,7 @@ void dcomp_alerts(void)
 				set_value(ndex, (char *) nfrstr++);
 			}
 		}
-		(*(short *)(RSH_NTREE(head)) = (ntree));
+		(*(unsigned short *)(RSH_NTREE(head)) = (ntree));
 	}
 }
 

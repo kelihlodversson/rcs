@@ -221,7 +221,7 @@ static void wind_size(void)
 	if ( gl_isicon )
 	{
 		rast_op(4, &hold_area, &hold_mfdb, &hold_area, &hld2_mfdb);
-		memcpy((void *)((*(long *)(BI_PDATA(taddr1)))), (void *)(hld2_mfdb.fd_addr), 2 * (gl_datasize));
+		memmove((void *)((*(long *)(BI_PDATA(taddr1)))), (void *)(hld2_mfdb.fd_addr), 2 * (gl_datasize));
 	}
 	rast_op(3, &hold_area, &hold_mfdb, &hold_area, &undo_mfdb);
 }
@@ -285,13 +285,13 @@ void icn_init(short size_changed)
 				resize((*(long *)(IB_PDATA(taddr))), old_w, old_h,
 					(*(long *)(IB_PDATA(gl_icnspec))));
 			else
-				memcpy((void *)((*(long *)(IB_PDATA(gl_icnspec)))), (void *)((*(long *)(IB_PDATA(taddr)))), gl_datasize *2);
+				memmove((void *)((*(long *)(IB_PDATA(gl_icnspec)))), (void *)((*(long *)(IB_PDATA(taddr)))), gl_datasize *2);
 			(*(long *)(IB_PMASK(gl_icnspec)) = (get_mem(gl_datasize * 2)));
 			if (size_changed)
 				resize((*(long *)(IB_PMASK(taddr))), old_w, old_h,
 					(*(long *)(IB_PMASK(gl_icnspec))));
 			else
-				memcpy((void *)((*(long *)(IB_PMASK(gl_icnspec)))), (void *)((*(long *)(IB_PMASK(taddr)))), gl_datasize * 2);
+				memmove((void *)((*(long *)(IB_PMASK(gl_icnspec)))), (void *)((*(long *)(IB_PMASK(taddr)))), gl_datasize * 2);
 			tree = save_tree;
 			(*(short *)(OB_TYPE(save_obj)) = ((G_ICON & 0x00ff)));
 		}
@@ -316,7 +316,7 @@ void icn_init(short size_changed)
 				resize((*(long *)(BI_PDATA(taddr))), old_w, old_h,
 					(*(long *)(BI_PDATA(gl_icnspec))));
 			else
-				memcpy((void *)((*(long *)(BI_PDATA(gl_icnspec)))), (void *)((*(long *)(BI_PDATA(taddr)))), gl_datasize * 2);
+				memmove((void *)((*(long *)(BI_PDATA(gl_icnspec)))), (void *)((*(long *)(BI_PDATA(taddr)))), gl_datasize * 2);
 		}
 	}
 	icn_state = NOFILE_STATE;
