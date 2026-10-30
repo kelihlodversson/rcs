@@ -45,13 +45,14 @@ The original build of the Atari version is `src/atari/rcs.prj`, for Pure C
 ## Building
 
     git submodule update --init
-    make m68k      # build/m68k/RCS.PRG
-    make arm       # build/arm/RCS.PRG
+    make m68k      # build/m68k/RCS.PRG, with RCS.RSC, RCSLOW.RSC and the .DFN files
+    make arm       # build/arm/RCS.PRG, with the same resource files
     make libs      # gemlib and libcmini for both targets only
 
 On macOS use `gmake`. `docs/toolchains.md` says which toolchains are needed.
 The libraries are the `kelihlodversson` forks of gemlib and libcmini, in
-`third_party/`. The build is the one of
+`third_party/`. The program loads `RCS.RSC` (`RCSLOW.RSC` on a low resolution
+screen), so keep the resource files next to it. The build is the one of
 [TypeShelf](https://github.com/kelihlodversson/TypeShelf), and CI
 (`.github/workflows/build.yml`) builds both targets on every pull request.
 

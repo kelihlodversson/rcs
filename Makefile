@@ -1,7 +1,7 @@
 # RCS, the Resource Construction Set, on gemlib and libcmini
 #
-#   make m68k      build/m68k/RCS.PRG (Atari TOS, EmuTOS, pTOS on m68k)
-#   make arm       build/arm/RCS.PRG (pTOS on ARM)
+#   make m68k      build/m68k/RCS.PRG and its resource files (Atari TOS, EmuTOS, pTOS on m68k)
+#   make arm       build/arm/RCS.PRG and its resource files (pTOS on ARM)
 #   make libs      only gemlib and libcmini, for both targets
 #   make clean
 #
@@ -25,8 +25,26 @@ INCLUDES = -Isrc -Isrc/atari -I$(GEMLIB) -I$(LIBCMINI)/include -D__GEMLIB_OLDNAM
 .PHONY: all m68k arm libs clean
 all: m68k
 
-m68k: build/m68k/$(PRG_NAME)
-arm: build/arm/$(PRG_NAME)
+# RCS loads RCS.RSC (RCSLOW.RSC on a low resolution screen) from the folder it
+# was started in, so they go next to the program; the .DFN files are the
+# definition files of those two resource files
+RES_FILES = RCS.RSC RCSLOW.RSC RCS.DFN RCSLOW.DFN
+
+m68k: build/m68k/$(PRG_NAME) $(addprefix build/m68k/,$(RES_FILES))
+arm: build/arm/$(PRG_NAME) $(addprefix build/arm/,$(RES_FILES))
+
+build/%/RCS.RSC: src/atari/rcs.rsc
+	@mkdir -p $(dir $@)
+	cp $< $@
+build/%/RCSLOW.RSC: src/atari/rcslow.rsc
+	@mkdir -p $(dir $@)
+	cp $< $@
+build/%/RCS.DFN: src/atari/rcs.dfn
+	@mkdir -p $(dir $@)
+	cp $< $@
+build/%/RCSLOW.DFN: src/atari/rcslow.dfn
+	@mkdir -p $(dir $@)
+	cp $< $@
 
 # ---- the libraries -----------------------------------------------------
 

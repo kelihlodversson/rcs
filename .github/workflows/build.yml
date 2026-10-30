@@ -28,7 +28,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: rcs-m68k
-          path: build/m68k/RCS.PRG
+          path: |
+            build/m68k/RCS.PRG
+            build/m68k/RCS.RSC
+            build/m68k/RCSLOW.RSC
+            build/m68k/RCS.DFN
+            build/m68k/RCSLOW.DFN
 
   arm:
     name: Build for ARM
@@ -47,4 +52,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: rcs-arm
-          path: build/arm/RCS.PRG
+          path: |
+            build/arm/RCS.PRG
+            build/arm/RCS.RSC
+            build/arm/RCSLOW.RSC
+            build/arm/RCS.DFN
+            build/arm/RCSLOW.DFN
