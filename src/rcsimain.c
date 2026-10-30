@@ -3,20 +3,9 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
+#include <gem.h>
+#include <stdbool.h>
 #include <string.h>
-#include <portab.h>
-#include <machine.h>
-#include <rclib.h>
-#if GEMDOS
-#if TURBO_C
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <obdefs.h>
-#include <gembind.h>
-#include <vdibind.h>
-#endif
 #include "rcs.h"
 #include "rcsdefs.h"
 #include "rcsiext.h"
@@ -35,17 +24,17 @@
 #define YSCALE(x)  umul_div(x, gl_ws.ws_wpixel, gl_ws.ws_hpixel)
 #define XSCALE(x)  umul_div(x, gl_ws.ws_hpixel, gl_ws.ws_wpixel)
 
-EXTERN  WS      gl_ws;
+extern  WS      gl_ws;
 
-WORD    gridx, gridy;
-UWORD   mflags, ev_which, smlxy[513], SCRATCH[513];
-BOOLEAN flash_on;
-EXTERN	UWORD	color_map[], gridw, gridh, orign_area;
-WORD    selmask = 0xcccc;
+short    gridx, gridy;
+unsigned short   mflags, ev_which, smlxy[513], SCRATCH[513];
+short flash_on;
+extern	unsigned short	color_map[], gridw, gridh, orign_area;
+short    selmask = 0xcccc;
 
-VOID fat2sml(WORD x[], WORD y[], WORD count, WORD isdata)
+void fat2sml(short x[], short y[], short count, short isdata)
 {
-	WORD i, srcx,srcy;
+	short i, srcx,srcy;
 
 	if (isdata)
 	{
@@ -66,25 +55,25 @@ VOID fat2sml(WORD x[], WORD y[], WORD count, WORD isdata)
 	}
 }
 
-VOID set_pix(VOID)
+void set_pix(void)
 {
-	WORD	pix_x, pix_y, i;
-	WORD	sm_pxy[4];
+	short	pix_x, pix_y, i;
+	short	sm_pxy[4];
 	GRECT	big_pxy, *src;
 
-	out1 = TRUE;
+	out1 = true;
 	/* get 0-rel. x,y */
 	pix_x = (mousex - fat_area.g_x) >> 3;
 	pix_y = (mousey - fat_area.g_y) >> 3;
 	if (pen_on == ERASEBOX)
 	{
 		i=2;
-		gsx_attr(FALSE, 1, WHITE);
+		gsx_attr(false, 1, WHITE);
 	}
 	else
 	{
 		i=0;
-		gsx_attr(FALSE, 1, gl_isicon ? BLACK: fgcolor);
+		gsx_attr(false, 1, gl_isicon ? BLACK: fgcolor);
 	}
 there:
 	if (is_mask)	/* set the new small pixel */
@@ -111,7 +100,7 @@ there:
 	if (gl_isicon)
 	{
 		gsx_sclip(&icn_img);
-		gsx_attr( FALSE, 1, colour);
+		gsx_attr( false, 1, colour);
 		sm_pxy[2] =  sm_pxy[0] = icn_img.g_x + pix_x + scroll_fat.g_x;
 		sm_pxy[3] =  sm_pxy[1] = icn_img.g_y + pix_y + scroll_fat.g_y;
 		v_pline(gl_handle, 2, sm_pxy);
@@ -131,7 +120,7 @@ there:
 	gsx_sclip(&full);
 } /* set_pix */
 
-VOID set_scroll(VOID)
+void set_scroll(void)
 {
 	scroll_fat.g_x =  rcs_xpan/8;
 	scroll_fat.g_y  = rcs_ypan/8;
@@ -139,22 +128,22 @@ VOID set_scroll(VOID)
 	scroll_fat.g_h = gl_himage - scroll_fat.g_y;
 } /* set_scroll */
 
-VOID copy_colplanes(LONG longaddr, WORD color, WORD isdata)
+void copy_colplanes(long longaddr, short color, short isdata)
 {
-	UWORD	plane;
-	LONG	buffer;
-	WORD	i;
+	unsigned short	plane;
+	long	buffer;
+	short	i;
 
 	hold_mfdb.fd_stand = 0;
 	vr_trnfm(gl_handle, &hold_mfdb, &hold_mfdb);
 	plane = color_map[color];
-	buffer = (LONG)(isdata? hold_mfdb.fd_addr : hld2_mfdb.fd_addr);
+	buffer = (long)(isdata? hold_mfdb.fd_addr : hld2_mfdb.fd_addr);
 	rast_op(0, &hold_area, &scrn_mfdb, &hold_area,
 		(isdata? &hold_mfdb : &hld2_mfdb));
 	for (i=0; i<gl_nplanes; i++)	    
 	{
 		if (plane & 1)	
-			LWCOPY(buffer, LLGET(BI_PDATA(longaddr)), gl_datasize);
+			memcpy((void *)(buffer), (void *)((*(long *)(BI_PDATA(longaddr)))), 2 * (gl_datasize));
 		buffer += gl_datasize * 2;
 		plane = plane >> 1;
 	}
@@ -162,14 +151,14 @@ VOID copy_colplanes(LONG longaddr, WORD color, WORD isdata)
 	vr_trnfm(gl_handle, &hold_mfdb, &hold_mfdb);
 }
 
-VOID dr_image(VOID)
+void dr_image(void)
 {
-	objc_draw((OBJECT FAR *)ad_pbx, ROOT, MAX_DEPTH, pbx.g_x, pbx.g_y,pbx.g_w,pbx.g_h);
+	objc_draw((OBJECT  *)ad_pbx, ROOT, MAX_DEPTH, pbx.g_x, pbx.g_y,pbx.g_w,pbx.g_h);
 	outl_img();
 } /* dr_image */
 
 /* copy hold/hld2 buffer to undo/und2 buffer */
-VOID hold_to_undo(VOID)
+void hold_to_undo(void)
 {
 	if(gl_isicon)
 		rast_op(3, &hold_area, &hld2_mfdb, &hold_area, &und2_mfdb);
@@ -183,11 +172,11 @@ VOID hold_to_undo(VOID)
 /* will put undo/und2 buffer into data/mask, then copy hold/hld2 buffer */
 /* to undo/und2 buffer, finally, call copy_colplanes to copy data/mask */
 /* to hold/hld2 buffer.  So that undo an undo can work correctly. */
-VOID save_fat(BOOLEAN undo)
+void save_fat(short undo)
 {							   
-	LONG	taddr, buffer;			  
-	WORD    i;
-	UWORD   plane;
+	long	taddr, buffer;			  
+	short    i;
+	unsigned short   plane;
 
 	i =  2 ;
 	/* copy hold_mfdb.fd_addr data to data/mask and icon. */
@@ -195,12 +184,12 @@ VOID save_fat(BOOLEAN undo)
 	{
 		if (is_mask)
 		{
-			buffer = (LONG)(undo? und2_mfdb.fd_addr : hld2_mfdb.fd_addr);
+			buffer = (long)(undo? und2_mfdb.fd_addr : hld2_mfdb.fd_addr);
 			taddr = GET_SPEC(ad_pbx, MASKWIND);	
 		}
 		else
 		{
-			buffer = (LONG)(undo? undo_mfdb.fd_addr : hold_mfdb.fd_addr);
+			buffer = (long)(undo? undo_mfdb.fd_addr : hold_mfdb.fd_addr);
 			taddr = GET_SPEC(ad_pbx, DATAWIND);
 		}
 		hold_mfdb.fd_stand = 0;
@@ -213,10 +202,10 @@ VOID save_fat(BOOLEAN undo)
 				plane = plane >> 1;
 				buffer += gl_datasize * 2;
 			}
-			LWCOPY(LLGET( BI_PDATA(taddr)), buffer, gl_datasize);
+			memcpy((void *)((*(long *)(BI_PDATA(taddr)))), (void *)(buffer), 2 * (gl_datasize));
 		}
 		else
-			LWCOPY(LLGET( BI_PDATA(taddr)), buffer, gl_datasize);
+			memcpy((void *)((*(long *)(BI_PDATA(taddr)))), (void *)(buffer), 2 * (gl_datasize));
 		hold_mfdb.fd_stand = 1;
 		vr_trnfm(gl_handle, &hold_mfdb, &hold_mfdb);
 		if (is_mask)
@@ -224,7 +213,7 @@ VOID save_fat(BOOLEAN undo)
 			if (undo)
 			{
 				rast_op(3, &hold_area, &hld2_mfdb, &hold_area, &und2_mfdb);
-				copy_colplanes(taddr, BLACK, FALSE);
+				copy_colplanes(taddr, BLACK, false);
 			}
 			else	/*make sure the data and mask do not overlap*/
 				rast_op(4, &hold_area, &hld2_mfdb, &hold_area, &hold_mfdb);
@@ -234,7 +223,7 @@ VOID save_fat(BOOLEAN undo)
 			if (undo)
 			{
 				rast_op(3, &hold_area, &hold_mfdb, &hold_area, &undo_mfdb);
-				copy_colplanes(taddr, BLACK, TRUE);
+				copy_colplanes(taddr, BLACK, true);
 			}
 			else if (gl_isicon)	/*make sure that data and mask do not overlap*/
 				rast_op(4, &hold_area, &hold_mfdb, &hold_area, &hld2_mfdb);
@@ -247,9 +236,9 @@ VOID save_fat(BOOLEAN undo)
 	dr_image();	/*update the icon image*/
 } /* save_fat */
 
-LOCAL VOID draw_gridbx(VOID)
+static void draw_gridbx(void)
 {	      
-	WORD	xypoint[10];
+	short	xypoint[10];
 
 	vswr_mode(gl_handle, MD_XOR);	/*xor mode*/ 
 	xypoint[0] = gridbx.g_x;
@@ -271,15 +260,14 @@ LOCAL VOID draw_gridbx(VOID)
 	gsx_sclip(&full);		
 } /*draw_gridbx*/
 
-#if MC68K
-LOCAL VOID MAGNIFY(LONG src_mp, LONG dst_mp, WORD npix)
+static void MAGNIFY(long src_mp, long dst_mp, short npix)
 /* expand bits to bytes from source to dest */
 {
-	WORD i;
-	UBYTE *src, *dst, val;
+	short i;
+	unsigned char *src, *dst, val;
 
-	src = (UBYTE *)src_mp;
-	dst = (UBYTE *)dst_mp;
+	src = (unsigned char *)src_mp;
+	dst = (unsigned char *)dst_mp;
 	while (npix > 0)
 	{
 		val = *src;
@@ -296,16 +284,15 @@ LOCAL VOID MAGNIFY(LONG src_mp, LONG dst_mp, WORD npix)
 		src++;
 	}
 }
-#endif
 
 /* this routine will magnify a portion of icon/data image to the work area */
 /* It takes the parameter "area" for the spcification of the portion. */
 /* If area is zero, it takes the scroll_fat area.  The area's x, y */
 /* are relative to the icon/data image. */
-VOID fattify(GRECT *area)
+void fattify(GRECT *area)
 {
 	GRECT	trans_area, *pt;
-	WORD	i,j, k, rows_fit, no_loop, leftover, rows_in_loop, row_w;
+	short	i,j, k, rows_fit, no_loop, leftover, rows_in_loop, row_w;
 	GRECT	src_area, dst_area;
 
 	if (!area)
@@ -342,7 +329,7 @@ VOID fattify(GRECT *area)
 	vr_trnfm(gl_handle, &disp_mfdb, &disp_mfdb);
      
 	/*figue out how many fat rows can fit into the buffer*/
-	rows_fit = (WORD)(ibuff_size /(LONG)(fat_mfdb.fd_w * gl_nplanes));
+	rows_fit = (short)(ibuff_size /(long)(fat_mfdb.fd_w * gl_nplanes));
 	/*fat_mfdb.fwp = row_w* 8 * 8 /8, byte size per fat row per color plane*/
 	if (rows_fit >= pt->g_h)
 		rows_fit = pt->g_h; /*this is not redundant*/
@@ -360,16 +347,16 @@ VOID fattify(GRECT *area)
 		{
 			for (j = 0 ; j < gl_nplanes ; j++)
 			{
-				src_mp = (LONG)disp_mfdb.fd_addr;
-				src_mp += (LONG)((disp_mfdb.fd_wdwidth << 1) * 
+				src_mp = (long)disp_mfdb.fd_addr;
+				src_mp += (long)((disp_mfdb.fd_wdwidth << 1) * 
 					(disp_mfdb.fd_h * j + (rows_fit * i + k)));
-				dst_mp = (LONG)fat_mfdb.fd_addr + (LONG)(fat_mfdb.fd_w *
+				dst_mp = (long)fat_mfdb.fd_addr + (long)(fat_mfdb.fd_w *
 					(rows_in_loop * j + k));
 				MAGNIFY(src_mp, dst_mp, pt->g_w);
 				/*copy 8 times for magnifying the height*/
-				B_MOVE(dst_mp, row_w, dst_mp+(LONG)(row_w));
-				B_MOVE(dst_mp, row_w << 1, dst_mp + (LONG)(row_w << 1));
-				B_MOVE(dst_mp, row_w << 2, dst_mp + (LONG)(row_w << 2));
+				B_MOVE(dst_mp, row_w, dst_mp+(long)(row_w));
+				B_MOVE(dst_mp, row_w << 1, dst_mp + (long)(row_w << 1));
+				B_MOVE(dst_mp, row_w << 2, dst_mp + (long)(row_w << 2));
 			}
 		}
 		src_area.g_h = dst_area.g_h = fat_mfdb.fd_h = rows_in_loop << 3;
@@ -385,14 +372,14 @@ VOID fattify(GRECT *area)
 	gsx_sclip(&full);  
 } /* fattify */
 
-WORD CDECL dr_code(LONG pparmbk)
+short __CDECL dr_code(PARMBLK *pparmbk)
 {
 	PARMBLK pt;
 	GRECT area;
-	WORD xy[2];
+	short xy[2];
 
-	LBCOPY(ADDR(&pt), pparmbk, sizeof(PARMBLK));
-	if ((LONG)pt.pb_tree != ad_view || pt.pb_obj != GRIDWIND ||
+	memcpy((void *)(((long)(&pt))), (void *)pparmbk, sizeof(PARMBLK));
+	if ((long)pt.pb_tree != ad_view || pt.pb_obj != GRIDWIND ||
 		pt.pb_prevstate != pt.pb_currstate)
 	{
 		return(pt.pb_currstate);
@@ -417,7 +404,7 @@ WORD CDECL dr_code(LONG pparmbk)
 			xy[1] -= (xy[1] -fat_area.g_y) % 8;
 			area.g_w = 2 + ((xy[0] - area.g_x) >> 3);
 			area.g_h = 2 + ((xy[1] - area.g_y) >> 3);
-			fat2sml((WORD *)&area, xy, 1, 1);	/*map the point to the data image*/
+			fat2sml((short *)&area, xy, 1, 1);	/*map the point to the data image*/
 			xy[0] -= dat_img.g_x;	/*set the relative x, y coordinate*/
 			xy[1] -= dat_img.g_y;
 			area.g_x = xy[0];
@@ -429,7 +416,7 @@ WORD CDECL dr_code(LONG pparmbk)
 	}
 }
 
-VOID fb_redraw(VOID)
+void fb_redraw(void)
 {     
 	dr_image();
 	graf_mouse(M_OFF,NULL);
@@ -438,52 +425,52 @@ VOID fb_redraw(VOID)
 	graf_mouse(M_ON,NULL);
 } /* fb_redraw */
 
-VOID set_bgcol(WORD item, BOOLEAN invert/*indicate if it is a invert action*/)
+void set_bgcol(short item, short invert/*indicate if it is a invert action*/)
 {
-	WORD	color;
-	LONG	taddr;      
+	short	color;
+	long	taddr;      
 
 	color = item - (invert ? 0 : COL0POP);
 	if (color != bgcolor) 	/*new color != old color*/
 	{
-		bgcolor  = (color << 8) | (LWGET(IB_CHAR(gl_icnspec))
+		bgcolor  = (color << 8) | ((*(short *)(IB_CHAR(gl_icnspec)))
 			& 0xf0ff);
-		LWSET(IB_CHAR(gl_icnspec), bgcolor);
+		(*(short *)(IB_CHAR(gl_icnspec)) = (bgcolor));
 		taddr = GET_SPEC(ad_pbx,MASKWIND);
 		bgcolor = color;
-		copy_colplanes(taddr,BLACK, FALSE); /*bgcolor*/
+		copy_colplanes(taddr,BLACK, false); /*bgcolor*/
 		fb_redraw();
 	}
 }
 
-VOID set_fgcol(WORD item,BOOLEAN invert/*flag to tell if the color being inverted*/)
+void set_fgcol(short item,short invert/*flag to tell if the color being inverted*/)
 {
-	WORD	 color;			      
-	LONG 	 taddr;
+	short	 color;			      
+	long 	 taddr;
 
 	color = item - (invert? 0 : COL0POP);
 	if (color != fgcolor)	/*new color != old color*/
 	{
 		old_fc = fgcolor;	/*old fgcolor*/
 		taddr = GET_SPEC(ad_pbx, DATAWIND);
-		fgcolor  = (color << 12) | (LWGET(IB_CHAR(gl_icnspec))
+		fgcolor  = (color << 12) | ((*(short *)(IB_CHAR(gl_icnspec)))
 			& 0xfff);
 		if (gl_isicon)
-			LWSET(IB_CHAR(gl_icnspec), fgcolor);
+			(*(short *)(IB_CHAR(gl_icnspec)) = (fgcolor));
 		else	/* case G_IMAGE:  */
 		{
-			LWSET(BI_COLOR(taddr),  color);	
-			LWSET(BI_COLOR(gl_icnspec),  color);	
+			(*(short *)(BI_COLOR(taddr)) = (color));	
+			(*(short *)(BI_COLOR(gl_icnspec)) = (color));	
 		}
 		fgcolor = color;
-		copy_colplanes(taddr, BLACK, TRUE); /*fgcolor*/
+		copy_colplanes(taddr, BLACK, true); /*fgcolor*/
 		if (!invert || !gl_isicon)
 			fb_redraw(); /*invert and isicon skip*/
 	}
 }
 
 /* rubber band primitives and pencil primitives */
-LOCAL VOID rub_on(VOID)
+static void rub_on(void)
 {
 	wind_update(3);	/*BEG_MCTRL*/
 	vsl_width(gl_handle, 1);
@@ -492,16 +479,16 @@ LOCAL VOID rub_on(VOID)
 	gsx_sclip(&fat_area);
 }
 
-LOCAL VOID rub_off(VOID)
+static void rub_off(void)
 {
 	wind_update(2);	/*END_MCTRL*/
 	vswr_mode(gl_handle, 1);
 /*	vsl_width(gl_handle, wp->line_width); */
 }
 
-LOCAL WORD snap_point(WORD *sx, WORD *sy)
+static short snap_point(short *sx, short *sy)
 {
-	WORD	tempx, tempy, off_4;
+	short	tempx, tempy, off_4;
 
 	*sx = min((tempx = fat_area.g_x + fat_area.g_w - 1),
 		max(fat_area.g_x, mousex));
@@ -525,9 +512,9 @@ LOCAL WORD snap_point(WORD *sx, WORD *sy)
 	return(off_4);
 }
 
-LOCAL VOID constrn(WORD sx, WORD sy, WORD *cx, WORD *cy, BOOLEAN line)
+static void constrn(short sx, short sy, short *cx, short *cy, short line)
 {
-	WORD	dx, dy;
+	short	dx, dy;
 
 	if (kstate & 3)
 	{
@@ -570,11 +557,11 @@ LOCAL VOID constrn(WORD sx, WORD sy, WORD *cx, WORD *cy, BOOLEAN line)
 	}
 }
 
-LOCAL VOID rub_line(WORD pxy[])
+static void rub_line(short pxy[])
 {
-	WORD	bwait;
-	BOOLEAN	done;
-	BOOLEAN	mon;
+	short	bwait;
+	short	done;
+	short	mon;
 
 	rub_on();
 	bwait = bstate ^ 0x1;
@@ -585,21 +572,21 @@ LOCAL VOID rub_line(WORD pxy[])
 	pxy[3] = pxy[1];
 
 	v_pline(gl_handle, 2, pxy);
-	done = FALSE;
+	done = false;
 	while (!done)
 	{
 		if ((kstate & 3) || grid)
 		{
 			graf_mouse(M_ON, NULL);
-			mon = TRUE;
+			mon = true;
 		}
 		else
-			mon = FALSE;
+			mon = false;
 		ev_which = evnt_multi(MU_BUTTON | MU_M1,
 			0x02, 0x01, bwait, 
 			1, gridx, gridy, gridw, gridh,
 			0, 0, 0, 0, 0,
-			(WORD *)ad_rmsg, 0, 0, 
+			(short *)ad_rmsg, 0, 
 			&mousex, &mousey, &bstate, &kstate,
 			&kreturn, &bclicks);
 		if (mon)
@@ -610,8 +597,8 @@ LOCAL VOID rub_line(WORD pxy[])
 			{
 				v_pline(gl_handle, 2, pxy);
 				snap_point(&pxy[2], &pxy[3]);
-				constrn(pxy[0], pxy[1], &pxy[2], &pxy[3], TRUE);
-				done = TRUE;
+				constrn(pxy[0], pxy[1], &pxy[2], &pxy[3], true);
+				done = true;
 			}
 			else
 				bwait = 0;
@@ -620,18 +607,18 @@ LOCAL VOID rub_line(WORD pxy[])
 		{
 			v_pline(gl_handle, 2, pxy);
 			snap_point(&pxy[2], &pxy[3]);
-			constrn(pxy[0], pxy[1], &pxy[2], &pxy[3], TRUE);
+			constrn(pxy[0], pxy[1], &pxy[2], &pxy[3], true);
 			v_pline(gl_handle, 2, pxy);
 		}
 	} /* while */	
 	rub_off();
 }
 
-LOCAL WORD rub_box(WORD pxy[])
+static short rub_box(short pxy[])
 {
-	BOOLEAN	mon;
-	BOOLEAN	done;
-	WORD	off_4;
+	short	mon;
+	short	done;
+	short	off_4;
 
 	rub_on();
 
@@ -655,21 +642,21 @@ LOCAL WORD rub_box(WORD pxy[])
 	else
 	{
 		v_pline(gl_handle, 5, pxy);
-		done = FALSE;
+		done = false;
 		while (!done)
 		{
 			if ((kstate & 3) || grid)
 			{
 				graf_mouse(M_ON, NULL);
-				mon = TRUE;
+				mon = true;
 			}
 			else
-				mon = FALSE;
+				mon = false;
 			ev_which = evnt_multi(MU_BUTTON | MU_M1,
 				0x01, 0x01, 0x00, 
 				1, gridx, gridy, gridw, gridh,
 				0, 0, 0, 0, 0,
-				(WORD *)ad_rmsg, 0, 0, 
+				(short *)ad_rmsg, 0, 
 				&mousex, &mousey, &bstate, &kstate,
 				&kreturn, &bclicks);
 			if (mon)
@@ -678,16 +665,16 @@ LOCAL WORD rub_box(WORD pxy[])
 			{
 				v_pline(gl_handle, 5, pxy);
 				off_4 += snap_point(&pxy[4], &pxy[5]);
-				constrn(pxy[0], pxy[1], &pxy[4], &pxy[5], FALSE);
+				constrn(pxy[0], pxy[1], &pxy[4], &pxy[5], false);
 				pxy[2] = pxy[4];
 				pxy[7] = pxy[5];
-				done = TRUE;
+				done = true;
 			}
 			else /* (ev_which & MU_M1) */
 			{
 				v_pline(gl_handle, 5, pxy);
 				snap_point(&pxy[4], &pxy[5]);
-				constrn(pxy[0], pxy[1], &pxy[4], &pxy[5], FALSE);
+				constrn(pxy[0], pxy[1], &pxy[4], &pxy[5], false);
 				pxy[2] = pxy[4];
 				pxy[7] = pxy[5];
 				if (pxy[7] > pxy[1])
@@ -711,12 +698,12 @@ LOCAL WORD rub_box(WORD pxy[])
 	}
 }
 
-LOCAL VOID rub_arc(WORD pxy[])
+static void rub_arc(short pxy[])
 {
-	BOOLEAN	done;
-	BOOLEAN	mon;
-	WORD	startx, starty;
-	BOOLEAN	left_right;	/* does arc start left right or up down */
+	short	done;
+	short	mon;
+	short	startx, starty;
+	short	left_right;	/* does arc start left right or up down */
 
 	rub_on();
 
@@ -732,26 +719,26 @@ LOCAL VOID rub_arc(WORD pxy[])
 	evnt_multi(MU_M1, 0x00, 0x00, 0x00, 
 		1, mousex-3, mousey-3, 7, 7,
 		0, 0, 0, 0, 0,
-		(WORD *)ad_rmsg, 0, 0, 
+		(short *)ad_rmsg, 0, 
 		&mousex, &mousey, &bstate, &kstate,
 		&kreturn, &bclicks);
 	left_right = ((ABS(mousex - startx)) < (ABS(mousey - starty)));
 
-	done = FALSE;
+	done = false;
 	while (!done)
 	{
 		if ((kstate & 3) || grid)
 		{
 			graf_mouse(M_ON, NULL);
-			mon = TRUE;
+			mon = true;
 		}
 		else
-			mon = FALSE;
+			mon = false;
 		ev_which = evnt_multi(MU_BUTTON | MU_M1,
 			0x01, 0x01, 0x00, 
 			1, mousex, mousey, 1, 1,
 			0, 0, 0, 0, 0,
-			(WORD *)ad_rmsg, 0, 0, 
+			(short *)ad_rmsg, 0, 
 			&mousex, &mousey, &bstate, &kstate,
 			&kreturn, &bclicks);
 		if (mon)
@@ -759,7 +746,7 @@ LOCAL VOID rub_arc(WORD pxy[])
 		if (ev_which & MU_BUTTON)
 		{
 			v_ellarc(gl_handle, pxy[0], pxy[1], pxy[2], pxy[3], pxy[4], pxy[5]);
-			done = TRUE;
+			done = true;
 		}
 		else  /* (ev_which & MU_M1) */
 		{
@@ -769,7 +756,7 @@ LOCAL VOID rub_arc(WORD pxy[])
 				pxy[0] = mousex;
 				pxy[3] = mousey;
 				snap_point(&pxy[0], &pxy[3]);
-				constrn(startx, starty, &pxy[0], &pxy[3], FALSE);
+				constrn(startx, starty, &pxy[0], &pxy[3], false);
 				pxy[1] = starty;
 				pxy[2] = ABS(pxy[0] - startx);
 				pxy[3] = ABS(pxy[3] - starty);
@@ -790,7 +777,7 @@ LOCAL VOID rub_arc(WORD pxy[])
 				pxy[1] = mousey;
 				pxy[2] = mousex;
 				snap_point(&pxy[2], &pxy[1]);
-				constrn(startx, starty, &pxy[2], &pxy[1], FALSE);
+				constrn(startx, starty, &pxy[2], &pxy[1], false);
 				pxy[0] = startx;
 				pxy[2] = ABS(pxy[2] - startx);
 				pxy[3] = ABS(pxy[1] - starty);
@@ -813,11 +800,11 @@ LOCAL VOID rub_arc(WORD pxy[])
 	rub_off();
 }
 
-LOCAL VOID rub_ellipse(WORD pxy[])
+static void rub_ellipse(short pxy[])
 {
-	BOOLEAN	done;
-	BOOLEAN	mon;
-	WORD	startx, starty;
+	short	done;
+	short	mon;
+	short	startx, starty;
 
 	rub_on();
 
@@ -827,21 +814,21 @@ LOCAL VOID rub_ellipse(WORD pxy[])
 	pxy[2] = 1;
 	pxy[3] = 1;
 	v_ellarc(gl_handle, pxy[0], pxy[1], pxy[2], pxy[3], 0, 3600);
-	done = FALSE;
+	done = false;
 	while (!done)
 	{
 		if ((kstate & 3) || grid)
 		{
 			graf_mouse(M_ON, NULL);
-			mon = TRUE;
+			mon = true;
 		}
 		else
-			mon = FALSE;
+			mon = false;
 		ev_which = evnt_multi(MU_BUTTON | MU_M1,
 			0x01, 0x01, 0x00, 
 		    1, gridx, gridy, gridw, gridh,
 		    0, 0, 0, 0, 0,
-		    (WORD *)ad_rmsg, 0, 0, 
+		    (short *)ad_rmsg, 0, 
 		    &mousex, &mousey, &bstate, &kstate,
 		    &kreturn, &bclicks);
 		if (mon)
@@ -849,13 +836,13 @@ LOCAL VOID rub_ellipse(WORD pxy[])
 		if (ev_which & MU_BUTTON)
 		{
 			v_ellarc(gl_handle, pxy[0], pxy[1], pxy[2], pxy[3], 0, 3600);
-			done = TRUE;
+			done = true;
 		}
 		else /* (ev_which & MU_M1) */
 		{
 			v_ellarc(gl_handle, pxy[0], pxy[1], pxy[2], pxy[3], 0, 3600);
 			snap_point(&pxy[0], &pxy[1]);
-			constrn(startx, starty, &pxy[0], &pxy[1], FALSE);
+			constrn(startx, starty, &pxy[0], &pxy[1], false);
 			pxy[0] = (startx + pxy[0] + 1) >> 1;
 			pxy[1] = (starty + pxy[1] + 1) >> 1;
 
@@ -870,7 +857,7 @@ LOCAL VOID rub_ellipse(WORD pxy[])
 	rub_off();
 }
 
-LOCAL VOID scr2buf(VOID)
+static void scr2buf(void)
 {
 	if (gl_isicon && pen_on != FCLORBOX && pen_on) /*eraser/bgcolr*/
 		rast_op(3, &mas_img, &scrn_mfdb, &hold_area, &hld2_mfdb);
@@ -878,9 +865,9 @@ LOCAL VOID scr2buf(VOID)
 		rast_op(3, &dat_img, &scrn_mfdb, &hold_area, &hold_mfdb);
 }
 
-LOCAL VOID flash_rec(VOID)
+static void flash_rec(void)
 {
-	WORD	pxy[10];
+	short	pxy[10];
 
 	if (selecton == 3 && selec_area.g_w && selec_area.g_h)
 	{
@@ -905,22 +892,22 @@ LOCAL VOID flash_rec(VOID)
 	}
 }
 
-VOID save_img(VOID)
+void save_img(void)
 {
-	WORD	old_pen;
+	short	old_pen;
 
 	old_pen = pen_on;
 	hold_to_undo();
 	pen_on = gl_isicon? ERASEBOX : FCLORBOX;	/*fake it*/
 	scr2buf();
 	pen_on = old_pen;
-	save_fat(FALSE);
+	save_fat(false);
 	gsx_sclip(&fat_area);
 	fattify(NULL);	/*fattify the whole scroll area*/
-	inverted = FALSE;
+	inverted = false;
 }
 
-VOID rubrec_off(VOID)
+void rubrec_off(void)
 {
 	if (selecton == 3 && flash_on)	/*turn off the flashing rectangle*/
 	{
@@ -933,10 +920,10 @@ VOID rubrec_off(VOID)
 	disab_obj(ad_menu, DELITEM);
 }
 
-LOCAL VOID do_select(VOID)
+static void do_select(void)
 {
 	GRECT	src_area, new_area, temp_area;
-	WORD	t1pxy[10], t2pxy[4], off_4;
+	short	t1pxy[10], t2pxy[4], off_4;
 
 	if (flash_area.g_w && flash_area.g_h)
 	{
@@ -958,7 +945,7 @@ LOCAL VOID do_select(VOID)
 				/* source's starting x,y coordinates in fat area*/
 				new_area.g_w =src_area.g_w =temp_area.g_w =selec_area.g_w;
 				new_area.g_h =src_area.g_h =temp_area.g_h =selec_area.g_h;
-				fat2sml(t1pxy, (WORD *)smlxy, 1, 1);  /*destination in data area*/
+				fat2sml(t1pxy, (short *)smlxy, 1, 1);  /*destination in data area*/
 				new_area.g_x = smlxy[0];
 				new_area.g_y = smlxy[1];
 				src_area.g_x = selec_area.g_x;
@@ -973,14 +960,14 @@ LOCAL VOID do_select(VOID)
 					disp_mfdb.fd_h = gl_himage;
 					temp_area.g_x = temp_area.g_y = 0;
 					rast_op(3,&src_area,&scrn_mfdb,&temp_area,&disp_mfdb);
-					del_img(FALSE, 1);
+					del_img(false, 1);
 					rast_op(3,&temp_area,&disp_mfdb,&new_area,&scrn_mfdb);
 				}
 				else
 					rast_op(3,&src_area,&scrn_mfdb,&new_area,&scrn_mfdb);
 				if (gl_isicon)	/*take care the mask part*/
 				{
-					fat2sml(t1pxy, (WORD *)smlxy, 1, 0);
+					fat2sml(t1pxy, (short *)smlxy, 1, 0);
 					new_area.g_x = smlxy[0];
 					new_area.g_y = smlxy[1];
 					src_area.g_x += deltax;
@@ -988,7 +975,7 @@ LOCAL VOID do_select(VOID)
 					if (kstate & 4)/*remove source area*/
 					{
 						rast_op(3,&src_area,&scrn_mfdb,&temp_area,&disp_mfdb);
-						del_img(FALSE, 2);
+						del_img(false, 2);
 						rast_op(3,&temp_area,&disp_mfdb,&new_area,&scrn_mfdb);
 		 			}
 					else
@@ -1015,7 +1002,7 @@ LOCAL VOID do_select(VOID)
 	flash_area.g_h = (ABS(t1pxy[5] - t1pxy[1])) + 8 - (off_4 & 0x000c);
 	selec_area.g_w = flash_area.g_w >> 3;
 	selec_area.g_h = flash_area.g_h >> 3;
-	fat2sml((WORD *)&flash_area, (WORD *)&selec_area, 1, 1);
+	fat2sml((short *)&flash_area, (short *)&selec_area, 1, 1);
 	flash_on = 0x0000;
 	selecton = 3;
 	flash_rec();
@@ -1026,11 +1013,11 @@ LOCAL VOID do_select(VOID)
 	enab_obj(ad_menu, DELITEM);
 }
 
-LOCAL VOID do_button(VOID)
+static void do_button(void)
 {
-	WORD	i, j, k, colr;
-	WORD	t1pxy[10];
-	WORD	t2pxy[4];
+	short	i, j, k, colr;
+	short	t1pxy[10];
+	short	t2pxy[4];
 
 	if (pen_on == ERASEBOX)
 	{
@@ -1042,7 +1029,7 @@ LOCAL VOID do_button(VOID)
 		j = 1;
 		colr = gl_isicon ? BLACK : fgcolor;
 	}
-	gsx_attr(FALSE, 1, colr);
+	gsx_attr(false, 1, colr);
 	vsf_color(gl_handle, colr);
 	vsf_interior(gl_handle, 1);	/*solid style for filling pattern*/
 
@@ -1061,11 +1048,11 @@ LOCAL VOID do_button(VOID)
 				rub_line(t1pxy);
 				while(j--)
 				{
-					fat2sml(t1pxy, (WORD *)smlxy, 2, k--);
-					v_pline(gl_handle, 2, (WORD *)smlxy);
+					fat2sml(t1pxy, (short *)smlxy, 2, k--);
+					v_pline(gl_handle, 2, (short *)smlxy);
 				}
 				scr2buf();
-				save_fat(FALSE);
+				save_fat(false);
 				gsx_sclip(&fat_area);
 				fattify(NULL);	/*fattify the whole scroll area*/
 				graf_mouse(M_ON, NULL);
@@ -1075,7 +1062,7 @@ LOCAL VOID do_button(VOID)
 				rub_arc(t1pxy);
 				while(j--)
 				{
-					fat2sml(t1pxy, (WORD *)smlxy, 1, k--);
+					fat2sml(t1pxy, (short *)smlxy, 1, k--);
 					if (rcs_hot == SARCBOX)
 						v_ellpie(gl_handle, smlxy[0], smlxy[1], t1pxy[2]>>3, t1pxy[3]>>3,
 							t1pxy[4], t1pxy[5]);
@@ -1084,7 +1071,7 @@ LOCAL VOID do_button(VOID)
 							t1pxy[4], t1pxy[5]);
 				}
 				scr2buf();
-				save_fat(FALSE);
+				save_fat(false);
 				gsx_sclip(&fat_area);
 				fattify(NULL);	/*fattify the whole scroll area*/
 				graf_mouse(M_ON, NULL);
@@ -1098,19 +1085,19 @@ LOCAL VOID do_button(VOID)
 				t2pxy[3] = t1pxy[5];
 				while(j--)
 				{
-					fat2sml(t2pxy, (WORD *)smlxy, 2, k);
+					fat2sml(t2pxy, (short *)smlxy, 2, k);
 					vsl_ends(gl_handle, 2, 2);	/* set rounded ends	*/
 					if (rcs_hot == SRCTGBOX)  /* && wp->fill_style)   */
-						v_bar(gl_handle, (WORD *)smlxy);
+						v_bar(gl_handle, (short *)smlxy);
 					else
 					{
-						fat2sml(t1pxy, (WORD *)smlxy, 5, k);
-						v_pline(gl_handle, 5, (WORD *)smlxy);
+						fat2sml(t1pxy, (short *)smlxy, 5, k);
+						v_pline(gl_handle, 5, (short *)smlxy);
 					}
 					k--;
 				}
 				scr2buf();
-				save_fat(FALSE);
+				save_fat(false);
 				gsx_sclip(&fat_area);
 				fattify(NULL);	/*fattify the whole scroll area*/
 				graf_mouse(M_ON, NULL);
@@ -1118,7 +1105,7 @@ LOCAL VOID do_button(VOID)
 			case DOTBOX:
  			case NIL:	/*default action*/
 				set_pix();
-				save_fat(FALSE);
+				save_fat(false);
 				graf_mouse(M_ON, NULL);
 				break;
 			case HOVALBOX:
@@ -1126,7 +1113,7 @@ LOCAL VOID do_button(VOID)
 				rub_ellipse(t1pxy);
 				while(j--)
 				{
-					fat2sml(t1pxy, (WORD *)smlxy, 1, k--);
+					fat2sml(t1pxy, (short *)smlxy, 1, k--);
 					vsl_ends(gl_handle, 2, 2);	/* set rounded ends	*/
 					if (rcs_hot == SOVALBOX)
 						v_ellipse(gl_handle, smlxy[0], smlxy[1], t1pxy[2]>>3, t1pxy[3]>>3);
@@ -1134,7 +1121,7 @@ LOCAL VOID do_button(VOID)
 						v_ellarc(gl_handle, smlxy[0], smlxy[1], t1pxy[2]>>3, t1pxy[3]>>3, 0, 3600);
 				}
 				scr2buf();
-				save_fat(FALSE);
+				save_fat(false);
 				gsx_sclip(&fat_area);
 				fattify(NULL);	/*fattify the whole scroll area*/
 				graf_mouse(M_ON, NULL);
@@ -1146,23 +1133,23 @@ LOCAL VOID do_button(VOID)
 				SCRATCH[1] = mousey;
 				for (i = 0 ; i < ((MAX_POLY_POINTS - 1) * 2) ; i+=2)
 				{
-					rub_line((WORD *)&SCRATCH[i]);
-					v_pline(gl_handle, 2, (WORD *)&SCRATCH[i]);
-					fat2sml((WORD *)&SCRATCH[i], (WORD *)&smlxy[i], 2, k); 
+					rub_line((short *)&SCRATCH[i]);
+					v_pline(gl_handle, 2, (short *)&SCRATCH[i]);
+					fat2sml((short *)&SCRATCH[i], (short *)&smlxy[i], 2, k); 
 					if (bclicks == 1)
 					{
-again:					gsx_attr(FALSE, 1, colr);
-						v_pline(gl_handle, 2, (WORD *)&smlxy[i]);
+again:					gsx_attr(false, 1, colr);
+						v_pline(gl_handle, 2, (short *)&smlxy[i]);
 						if (j==2)
 						{
-							fat2sml((WORD *)&SCRATCH[i], (WORD *)&smlxy[i], 2, k-1);
+							fat2sml((short *)&SCRATCH[i], (short *)&smlxy[i], 2, k-1);
 							j--;
 							goto again;
 						}
 						else if(pen_on == ERASEBOX && gl_isicon)
 							j++;
 						scr2buf();
-						save_fat(FALSE);
+						save_fat(false);
 						gsx_sclip(&fat_area);
 	 					fattify(NULL);	/*fattify the whole scroll area*/
 					}
@@ -1180,13 +1167,13 @@ again:					gsx_attr(FALSE, 1, colr);
 					vsl_ends(gl_handle, 2, 2);	/* set round ends	*/
 					while(j--)
 					{
-						fat2sml((WORD *)SCRATCH, (WORD *)smlxy, i, k--); 
+						fat2sml((short *)SCRATCH, (short *)smlxy, i, k--); 
 						vsf_color(gl_handle, colr);
 						vswr_mode(gl_handle, 1);
-						v_fillarea(gl_handle, i++, (WORD *)smlxy);
+						v_fillarea(gl_handle, i++, (short *)smlxy);
 					}
 					scr2buf();
-					save_fat(FALSE);
+					save_fat(false);
 					gsx_sclip(&fat_area);
 					fattify(NULL);	/*fattify the whole scroll area*/
 				}
@@ -1195,48 +1182,48 @@ again:					gsx_attr(FALSE, 1, colr);
 		} /* case */
 	}	/*else*/
 	vswr_mode(gl_handle, gl_mode);  /*restore the mode*/
-	inverted = FALSE;
+	inverted = false;
 }
 
-LOCAL VOID do_popmenu(WORD which, WORD item)
+static void do_popmenu(short which, short item)
 {
 	switch (which)
 	{
 		case BCLORBOX:
-			set_bgcol( item, FALSE);
+			set_bgcol( item, false);
       		break;
 		case FCLORBOX:
-			set_fgcol( item, FALSE);
+			set_fgcol( item, false);
 			break;
 		default:
 			return;
 	}
-	draw_clipb(FALSE, (GRECT *)&orign_area);/*redraw the clip board image*/
-	icn_edited = TRUE;
-	rcs_edited = TRUE;
+	draw_clipb(false, (GRECT *)&orign_area);/*redraw the clip board image*/
+	icn_edited = true;
+	rcs_edited = true;
 	set_icnmenus();
 }
 
-LOCAL VOID fb_tools_wait(VOID)
+static void fb_tools_wait(void)
 {
-	out1 = FALSE;		/* wait to enter */
+	out1 = false;		/* wait to enter */
 	xwait = itool.g_x ;
 	ywait = itool.g_y;
 	wwait = itool.g_w ;
 	hwait = itool.g_h  ;
 }
 
-LOCAL VOID do_pen(WORD pencol)
+static void do_pen(short pencol)
 {
 	if (pencol == BCLORBOX && !is_mask)
 	{
-		is_mask = TRUE;
-		wind_set(rcs_view, WF_NAME,ADDR("Editing Mask"),0,0);
+		is_mask = true;
+		wind_set_str(rcs_view, WF_NAME, "Editing Mask");
 	}
 	else if (pencol == FCLORBOX && is_mask)
 	{
-		is_mask = FALSE;
-		wind_set(rcs_view, WF_NAME, ADDR("Editing Data"),0,0);
+		is_mask = false;
+		wind_set_str(rcs_view, WF_NAME, "Editing Data");
 	}
 	if (pencol == BCLORBOX)
 		colour = bgcolor;
@@ -1246,9 +1233,9 @@ LOCAL VOID do_pen(WORD pencol)
 		colour = fgcolor;
 }
 
-LOCAL VOID hndl_hot_tlbx(WORD obj, WORD clicks)
+static void hndl_hot_tlbx(short obj, short clicks)
 {
-	WORD	popmenu;
+	short	popmenu;
 
 	if ( obj != NIL && (GET_FLAGS(ad_itool, obj) & SELECTABLE))
 	{
@@ -1256,19 +1243,19 @@ LOCAL VOID hndl_hot_tlbx(WORD obj, WORD clicks)
 		{
 			if (pen_on)
 				invert_obj(ad_itool, pen_on, &itool);
-			if (clicks == 2 && (popmenu = hndl_pop(obj, TRUE)) != NIL)
+			if (clicks == 2 && (popmenu = hndl_pop(obj, true)) != NIL)
 				do_popmenu(obj, popmenu); 
 			do_pen(obj);
 			pen_on = obj;
 			if (paste_img)
 			{
-				paste_img = FALSE;
-				out2 = FALSE;
+				paste_img = false;
+				out2 = false;
 			}
 			if (selecton)	/* if ruberbox is on, turn if off*/
 			{
 				rubrec_off();/*turn off the flashing rect.*/
-				selecton = FALSE;
+				selecton = false;
 				invert_obj(ad_itool, rcs_hot, &itool); /*turn off ruberbox*/
 				rcs_hot = NIL;		/* set dot as default tool*/
 			}
@@ -1283,7 +1270,7 @@ LOCAL VOID hndl_hot_tlbx(WORD obj, WORD clicks)
 			else
 			{
 				graf_mouse(M_OFF, NULL);
-				save_fat(TRUE);	/*handle undo*/
+				save_fat(true);	/*handle undo*/
 				gsx_sclip(&fat_area);
 				fattify(NULL);	/*fattify the whole scroll area*/
 	 			graf_mouse(M_ON, NULL);
@@ -1296,15 +1283,15 @@ LOCAL VOID hndl_hot_tlbx(WORD obj, WORD clicks)
 				if (pen_on)
 				{
 					invert_obj(ad_itool, pen_on, &itool);
-					pen_on = FALSE;
+					pen_on = false;
 				}
-				gsx_attr(FALSE, 3, BLACK);
-				selecton = TRUE;
+				gsx_attr(false, 3, BLACK);
+				selecton = true;
 			}
 			else if (selecton)
 			{
 				rubrec_off();/*turn off the selected ruber rectangle*/
-				selecton = FALSE;
+				selecton = false;
 				if (!pen_on)
 					colour = fgcolor; /*if no pen selected*/
 			}
@@ -1328,11 +1315,11 @@ LOCAL VOID hndl_hot_tlbx(WORD obj, WORD clicks)
 	}
 }
 
-LOCAL WORD fb_button(WORD clicks)
+static short fb_button(short clicks)
 {
-	WORD	done, tool_obj;
+	short	done, tool_obj;
 
-	done = FALSE;    
+	done = false;    
 	graf_mouse(M_OFF, NULL);
 	if (rc_inside(&fat_area, mousex, mousey))
 	{
@@ -1340,20 +1327,20 @@ LOCAL WORD fb_button(WORD clicks)
 		{
 			do_paste_img();
 			mflags &= (~MU_M2);
-			paste_img = FALSE;
-			out2 = FALSE;
+			paste_img = false;
+			out2 = false;
 			graf_mouse(0, NULL);
 		}
 		else
 			do_button();
-		icn_edited = TRUE;
-		rcs_edited = TRUE;
+		icn_edited = true;
+		rcs_edited = true;
 		set_icnmenus();
 	}
 	else if (rc_inside(&itool, mousex, mousey))
 	{	    
 		graf_mouse(M_ON, NULL);
-		tool_obj = objc_find((OBJECT FAR *)ad_itool, 0, MAX_DEPTH, mousex, mousey);
+		tool_obj = objc_find((OBJECT  *)ad_itool, 0, MAX_DEPTH, mousex, mousey);
 		hndl_hot_tlbx( tool_obj, clicks);
 		return(done);					
 	}
@@ -1361,21 +1348,21 @@ LOCAL WORD fb_button(WORD clicks)
 	return(done);
 } /* fb_button */
 
-VOID undo_img(VOID)
+void undo_img(void)
 {
 	if (gl_isicon)
 		rast_op(3, &hold_area, &sav2_mfdb, &hold_area, &hld2_mfdb);
 	rast_op(3, &hold_area, &save_mfdb, &hold_area, &hold_mfdb);
-	save_fat(FALSE);
+	save_fat(false);
 	graf_mouse(M_OFF, NULL);
 	gsx_sclip(&fat_area);
 	fattify(NULL);	/*fattify the whole scroll area*/
 	graf_mouse(M_ON, NULL);
 }
 
-LOCAL VOID before(VOID)
+static void before(void)
 {
-	save_fat(FALSE);
+	save_fat(false);
 	if (selecton == 3 && flash_on)	/*turn off the flashing rectangle*/
 	{
 		flash_rec();		/*if the flashing rectangle presents*/
@@ -1388,7 +1375,7 @@ LOCAL VOID before(VOID)
 	}
 }
 
-LOCAL VOID after(VOID)
+static void after(void)
 {
 	GRECT	temp_area;
 
@@ -1408,11 +1395,11 @@ LOCAL VOID after(VOID)
 	set_icnmenus();
 }
 
-LOCAL WORD do_fbmesag(VOID)
+static short do_fbmesag(void)
 {		 
-	WORD	done;
+	short	done;
 
-    done = FALSE;	
+    done = false;	
 	switch ( rcs_rmsg[0] )
 	{
 		case MN_SELECTED:	
@@ -1425,7 +1412,7 @@ LOCAL WORD do_fbmesag(VOID)
 			wind_set(rcs_rmsg[3], WF_TOP, 0, 0, 0, 0);
 			break;
 		case WM_CLOSED:			/* must exit from fatbits	*/
-			done = TRUE;
+			done = true;
 			break;
 		case WM_FULLED:			/* must exit from fatbits	*/
 			break;
@@ -1453,29 +1440,29 @@ LOCAL WORD do_fbmesag(VOID)
 	return(done);	
 } /* do_fbmesag */
 
-VOID iconmain(VOID)
+void iconmain(void)
 {
-	WORD	ev_which, done, button;
+	short	ev_which, done, button;
 
 	/* wait for events	*/
 	mflags = MU_TIMER | MU_BUTTON | MU_MESAG | MU_M1 | MU_KEYBD;
 	fb_tools_wait();
 	flash_on = 0x0000;
-	out2 = FALSE;
+	out2 = false;
 	button = 0x01;
-	done = FALSE;
+	done = false;
 	gsx_sclip(&full);
 	while (!done)
 	{
-		wind_update(FALSE);
+		wind_update(false);
 		ev_which = evnt_multi(mflags, 0x02, 0x01, button,
 			out1, xwait, ywait, wwait, hwait,
 			out2, fat_area.g_x, fat_area.g_y,
 			fat_area.g_w, fat_area.g_h,
-			(WORD *)ad_rmsg, 250, 0, 
+			(short *)ad_rmsg, 250, 
 			&mousex, &mousey, &bstate, &kstate,
 			&kreturn, &bclicks);
-		wind_update(TRUE);
+		wind_update(true);
 
 		if (ev_which & MU_MESAG)
 			done = do_fbmesag();
@@ -1492,12 +1479,12 @@ VOID iconmain(VOID)
 				graf_mouse(M_OFF, NULL);
 				hold_to_undo();
 				set_pix();	
-				save_fat(FALSE);
+				save_fat(false);
 				graf_mouse(M_ON, NULL);
 				if (!icn_edited)
 				{
-					icn_edited = TRUE;
-					rcs_edited = TRUE;
+					icn_edited = true;
+					rcs_edited = true;
 					set_icnmenus();
 				}
 			}

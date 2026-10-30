@@ -8,40 +8,40 @@
 
 #define RCSINTF_H
 
-EXTERN  WORD	hndl_dial(LONG tree, WORD def, GRECT *p);
-EXTERN  WORD	hndl_alert(WORD b_num, LONG addr);
-EXTERN	VOID	hndl_locked(VOID);
-EXTERN	VOID	mouse_form(WORD f_num);
-EXTERN	VOID	ini_panes(VOID);
-EXTERN	VOID	view_parts(VOID);
-EXTERN	VOID	set_menus(VOID);
-EXTERN	VOID 	menu_opts(LONG tree, WORD obj);
-EXTERN	VOID	clr_hot(VOID);
-EXTERN	VOID	set_hot(VOID);
-EXTERN	VOID	set_switch(VOID);
-EXTERN	VOID	new_state(WORD new);
-EXTERN	WORD	file_view(VOID);
-EXTERN	WORD	tree_view(VOID);
-EXTERN	VOID	clr_clip(VOID);
-EXTERN	VOID	set_title(BYTE *new);
-EXTERN	VOID	get_defpath(BYTE *path, BYTE *spec);
-EXTERN	VOID	clr_title(VOID);
-EXTERN	VOID	hot_off(VOID);
-EXTERN	VOID	wait_tools(VOID);
-EXTERN	VOID	wait_obj(LONG tree, WORD obj);
-EXTERN	WORD	pane_find(LONG *tree, WORD *obj, WORD mx, WORD my);
-EXTERN	WORD	hndl_pop(WORD obj, BOOLEAN itool);
-EXTERN	VOID	hot_dragbox(GRECT *p, GRECT *pc, WORD *mx, WORD *my, WORD hot);
-EXTERN	VOID	clamp_rubbox(WORD x, WORD y, WORD wlow, WORD hlow, WORD whigh, WORD hhigh,
-	LONG ahigh, WORD *w, WORD *h, GRECT *bound);
-EXTERN	VOID	obj_handle(LONG tree, WORD obj, GRECT *p);
-EXTERN	VOID	about_dial(VOID);
-EXTERN	VOID	info_dial(WORD obj);
-EXTERN	VOID	read_inf(WORD flag);
-EXTERN	VOID	wrte_inf(VOID);
-EXTERN	VOID	outp_dial(VOID);
-EXTERN	VOID	safe_dial(VOID);
-EXTERN	VOID	ini_prog(VOID);
-EXTERN	VOID	show_prog(WORD strno);
+extern  short	hndl_dial(long tree, short def, GRECT *p);
+extern  short	hndl_alert(short b_num, long addr);
+extern	void	hndl_locked(void);
+extern	void	mouse_form(short f_num);
+extern	void	ini_panes(void);
+extern	void	view_parts(void);
+extern	void	set_menus(void);
+extern	void 	menu_opts(long tree, short obj);
+extern	void	clr_hot(void);
+extern	void	set_hot(void);
+extern	void	set_switch(void);
+extern	void	new_state(short new);
+extern	short	file_view(void);
+extern	short	tree_view(void);
+extern	void	clr_clip(void);
+extern	void	set_title(char *new);
+extern	void	get_defpath(char *path, char *spec);
+extern	void	clr_title(void);
+extern	void	hot_off(void);
+extern	void	wait_tools(void);
+extern	void	wait_obj(long tree, short obj);
+extern	short	pane_find(long *tree, short *obj, short mx, short my);
+extern	short	hndl_pop(short obj, short itool);
+extern	void	hot_dragbox(GRECT *p, GRECT *pc, short *mx, short *my, short hot);
+extern	void	clamp_rubbox(short x, short y, short wlow, short hlow, short whigh, short hhigh,
+	long ahigh, short *w, short *h, GRECT *bound);
+extern	void	obj_handle(long tree, short obj, GRECT *p);
+extern	void	about_dial(void);
+extern	void	info_dial(short obj);
+extern	void	read_inf(short flag);
+extern	void	wrte_inf(void);
+extern	void	outp_dial(void);
+extern	void	safe_dial(void);
+extern	void	ini_prog(void);
+extern	void	show_prog(short strno);
 
 #endif

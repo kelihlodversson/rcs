@@ -1,12 +1,9 @@
 # RCS, the Resource Construction Set, on gemlib and libcmini
 #
-#   make m68k      build/m68k/SMOKE.PRG (Atari TOS, EmuTOS, pTOS on m68k)
-#   make arm       build/arm/SMOKE.PRG (pTOS on ARM)
+#   make m68k      build/m68k/RCS.PRG and its resource files (Atari TOS, EmuTOS, pTOS on m68k)
+#   make arm       build/arm/RCS.PRG and its resource files (pTOS on ARM)
 #   make libs      only gemlib and libcmini, for both targets
 #   make clean
-#
-# SMOKE.PRG is a placeholder: the sources of RCS are still the original
-# release, and move into PRG_SRC as they are ported to gemlib.
 #
 # Needs GNU make, python3 and rsync, and the m68k-atari-mintelf- toolchain on
 # PATH for m68k, arm-none-eabi- for ARM, plus `pip3 install kconfiglib` for
@@ -15,18 +12,40 @@
 GEMLIB   = third_party/gemlib
 LIBCMINI = third_party/libcmini
 
-PRG_SRC  = tests/smoke.c
-PRG_NAME = SMOKE.PRG
+RCS_SRC  = $(wildcard src/rcs*.c)
+PRG_SRC  = src/atari/prostart.c $(RCS_SRC)
+PRG_NAME = RCS.PRG
 
 STD      = -std=gnu99
-WARN     = -Wall -Wextra
-INCLUDES = -Isrc -I$(GEMLIB) -I$(LIBCMINI)/include
+# the sources are 1985 code, warnings and all: not -Wextra or -Werror yet
+WARN     = -Wall
+# __GEMLIB_OLDNAMES: the old AES names (NORMAL, SELECTED, ...) the sources use
+INCLUDES = -Isrc -Isrc/atari -I$(GEMLIB) -I$(LIBCMINI)/include -D__GEMLIB_OLDNAMES
 
 .PHONY: all m68k arm libs clean
 all: m68k
 
-m68k: build/m68k/$(PRG_NAME)
-arm: build/arm/$(PRG_NAME)
+# RCS loads RCS.RSC (RCSLOW.RSC on a low resolution screen) from the folder it
+# was started in, so they go next to the program.  The .DFN files are the
+# definition files of those two resource files: not needed to run the
+# program, but RCS needs them when one of the resource files is edited.
+RES_FILES = RCS.RSC RCSLOW.RSC RCS.DFN RCSLOW.DFN
+
+m68k: build/m68k/$(PRG_NAME) $(addprefix build/m68k/,$(RES_FILES))
+arm: build/arm/$(PRG_NAME) $(addprefix build/arm/,$(RES_FILES))
+
+build/%/RCS.RSC: src/atari/rcs.rsc
+	@mkdir -p $(dir $@)
+	cp $< $@
+build/%/RCSLOW.RSC: src/atari/rcslow.rsc
+	@mkdir -p $(dir $@)
+	cp $< $@
+build/%/RCS.DFN: src/atari/rcs.dfn
+	@mkdir -p $(dir $@)
+	cp $< $@
+build/%/RCSLOW.DFN: src/atari/rcslow.dfn
+	@mkdir -p $(dir $@)
+	cp $< $@
 
 # ---- the libraries -----------------------------------------------------
 
@@ -104,8 +123,8 @@ ARM_LIBCMINI  = build/arm/lib/libcmini.a
 ARM_CRT       = build/arm/lib/minicrt0.o
 
 # gemlib's own include/arm directory has the compiler.h its headers need
-ARM_CFLAGS = $(STD) $(WARN) -Werror -O2 -ffreestanding $(ARM_ABI) \
-    -Isrc -I$(GEMLIB)/include/arm -I$(GEMLIB) -I$(LIBCMINI)/include
+ARM_CFLAGS = $(STD) $(WARN) -O2 -ffreestanding $(ARM_ABI) \
+    -Isrc -I$(GEMLIB)/include/arm -I$(GEMLIB) -I$(LIBCMINI)/include -D__GEMLIB_OLDNAMES
 ARM_OBJ    = $(patsubst %.c,build/arm/%.o,$(PRG_SRC))
 
 $(ARM_LIBGEM): $(GEMLIB_H) FORCE

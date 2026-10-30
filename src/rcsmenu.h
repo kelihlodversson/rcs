@@ -8,17 +8,17 @@
 
 #define RCSMENU_H
 
-EXTERN	WORD	in_bar(LONG tree, WORD obj);
-EXTERN	WORD	in_menu(LONG tree, WORD obj);
-EXTERN	WORD	is_menu(LONG tree, WORD obj);
-EXTERN  WORD	in_which_menu(LONG tree, WORD obj);
-EXTERN	WORD	menu_n(LONG tree, WORD n);
-EXTERN	WORD	bar_n(LONG tree, WORD n);
-EXTERN	WORD	get_active(LONG tree);
-EXTERN	WORD	blank_menu(LONG tree, WORD sobj);
-EXTERN	VOID	fix_menu_bar(LONG tree);
-EXTERN	WORD	menu_ok(LONG tree, WORD obj);
-EXTERN	VOID	desk_menufix(LONG tree);
-EXTERN	VOID	undo_menufix(LONG tree);
+extern	short	in_bar(long tree, short obj);
+extern	short	in_menu(long tree, short obj);
+extern	short	is_menu(long tree, short obj);
+extern  short	in_which_menu(long tree, short obj);
+extern	short	menu_n(long tree, short n);
+extern	short	bar_n(long tree, short n);
+extern	short	get_active(long tree);
+extern	short	blank_menu(long tree, short sobj);
+extern	void	fix_menu_bar(long tree);
+extern	short	menu_ok(long tree, short obj);
+extern	void	desk_menufix(long tree);
+extern	void	undo_menufix(long tree);
 
 #endif

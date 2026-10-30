@@ -4,28 +4,20 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
+#include <gem.h>
+#include <string.h>
+#include <stdbool.h>
 #include <ctype.h>
 #include <stdio.h>
-#include <portab.h>
-#include <machine.h>
-#include <rclib.h>
-#if GEMDOS
-#include <tos.h>
-#include <aes.h>
-#include <vdi.h>
-#else
-#include <obdefs.h>
-#include <gembind.h>
-#endif
 #include "rcsdefs.h"
 #include "rcsvdi.h"
 #include "rcslib.h"
 
-EXTERN	MFDB	gl_dst;
+extern	MFDB	gl_dst;
 
-VOID set_slsize(WORD w_handle, WORD h_size, WORD v_size)
+void set_slsize(short w_handle, short h_size, short v_size)
 {
-	WORD	cur_size, foo;
+	short	cur_size, foo;
 
 	wind_get(w_handle, WF_HSLSIZE, &cur_size, &foo, &foo, &foo);
 	if (cur_size != h_size)
@@ -35,9 +27,9 @@ VOID set_slsize(WORD w_handle, WORD h_size, WORD v_size)
 		wind_set(w_handle, WF_VSLSIZE, v_size, 0, 0, 0);
 }	
 
-VOID set_slpos(WORD w_handle, WORD h_pos, WORD v_pos)
+void set_slpos(short w_handle, short h_pos, short v_pos)
 {
-	WORD	cur_pos, foo;
+	short	cur_pos, foo;
 
 	wind_get(w_handle, WF_HSLIDE, &cur_pos, &foo, &foo, &foo);
 	if (cur_pos != h_pos)
@@ -47,30 +39,30 @@ VOID set_slpos(WORD w_handle, WORD h_pos, WORD v_pos)
 		wind_set(w_handle, WF_VSLIDE, v_pos, 0, 0, 0);
 }
 
-WORD ini_tree(LONG *tree, WORD which)	/* find tree address */
+short ini_tree(long *tree, short which)	/* find tree address */
 {
 	return ( rsrc_gaddr(R_TREE, which, tree) );
 }
 
-LONG image_addr(WORD which)
+long image_addr(short which)
 {
-	LONG	where;
+	long	where;
 
 	rsrc_gaddr(R_IMAGEDATA, which, &where);
 	return (where);
 } 
 
-LONG string_addr(WORD which)
+long string_addr(short which)
 {
-	LONG	where;
+	long	where;
 
 	rsrc_gaddr(R_STRING, which, &where);
 	return (where);
 } 
 
-VOID arrange_tree(LONG tree, WORD wint, WORD hint,WORD *maxw, WORD *maxh)
+void arrange_tree(long tree, short wint, short hint,short *maxw, short *maxh)
 {
-	WORD	obj, x, y, rowh, wroot;
+	short	obj, x, y, rowh, wroot;
 
 	wroot = GET_WIDTH(tree, ROOT);
 	if ( wroot )
@@ -107,9 +99,9 @@ VOID arrange_tree(LONG tree, WORD wint, WORD hint,WORD *maxw, WORD *maxh)
 *	idea is to walk to the end of our siblings and return
 *	our parent.  If object is the root then return NIL as parent.
 */
-WORD get_parent(LONG tree, WORD obj)
+short get_parent(long tree, short obj)
 {
-	WORD		pobj;
+	short		pobj;
 
 	if (obj == NIL)
 		return (NIL);
@@ -128,16 +120,16 @@ WORD get_parent(LONG tree, WORD obj)
 	}
 } /* get_parent */
 
-WORD nth_child(LONG tree, WORD nobj, WORD n)
+short nth_child(long tree, short nobj, short n)
 {
 	for (nobj = GET_HEAD(tree, nobj); --n; nobj = GET_NEXT(tree, nobj))
 		;
 	return (nobj);
 }
 
-WORD child_of(LONG tree, WORD nobj, WORD obj)
+short child_of(long tree, short nobj, short obj)
 {
-	WORD	nbar;
+	short	nbar;
 
 	nobj = GET_HEAD(tree, nobj);
 	for (nbar = 1; nobj != obj; nbar++)
@@ -145,9 +137,9 @@ WORD child_of(LONG tree, WORD nobj, WORD obj)
 	return (nbar);
 }
 
-VOID table_code(LONG tree, WORD obj0, WORD *types, WORD ntypes, WORD type)
+void table_code(long tree, short obj0, short *types, short ntypes, short type)
 {
-	WORD	itype;
+	short	itype;
 
 	for (itype = 0; itype < ntypes; itype++)
 		if (type == types[itype])
@@ -157,7 +149,7 @@ VOID table_code(LONG tree, WORD obj0, WORD *types, WORD ntypes, WORD type)
 		}
 }
 
-WORD encode(LONG tree, WORD ob1st, WORD num)
+short encode(long tree, short ob1st, short num)
 {
 	for (; num--; )
 		if (GET_STATE(tree, ob1st+num) & SELECTED)
@@ -165,9 +157,9 @@ WORD encode(LONG tree, WORD ob1st, WORD num)
 	return (0);
 }
 
-VOID map_tree(LONG tree, WORD this, WORD last, fkt_parm routine)
+void map_tree(long tree, short this, short last, fkt_parm routine)
 {
-	WORD		tmp1;
+	short		tmp1;
 
 	/* non-recursive tree traversal */
 child:
@@ -208,7 +200,7 @@ sibling:
 	goto sibling;
 }
 
-VOID snap_xy(WORD *x, WORD *y)
+void snap_xy(short *x, short *y)
 {
 	*x += gl_wchar / 2;	
 	*y += gl_hchar / 2;
@@ -216,7 +208,7 @@ VOID snap_xy(WORD *x, WORD *y)
 	*y -= *y % gl_hchar;
 }
 
-VOID snap_wh(WORD *w, WORD *h)
+void snap_wh(short *w, short *h)
 {
 	*w += gl_wchar / 2;
 	*h += gl_hchar / 2;
@@ -224,22 +216,22 @@ VOID snap_wh(WORD *w, WORD *h)
 	*h = max(*h - *h % gl_hchar, gl_hchar);
 }
 
-VOID text_wh(LONG taddr, WORD type, WORD *w, WORD *h)
+void text_wh(long taddr, short type, short *w, short *h)
 {
-	WORD	font;
+	short	font;
 
-	font = LWGET(TE_FONT(taddr));
-	taddr = LLGET( (type == G_TEXT || type == G_BOXTEXT)? TE_PTEXT(taddr): TE_PTMPLT(taddr) );
+	font = (*(short *)(TE_FONT(taddr)));
+	taddr = (*(long *)((type == G_TEXT || type == G_BOXTEXT)? TE_PTEXT(taddr): TE_PTMPLT(taddr)));
 	*h = ch_height(font);
-	*w = ch_width(font) * (WORD)LSTRLEN(taddr);
+	*w = ch_width(font) * (short)strlen((char *)(taddr));
 }
 
-VOID icon_wh(LONG taddr, WORD *w, WORD *h)
+void icon_wh(long taddr, short *w, short *h)
 {
 	ICONBLK	here;
 	GRECT	p;
 
-	LBCOPY(ADDR(&here), taddr, sizeof(ICONBLK));
+	memcpy((void *)(((long)(&here))), (void *)(taddr), sizeof(ICONBLK));
 	rc_copy((GRECT *) &here.ib_xchar, &p);
 	rc_union((GRECT *) &here.ib_xicon, &p);
 	rc_union((GRECT *) &here.ib_xtext, &p);
@@ -247,38 +239,38 @@ VOID icon_wh(LONG taddr, WORD *w, WORD *h)
 	*h = p.g_y + p.g_h;
 }
 
-VOID icon_tfix(LONG taddr)
+void icon_tfix(long taddr)
 {
-	WORD	dw;
+	short	dw;
 
-	dw = (LWGET(IB_WICON(taddr)) - LWGET(IB_WTEXT(taddr))) / 2;
-	LWSET(IB_XICON(taddr), (dw<0)? -dw: 0);
-	LWSET(IB_XTEXT(taddr), (dw<0)? 0: dw);
+	dw = ((*(short *)(IB_WICON(taddr))) - (*(short *)(IB_WTEXT(taddr)))) / 2;
+	(*(short *)(IB_XICON(taddr)) = ((dw<0)? -dw: 0));
+	(*(short *)(IB_XTEXT(taddr)) = ((dw<0)? 0: dw));
 }
 
-VOID trans_bitblk(LONG obspec)
+void trans_bitblk(long obspec)
 {
-	LONG	taddr;
-	WORD	wb, hl;
+	long	taddr;
+	short	wb, hl;
 
-	if ( (taddr = LLGET(BI_PDATA(obspec))) != -1L)
+	if ( (taddr = (*(long *)(BI_PDATA(obspec)))) != -1L)
 	{
-		wb = LWGET(BI_WB(obspec));
-		hl = LWGET(BI_HL(obspec));
+		wb = (*(short *)(BI_WB(obspec)));
+		hl = (*(short *)(BI_HL(obspec)));
 		gsx_trans(taddr, wb, taddr, wb, hl);
 	}
 }
 
-VOID rast_op(WORD mode, GRECT *s_area, MFDB *s_mfdb, GRECT *d_area, MFDB *d_mfdb)
+void rast_op(short mode, GRECT *s_area, MFDB *s_mfdb, GRECT *d_area, MFDB *d_mfdb)
 {
-	WORD	pxy[8];
+	short	pxy[8];
 
 	grect_to_array(s_area, pxy);
 	grect_to_array(d_area, &pxy[4]);
 	vro_cpyfm( gl_handle, mode, pxy, s_mfdb, d_mfdb);
 }
 
-VOID outl_obj(LONG tree, WORD obj, GRECT *clprect)
+void outl_obj(long tree, short obj, GRECT *clprect)
 {
 	GRECT	p;
 
@@ -289,7 +281,7 @@ VOID outl_obj(LONG tree, WORD obj, GRECT *clprect)
 	graf_mouse(M_ON, NULL);
 }
 
-VOID invert_obj(LONG tree, WORD obj, GRECT *clprect)
+void invert_obj(long tree, short obj, GRECT *clprect)
 {
 	GRECT	hot;
 
@@ -300,19 +292,19 @@ VOID invert_obj(LONG tree, WORD obj, GRECT *clprect)
 	graf_mouse(M_ON, NULL);
 	if (iconedit_flag)
 	{
-		if (LWGET(OB_STATE(obj)) == SELECTED)
-		    LWSET(OB_STATE(obj), NORMAL);
+		if ((*(short *)(OB_STATE(obj))) == SELECTED)
+		    (*(short *)(OB_STATE(obj)) = (NORMAL));
 		else
-		    LWSET(OB_STATE(obj), SELECTED);
+		    (*(short *)(OB_STATE(obj)) = (SELECTED));
 	}
 }
 
-VOID trans_obj(LONG tree, WORD obj)
+void trans_obj(long tree, short obj)
 {
-	WORD	type, wb, hl;
-	LONG	taddr, obspec;
+	short	type, wb, hl;
+	long	taddr, obspec;
 
-	type = LLOBT(GET_TYPE(tree, obj));
+	type = ((GET_TYPE(tree, obj)) & 0xff);
 	if ( (obspec = GET_SPEC(tree, obj)) != -1L)
 	{
 		switch (type)
@@ -321,11 +313,11 @@ VOID trans_obj(LONG tree, WORD obj)
 				trans_bitblk(obspec);
 				break;
 			case G_ICON:
-				hl = LWGET(IB_HICON(obspec));
-				wb = (LWGET(IB_WICON(obspec)) + 7) >> 3;
-				if ( (taddr = LLGET(IB_PDATA(obspec))) != -1L)
+				hl = (*(short *)(IB_HICON(obspec)));
+				wb = ((*(short *)(IB_WICON(obspec))) + 7) >> 3;
+				if ( (taddr = (*(long *)(IB_PDATA(obspec)))) != -1L)
 					gsx_trans(taddr, wb, taddr, wb, hl);
-				if ( (taddr = LLGET(IB_PMASK(obspec))) != -1L)
+				if ( (taddr = (*(long *)(IB_PMASK(obspec)))) != -1L)
 					gsx_trans(taddr, wb, taddr, wb, hl);
 				break;
 			default:
@@ -334,24 +326,24 @@ VOID trans_obj(LONG tree, WORD obj)
 	}
 }
 
-VOID unfix_chpos(LONG where, WORD x_or_y)
+void unfix_chpos(long where, short x_or_y)
 {
-	WORD	cpos, coff, cbits;
+	short	cpos, coff, cbits;
 
-	cpos = LWGET(where);
+	cpos = (*(short *)(where));
 	coff = cpos / (x_or_y? gl_hchar: gl_wchar);
 	cbits = cpos % (x_or_y? gl_hchar: gl_wchar);
-	LWSET(where, coff | (cbits << 8));
+	(*(short *)(where) = (coff | (cbits << 8)));
 }
 
-LOCAL VOID fix_chpos(LONG pfix, WORD ifx)
+static void fix_chpos(long pfix, short ifx)
 {
-	WORD	coffset;
-	WORD	cpos;
+	short	coffset;
+	short	cpos;
 
-	cpos = LWGET(pfix);
-	coffset = (WORD) LHIBT(cpos) & 0xff;	/* Alcyon bug ! */
-	cpos = (WORD) LLOBT(cpos) & 0xff;
+	cpos = (*(short *)(pfix));
+	coffset = (short) (((cpos) >> 8) & 0xff) & 0xff;	/* Alcyon bug ! */
+	cpos = (short) ((cpos) & 0xff) & 0xff;
 	if (ifx)
 		cpos *= gl_wchar;
 	else
@@ -360,13 +352,13 @@ LOCAL VOID fix_chpos(LONG pfix, WORD ifx)
 		cpos -= (256 - coffset);
 	else
 		cpos += coffset;
-	LWSET(pfix, cpos);
+	(*(short *)(pfix) = (cpos));
 }
 
-VOID rs_obfix(LONG tree, WORD curob)
+void rs_obfix(long tree, short curob)
 {
-	WORD		i, val;
-	LONG		p;
+	short		i, val;
+	long		p;
 
 	/* set X,Y,W,H with	*/
 	/*   fixch, use val	*/
@@ -374,170 +366,170 @@ VOID rs_obfix(LONG tree, WORD curob)
 	/*   and FALSEs		*/
 	p = OB_X(curob);
 
-	val = TRUE;
+	val = true;
 	for (i=0; i<4; i++)
 	{
-		fix_chpos(p+(LONG)(2*i), val);
+		fix_chpos(p+(long)(2*i), val);
 		val = !val;
 	}
 }
 
-LOCAL VOID undo_obj(LONG tree, WORD which, WORD bit)
+static void undo_obj(long tree, short which, short bit)
 {
-	WORD	state;
+	short	state;
 
 	state = GET_STATE(tree, which);
 	SET_STATE(tree, which, state & ~bit);
 }
 
-LOCAL VOID do_obj(LONG tree, WORD which, WORD bit)
+static void do_obj(long tree, short which, short bit)
 {
-	WORD	state;
+	short	state;
 
 	state = GET_STATE(tree, which);
 	SET_STATE(tree, which, state | bit);
 }
 
-VOID enab_obj(LONG tree, WORD which)
+void enab_obj(long tree, short which)
 {
 	undo_obj(tree, which, DISABLED);
 }
 
-VOID disab_obj(LONG tree, WORD which)
+void disab_obj(long tree, short which)
 {
 	do_obj(tree, which, DISABLED);
 }
 
-VOID sel_obj(LONG tree, WORD which)
+void sel_obj(long tree, short which)
 {
 	do_obj(tree, which, SELECTED);
 }
 
-VOID desel_obj(LONG tree, WORD which)
+void desel_obj(long tree, short which)
 {
 	undo_obj(tree, which, SELECTED);
 }
 
-VOID chek_obj(LONG tree, WORD which)
+void chek_obj(long tree, short which)
 {
 	do_obj(tree, which, CHECKED);
 }
 
-VOID unchek_obj(LONG tree, WORD which)
+void unchek_obj(long tree, short which)
 {
 	undo_obj(tree, which, CHECKED);
 }
 
-LOCAL VOID unflag_obj(LONG tree, WORD which, WORD bit)
+static void unflag_obj(long tree, short which, short bit)
 {
-	WORD	flags;
+	short	flags;
 
 	flags = GET_FLAGS(tree, which);
 	SET_FLAGS(tree, which, flags & ~bit);
 }
 
-LOCAL VOID flag_obj(LONG tree, WORD which, WORD bit)
+static void flag_obj(long tree, short which, short bit)
 {
-	WORD	flags;
+	short	flags;
 
 	flags = GET_FLAGS(tree, which);
 	SET_FLAGS(tree, which, flags | bit);
 }
 
-VOID hide_obj(LONG tree, WORD which)
+void hide_obj(long tree, short which)
 {
 	flag_obj(tree, which, HIDETREE);
 }
 
-VOID unhide_obj(LONG tree, WORD which)
+void unhide_obj(long tree, short which)
 {
 	unflag_obj(tree, which, HIDETREE);
 }
 
-LOCAL VOID indir_obj(LONG tree, WORD which)
+static void indir_obj(long tree, short which)
 {
 	flag_obj(tree, which, INDIRECT);
 }
 
-LOCAL VOID dir_obj(LONG tree, WORD which)
+static void dir_obj(long tree, short which)
 {
 	unflag_obj(tree, which, INDIRECT);
 }
 
-VOID sble_obj(LONG tree, WORD which)
+void sble_obj(long tree, short which)
 {
 	flag_obj(tree, which, SELECTABLE);
 }
 
-VOID unsble_obj(LONG tree, WORD which)
+void unsble_obj(long tree, short which)
 {
 	unflag_obj(tree, which, SELECTABLE);
 }
 
-VOID objc_xywh(LONG tree, WORD obj, GRECT *p)
+void objc_xywh(long tree, short obj, GRECT *p)
 {
-	objc_offset((OBJECT FAR *)tree, obj, &p->g_x, &p->g_y);
+	objc_offset((OBJECT  *)tree, obj, &p->g_x, &p->g_y);
 	p->g_w = GET_WIDTH(tree, obj);
 	p->g_h = GET_HEIGHT(tree, obj);
 }
 
-VOID ob_setxywh(LONG tree, WORD obj, GRECT *pt)
+void ob_setxywh(long tree, short obj, GRECT *pt)
 {
-	LWCOPY(OB_X(obj), ADDR(pt), sizeof(GRECT)/2);
+	memcpy((void *)(OB_X(obj)), (void *)(((long)(pt))), 2 * (sizeof(GRECT)/2));
 }
 
-VOID ob_relxywh(LONG tree, WORD obj, GRECT *pt)
+void ob_relxywh(long tree, short obj, GRECT *pt)
 {
-	LWCOPY(ADDR(pt), OB_X(obj), sizeof(GRECT)/2);
+	memcpy((void *)(((long)(pt))), (void *)(OB_X(obj)), 2 * (sizeof(GRECT)/2));
 }
 
-WORD min(WORD a, WORD b)
+short min(short a, short b)
 {
 	return( (a < b) ? a : b );
 }
 
-WORD max(WORD a, WORD b)
+short max(short a, short b)
 {
 	return( (a > b) ? a : b );
 }
 
-VOID strup(BYTE *p1)
+void strup(char *p1)
 {
 	for(; *p1; p1++)
 		*p1 = toupper(*p1);
 }
 
-VOID LLSTRCPY(LONG src, LONG dest)
+void LLSTRCPY(long src, long dest)
 {
-	BYTE	b;
+	char	b;
 
 	do {
-		b = LBGET(src++);
-		LBSET(dest++, b);
+		b = (*(char *)(src++));
+		(*(char *)(dest++) = (b));
 	} while (b);
 }
 
-WORD LLSTRCMP(LONG l1, LONG l2)
+short LLSTRCMP(long l1, long l2)
 {
-	BYTE	b;
+	char	b;
 
-	b = LBGET(l1++);
+	b = (*(char *)(l1++));
 	while (b)
 	{
-		if (b != LBGET(l2++))
-			return (FALSE);
+		if (b != (*(char *)(l2++)))
+			return (false);
 		else
-			b = LBGET(l1++);
+			b = (*(char *)(l1++));
 	}
-	return (!LBGET(l2));
+	return (!(*(char *)(l2)));
 }
 
-VOID LWINC(LONG x)
+void LWINC(long x)
 {
-	LWSET(x, 1 + LWGET(x));
+	(*(short *)(x) = (1 + (*(short *)(x))));
 }
 
-WORD dmcopy(FILE *stream, LONG msrc, LONG mdest, WORD mln)	/* disk to memory copy */
+short dmcopy(FILE *stream, long msrc, long mdest, short mln)	/* disk to memory copy */
 {
 	if (fseek(stream, msrc, SEEK_SET))
 		return( 0 );
@@ -547,117 +539,157 @@ WORD dmcopy(FILE *stream, LONG msrc, LONG mdest, WORD mln)	/* disk to memory cop
 		return(mln);
 } /* dmcopy */
 
-LOCAL LONG obj_addr(LONG tree, WORD obj, WORD offset)
+static long obj_addr(long tree, short obj, short offset)
 {
-	return (tree + (UWORD) (obj * sizeof(OBJECT) + offset));
+	return (tree + (unsigned short) (obj * sizeof(OBJECT) + offset));
 }
 
-WORD GET_NEXT(LONG tree, WORD x)
+short GET_NEXT(long tree, short x)
 {
-	return LWGET(obj_addr(tree, x, 0));
+	return (*(short *)(obj_addr(tree, x, 0)));
 }
 
-WORD GET_HEAD(LONG tree, WORD x)
+short GET_HEAD(long tree, short x)
 {
-	return LWGET(obj_addr(tree, x, 2));
+	return (*(short *)(obj_addr(tree, x, 2)));
 }
 
-WORD GET_TAIL(LONG tree, WORD x)
+short GET_TAIL(long tree, short x)
 {
-	return LWGET(obj_addr(tree, x, 4));
+	return (*(short *)(obj_addr(tree, x, 4)));
 }
 
-WORD GET_TYPE(LONG tree, WORD x)
+short GET_TYPE(long tree, short x)
 {
-	return LWGET(obj_addr(tree, x, 6));
+	return (*(short *)(obj_addr(tree, x, 6)));
 }
 
-WORD GET_FLAGS(LONG tree, WORD x)
+short GET_FLAGS(long tree, short x)
 {
-	return LWGET(obj_addr(tree, x, 8));
+	return (*(short *)(obj_addr(tree, x, 8)));
 }
 
-WORD GET_STATE(LONG tree, WORD x)
+short GET_STATE(long tree, short x)
 {
-	return LWGET(obj_addr(tree, x, 10));
+	return (*(short *)(obj_addr(tree, x, 10)));
 }
 
-LONG GET_SPEC(LONG tree, WORD x)
+long GET_SPEC(long tree, short x)
 {
-	return LLGET(obj_addr(tree, x, 12));
+	return (*(long *)(obj_addr(tree, x, 12)));
 }
 
-WORD GET_X(LONG tree, WORD x)
+short GET_X(long tree, short x)
 {
-	return LWGET(obj_addr(tree, x, 16));
+	return (*(short *)(obj_addr(tree, x, 16)));
 }
 
-WORD GET_Y(LONG tree, WORD x)
+short GET_Y(long tree, short x)
 {
-	return LWGET(obj_addr(tree, x, 18));
+	return (*(short *)(obj_addr(tree, x, 18)));
 }
 
-WORD GET_WIDTH(LONG tree, WORD x)
+short GET_WIDTH(long tree, short x)
 {
-	return LWGET(obj_addr(tree, x, 20));
+	return (*(short *)(obj_addr(tree, x, 20)));
 }
 
-WORD GET_HEIGHT(LONG tree, WORD x)
+short GET_HEIGHT(long tree, short x)
 {
-	return LWGET(obj_addr(tree, x, 22));
+	return (*(short *)(obj_addr(tree, x, 22)));
 }
 
-VOID SET_NEXT(LONG tree, WORD x, WORD val)
+void SET_NEXT(long tree, short x, short val)
 {
-	LWSET(obj_addr(tree, x, 0), val);
+	(*(short *)(obj_addr(tree, x, 0)) = (val));
 }
 
-VOID SET_HEAD(LONG tree, WORD x, WORD val)
+void SET_HEAD(long tree, short x, short val)
 {
-	LWSET(obj_addr(tree, x, 2), val);
+	(*(short *)(obj_addr(tree, x, 2)) = (val));
 }
 
-VOID SET_TAIL(LONG tree, WORD x, WORD val)
+void SET_TAIL(long tree, short x, short val)
 {
-	LWSET(obj_addr(tree, x, 4), val);
+	(*(short *)(obj_addr(tree, x, 4)) = (val));
 }
 
-LOCAL VOID SET_TYPE(LONG tree, WORD x, WORD val)
+static void SET_TYPE(long tree, short x, short val)
 {
-	LWSET(obj_addr(tree, x, 6), val);
+	(*(short *)(obj_addr(tree, x, 6)) = (val));
 }
 
-VOID SET_FLAGS(LONG tree, WORD x, WORD val)
+void SET_FLAGS(long tree, short x, short val)
 {
-	LWSET(obj_addr(tree, x, 8), val);
+	(*(short *)(obj_addr(tree, x, 8)) = (val));
 }
 
-VOID SET_STATE(LONG tree, WORD x, WORD val)
+void SET_STATE(long tree, short x, short val)
 {
-	LWSET(obj_addr(tree, x, 10), val);
+	(*(short *)(obj_addr(tree, x, 10)) = (val));
 }
 
-VOID SET_SPEC(LONG tree, WORD x, LONG val)
+void SET_SPEC(long tree, short x, long val)
 {
-	LLSET(obj_addr(tree, x, 12), val);
+	(*(long *)(obj_addr(tree, x, 12)) = (val));
 }
 
-VOID SET_X(LONG tree, WORD x, WORD val)
+void SET_X(long tree, short x, short val)
 {
-	LWSET(obj_addr(tree, x, 16), val);
+	(*(short *)(obj_addr(tree, x, 16)) = (val));
 }
 
-VOID SET_Y(LONG tree, WORD x, WORD val)
+void SET_Y(long tree, short x, short val)
 {
-	LWSET(obj_addr(tree, x, 18), val);
+	(*(short *)(obj_addr(tree, x, 18)) = (val));
 }
 
-VOID SET_WIDTH(LONG tree, WORD x, WORD val)
+void SET_WIDTH(long tree, short x, short val)
 {
-	LWSET(obj_addr(tree, x, 20), val);
+	(*(short *)(obj_addr(tree, x, 20)) = (val));
 }
 
-VOID SET_HEIGHT(LONG tree, WORD x, WORD val)
+void SET_HEIGHT(long tree, short x, short val)
 {
-	LWSET(obj_addr(tree, x, 22), val);
+	(*(short *)(obj_addr(tree, x, 22)) = (val));
+}
+
+/* the GRECT helpers that the original build took from RCLIB.LIB; gemlib has
+ * rc_copy, rc_equal and rc_intersect, but not these */
+
+void rc_set(GRECT *r, short x, short y, short w, short h)
+{
+	r->g_x = x;
+	r->g_y = y;
+	r->g_w = w;
+	r->g_h = h;
+}
+
+void rc_get(const GRECT *r, short *x, short *y, short *w, short *h)
+{
+	*x = r->g_x;
+	*y = r->g_y;
+	*w = r->g_w;
+	*h = r->g_h;
+}
+
+short rc_inside(const GRECT *r, short x, short y)
+{
+	return x >= r->g_x && y >= r->g_y &&
+		x < r->g_x + r->g_w && y < r->g_y + r->g_h;
+}
+
+/* the smallest rectangle holding both, in dst */
+void rc_union(const GRECT *src, GRECT *dst)
+{
+	short x, y;
+
+	x = src->g_x < dst->g_x ? src->g_x : dst->g_x;
+	y = src->g_y < dst->g_y ? src->g_y : dst->g_y;
+	dst->g_w = (src->g_x + src->g_w > dst->g_x + dst->g_w ?
+		src->g_x + src->g_w : dst->g_x + dst->g_w) - x;
+	dst->g_h = (src->g_y + src->g_h > dst->g_y + dst->g_h ?
+		src->g_y + src->g_h : dst->g_y + dst->g_h) - y;
+	dst->g_x = x;
+	dst->g_y = y;
 }

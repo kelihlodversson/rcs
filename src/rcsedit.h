@@ -8,30 +8,30 @@
 
 #define RCSEDIT_H
 
-EXTERN	VOID	set_text(LONG tree, WORD obj, LONG addr, WORD len);
-EXTERN	VOID	ted_set(LONG taddr, BYTE *tmplt, BYTE *valid, BYTE *text);
-EXTERN	VOID	ted_get(LONG taddr, BYTE *tmplt, BYTE *valid, BYTE *text);
-EXTERN	VOID	icon_set(LONG taddr, BYTE *text, BYTE *chr);
-EXTERN	VOID	icon_get(LONG taddr, BYTE *text, BYTE *chr);
-EXTERN	WORD	icon_cwhich(WORD xy, WORD wh, WORD iwh);
-EXTERN	WORD	icon_twhich(WORD xy, WORD iwh);
-EXTERN	WORD	icon_tapply(WORD rule, WORD wh, WORD iwh);
-EXTERN	WORD	icon_capply(WORD rule, WORD wh, WORD iwh);
-EXTERN	VOID	get_obf(LONG tree, WORD obj, WORD *type, LONG *obspec);
-EXTERN	VOID	get_fields(LONG tree, WORD sobj, WORD *type, LONG *obspec, GRECT *p);
-EXTERN	VOID	edit_str(LONG tree, WORD sobj);
-EXTERN	VOID	edit_box(LONG tree, WORD sobj);
-EXTERN	VOID	edit_text(LONG tree, WORD sobj);
-EXTERN	VOID	edit_bit(LONG tree, WORD sobj);
-EXTERN	VOID	edit_icon(LONG tree, WORD sobj);
-EXTERN	VOID	open_obj(WORD sobj);
-EXTERN	VOID	do_bdcol(LONG tree, WORD obj, WORD item);
-EXTERN	VOID	do_bgcol(LONG tree, WORD obj, WORD item);
-EXTERN	VOID	do_fgcol(LONG tree, WORD obj, WORD item);
-EXTERN	VOID	do_patrn(LONG tree, WORD obj, WORD item);
-EXTERN	VOID	do_thick(LONG tree, WORD obj, WORD item);
-EXTERN	VOID	do_rule(LONG tree, WORD obj, WORD item);
-EXTERN	VOID	do_posn(LONG tree, WORD obj, WORD item);
-EXTERN	VOID	do_swtch(LONG tree, WORD obj, WORD item);
+extern	void	set_text(long tree, short obj, long addr, short len);
+extern	void	ted_set(long taddr, char *tmplt, char *valid, char *text);
+extern	void	ted_get(long taddr, char *tmplt, char *valid, char *text);
+extern	void	icon_set(long taddr, char *text, char *chr);
+extern	void	icon_get(long taddr, char *text, char *chr);
+extern	short	icon_cwhich(short xy, short wh, short iwh);
+extern	short	icon_twhich(short xy, short iwh);
+extern	short	icon_tapply(short rule, short wh, short iwh);
+extern	short	icon_capply(short rule, short wh, short iwh);
+extern	void	get_obf(long tree, short obj, short *type, long *obspec);
+extern	void	get_fields(long tree, short sobj, short *type, long *obspec, GRECT *p);
+extern	void	edit_str(long tree, short sobj);
+extern	void	edit_box(long tree, short sobj);
+extern	void	edit_text(long tree, short sobj);
+extern	void	edit_bit(long tree, short sobj);
+extern	void	edit_icon(long tree, short sobj);
+extern	void	open_obj(short sobj);
+extern	void	do_bdcol(long tree, short obj, short item);
+extern	void	do_bgcol(long tree, short obj, short item);
+extern	void	do_fgcol(long tree, short obj, short item);
+extern	void	do_patrn(long tree, short obj, short item);
+extern	void	do_thick(long tree, short obj, short item);
+extern	void	do_rule(long tree, short obj, short item);
+extern	void	do_posn(long tree, short obj, short item);
+extern	void	do_swtch(long tree, short obj, short item);
 
 #endif

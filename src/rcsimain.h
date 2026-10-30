@@ -8,21 +8,21 @@
 
 #define RCSIMAIN_H
 
-EXTERN	VOID	fat2sml(WORD x[], WORD y[], WORD count, WORD isdata);
-EXTERN	VOID	set_pix(VOID);
-EXTERN	VOID	set_scroll(VOID);
-EXTERN	VOID	copy_colplanes(LONG longaddr, WORD color, WORD isdata);
-EXTERN	VOID	dr_image(VOID);
-EXTERN	VOID	hold_to_undo(VOID);
-EXTERN	VOID	save_fat(BOOLEAN undo);
-EXTERN	VOID	fattify(GRECT *area);
-EXTERN	WORD	CDECL	dr_code(LONG pparmbk);
-EXTERN	VOID	fb_redraw(VOID);
-EXTERN	VOID	set_bgcol(WORD item, BOOLEAN invert);
-EXTERN	VOID	set_fgcol(WORD item,BOOLEAN invert);
-EXTERN	VOID	save_img(VOID);
-EXTERN	VOID	rubrec_off(VOID);
-EXTERN	VOID	undo_img(VOID);
-EXTERN	VOID	iconmain(VOID);
+extern	void	fat2sml(short x[], short y[], short count, short isdata);
+extern	void	set_pix(void);
+extern	void	set_scroll(void);
+extern	void	copy_colplanes(long longaddr, short color, short isdata);
+extern	void	dr_image(void);
+extern	void	hold_to_undo(void);
+extern	void	save_fat(short undo);
+extern	void	fattify(GRECT *area);
+extern	short	__CDECL	dr_code(PARMBLK *pparmbk);
+extern	void	fb_redraw(void);
+extern	void	set_bgcol(short item, short invert);
+extern	void	set_fgcol(short item,short invert);
+extern	void	save_img(void);
+extern	void	rubrec_off(void);
+extern	void	undo_img(void);
+extern	void	iconmain(void);
 
 #endif

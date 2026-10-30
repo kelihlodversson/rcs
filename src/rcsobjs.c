@@ -4,18 +4,10 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
+#include <gem.h>
+#include <string.h>
+#include <stdbool.h>
 #include <stdlib.h>
-#include <portab.h>
-#include <machine.h>
-#if GEMDOS
-#if TURBO_C
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <obdefs.h>
-#include <gembind.h>
-#endif
 #include "rcsdefs.h"
 #include "rcs.h"
 #include "rcsdata.h"
@@ -27,60 +19,60 @@
 #include "rcsasm.h"
 #include "rcsobjs.h"
 
-EXTERN	BOOLEAN iconedit_flag;
-EXTERN	WORD	gridw, gridh;
+extern	short iconedit_flag;
+extern	short	gridw, gridh;
 
-WORD snap_xs(WORD x)
+short snap_xs(short x)
 {
-	WORD i;
+	short i;
 
 	x += (i = iconedit_flag ? gridw : gl_wchar) / 2;
 	return (x - x % i);
 }
 
-WORD snap_ys(WORD y)
+short snap_ys(short y)
 {
-	WORD i;
+	short i;
 
 	y += (i = iconedit_flag ? gridh : gl_hchar) / 2;
 	return (y - y % i);
 }
 
-WORD clamp_xs(LONG tree, WORD x)
+short clamp_xs(long tree, short x)
 {
 	x = min(x, GET_WIDTH(tree, ROOT) - view.g_w);
 	return max(0, x);
 }
 
-WORD clamp_ys(LONG tree, WORD y)
+short clamp_ys(long tree, short y)
 {
 	y = min(y, GET_HEIGHT(tree, ROOT) - view.g_h);
 	return max(0, y);
 }
 
-VOID do_hsinc(WORD inc)
+void do_hsinc(short inc)
 {
 	rcs_xpan = clamp_xs(ad_view, snap_xs(rcs_xpan + inc));
 }
 
-VOID do_vsinc(WORD inc)
+void do_vsinc(short inc)
 {
 	rcs_ypan = clamp_ys(ad_view, snap_ys(rcs_ypan + inc));
 }
 
-VOID set_rootxy(LONG tree)
+void set_rootxy(long tree)
 {
 	SET_X(tree, ROOT, view.g_x - rcs_xpan);
 	SET_Y(tree, ROOT, view.g_y - rcs_ypan);
 }
 
-WORD newsize_obj(LONG tree, WORD obj, WORD neww, WORD newh, WORD ok)
+short newsize_obj(long tree, short obj, short neww, short newh, short ok)
 {
-	WORD	pobj;
+	short	pobj;
 	GRECT	p;
 
 	if (!neww || !newh)
-		return(TRUE);
+		return(true);
 	else
 	{
 		objc_xywh(tree, obj, &p);
@@ -88,44 +80,44 @@ WORD newsize_obj(LONG tree, WORD obj, WORD neww, WORD newh, WORD ok)
 
 		if (!ok)
 		{
-			if (pobj != posn_obj(tree, pobj, &p.g_x, &p.g_y, neww, newh, TRUE))
+			if (pobj != posn_obj(tree, pobj, &p.g_x, &p.g_y, neww, newh, true))
 			{
 				if (!rcs_xpert)
 					if (hndl_alert(2, string_addr(STSIZEP)) == 1)
-						return(FALSE);
+						return(false);
 				if (rcs_lock)
 				{
 					hndl_locked();
-					return(FALSE);
+					return(false);
 				}
 			}
 		}
 		SET_WIDTH(tree, obj, neww);
 		SET_HEIGHT(tree, obj, newh);
-		return(TRUE);
+		return(true);
 	}
 }
 
-VOID slid_objs(VOID)
+void slid_objs(void)
 {
-	WORD	h_size, v_size;
-	WORD	w, h;
+	short	h_size, v_size;
+	short	w, h;
 
 	w = GET_WIDTH(ad_view, ROOT);
 	h = GET_HEIGHT(ad_view, ROOT);
-	h_size = (WORD) umul_div(view.g_w, 1000, w);
+	h_size = (short) umul_div(view.g_w, 1000, w);
 	h_size = min(1000, h_size);
-	v_size = (WORD) umul_div(view.g_h, 1000, h);
+	v_size = (short) umul_div(view.g_h, 1000, h);
 	v_size = min(1000, v_size);
 	set_slsize(rcs_view, h_size, v_size); 
 	h_size = max(1, w - view.g_w);
-	h_size = (WORD) umul_div(rcs_xpan, 1000, h_size);
+	h_size = (short) umul_div(rcs_xpan, 1000, h_size);
 	v_size = max(1, h - view.g_h);
-	v_size = (WORD) umul_div(rcs_ypan, 1000, v_size);
+	v_size = (short) umul_div(rcs_ypan, 1000, v_size);
 	set_slpos(rcs_view, h_size, v_size);
 }
 
-VOID view_objs(VOID)
+void view_objs(void)
 {
 	rcs_xpan = clamp_xs(ad_view, rcs_xpan);	
 	rcs_ypan = clamp_ys(ad_view, rcs_ypan);
@@ -134,17 +126,17 @@ VOID view_objs(VOID)
 	send_redraw(rcs_view, &view);
 }
 
-VOID type_obj(WORD obj)
+void type_obj(short obj)
 {
-	WORD	exitobj, obtype, obmsb;
-	LONG	otaddr, tree, taddr;
+	short	exitobj, obtype, obmsb;
+	long	otaddr, tree, taddr;
 	GRECT	p;
-	BYTE	xtype[4];
+	char	xtype[4];
 
 	tree = ad_view;
-	obtype = LWGET(otaddr = OB_TYPE(obj));
-	obmsb = LHIBT(obtype);
-	obtype = LLOBT(obtype);
+	obtype = (*(short *)(otaddr = OB_TYPE(obj)));
+	obmsb = (((obtype) >> 8) & 0xff);
+	obtype = ((obtype) & 0xff);
 	objc_xywh(tree, obj, &p);
 
 	ini_tree(&tree, NOBJTREE);
@@ -154,8 +146,8 @@ VOID type_obj(WORD obj)
 
 	sprintf(xtype, "%hd", obmsb);
 	taddr = GET_SPEC(tree, XTYPE);
-	LLSET(TE_PTEXT(taddr), ADDR(xtype));
-	LLSET(TE_TXTLEN(taddr),0x4L);
+	(*(long *)(TE_PTEXT(taddr)) = (((long)(xtype))));
+	(*(long *)(TE_TXTLEN(taddr)) = (0x4L));
 
 	switch (obtype)
 	{
@@ -185,7 +177,7 @@ VOID type_obj(WORD obj)
 
 	if (exitobj == NOOKITEM)
 	{
-		rcs_edited = TRUE;
+		rcs_edited = true;
 		obmsb = atoi(xtype) & 0xff;
 		switch (obtype)
 		{
@@ -208,7 +200,7 @@ VOID type_obj(WORD obj)
 				return;
 		}
 
-		LWSET(otaddr, (obmsb << 8) | obtype);
+		(*(short *)(otaddr) = ((obmsb << 8) | obtype));
 		set_hot();
 	}
 	map_tree(tree, ROOT, NIL, (fkt_parm)desel_obj);
@@ -216,10 +208,10 @@ VOID type_obj(WORD obj)
 	obj_redraw(ad_view, obj);
 }  
 
-VOID del_ob(WORD sobj)
+void del_ob(short sobj)
 {
-	LONG	tree;
-	WORD	n, menu_obj;
+	long	tree;
+	short	n, menu_obj;
 
 	if (rcs_lock)
 		hndl_locked();
@@ -234,7 +226,7 @@ VOID del_ob(WORD sobj)
 				obj_redraw(tree, sobj);
 				zap_objindex(tree, sobj);
 				map_dslct(tree, sobj);
-				objc_delete((OBJECT FAR *)tree, sobj);
+				objc_delete((OBJECT  *)tree, sobj);
 				return;
 			case MENU_STATE:
 				if (in_menu(tree, sobj))
@@ -245,7 +237,7 @@ VOID del_ob(WORD sobj)
 					{
 						zap_objindex(tree, sobj);
 						map_dslct(tree, sobj);
-						objc_delete((OBJECT FAR *)tree, sobj);
+						objc_delete((OBJECT  *)tree, sobj);
 						break;
 					}
 				}
@@ -275,10 +267,10 @@ VOID del_ob(WORD sobj)
 						menu_obj = menu_n(tree, n);
 						zap_objindex(tree, menu_obj);
 						map_dslct(tree, menu_obj);
-						objc_delete((OBJECT FAR *)tree, menu_obj);
+						objc_delete((OBJECT  *)tree, menu_obj);
 						zap_objindex(tree, sobj);
 						map_dslct(tree, sobj);
-						objc_delete((OBJECT FAR *)tree, sobj);
+						objc_delete((OBJECT  *)tree, sobj);
 						fix_menu_bar(tree);
 						break;
 					}
@@ -296,16 +288,16 @@ VOID del_ob(WORD sobj)
 	}
 }
 
-LOCAL VOID constrain_obj(LONG tree, WORD obj, WORD *px, WORD *py)
+static void constrain_obj(long tree, short obj, short *px, short *py)
 {
-	WORD	tx, ty, x, y;
+	short	tx, ty, x, y;
 
 	switch (rcs_state)
 	{
 		case FREE_STATE:
 		case DIAL_STATE:
 		case MENU_STATE:
-			objc_offset((OBJECT FAR *)tree, obj, &x, &y);
+			objc_offset((OBJECT  *)tree, obj, &x, &y);
 			tx = *px - x;
 			ty = *py - y;
 			snap_xy(&tx, &ty);
@@ -319,12 +311,12 @@ LOCAL VOID constrain_obj(LONG tree, WORD obj, WORD *px, WORD *py)
 	}
 }
 
-WORD posn_obj(LONG tree, WORD obj, WORD *px, WORD *py, WORD w, WORD h, WORD exact_ok)
+short posn_obj(long tree, short obj, short *px, short *py, short w, short h, short exact_ok)
 {
 	GRECT	o;
-	WORD	tx, ty; 
+	short	tx, ty; 
 
-	FOREVER
+	for (;;)
 	{
 		tx = *px;
 		ty = *py;
@@ -351,7 +343,7 @@ WORD posn_obj(LONG tree, WORD obj, WORD *px, WORD *py, WORD w, WORD h, WORD exac
 	return (obj);
 }
 
-VOID cut_obj(WORD sobj, WORD dup)
+void cut_obj(short sobj, short dup)
 {
 	if (rcs_lock)
 		hndl_locked();
@@ -361,13 +353,13 @@ VOID cut_obj(WORD sobj, WORD dup)
 			if (!menu_ok(ad_view, sobj) & !dup)
 				return;
 		rcs_clipkind = OBJKIND;
-		ad_clip = copy_tree(ad_view, sobj, TRUE);
+		ad_clip = copy_tree(ad_view, sobj, true);
 		if (!dup)
 			del_ob(sobj);
 	}
 }
 
-VOID paste_obj(WORD dobj, WORD dx, WORD dy, WORD dup)
+void paste_obj(short dobj, short dx, short dy, short dup)
 {
 	if (rcs_clipkind == OBJKIND)
 	{
@@ -377,82 +369,82 @@ VOID paste_obj(WORD dobj, WORD dx, WORD dy, WORD dup)
 	}
 }
 
-WORD new_obj(LONG stree, WORD sobj, WORD dobj, WORD dx, WORD dy)
+short new_obj(long stree, short sobj, short dobj, short dx, short dy)
 {
-	LONG	tree, taddr, otaddr;
-	WORD	sx, sy, dw, dh, add_at, type, obmsb;
+	long	tree, taddr, otaddr;
+	short	sx, sy, dw, dh, add_at, type, obmsb;
 
 	if (rcs_lock)
 	{
 		hndl_locked();
-		return (FALSE);
+		return (false);
 	}
 	else
 	{
 		tree = stree;
 		dw = GET_WIDTH(tree, sobj);
 		dh = GET_HEIGHT(tree, sobj);
-		type = LLOBT(GET_TYPE(tree, sobj));
+		type = ((GET_TYPE(tree, sobj)) & 0xff);
 
 		switch (rcs_state)
 		{
 			case FREE_STATE:
 				if (type != G_IMAGE && type != G_STRING)
-					return (FALSE);
+					return (false);
 			case PANL_STATE:
 			case DIAL_STATE:
-				objc_offset((OBJECT FAR *)stree, sobj, &sx, &sy);
+				objc_offset((OBJECT  *)stree, sobj, &sx, &sy);
 				if (sx == dx && sy == dy)	/* Don't copy */
-					return (FALSE);		/* right on top */
+					return (false);		/* right on top */
 				else
 				{
-					dobj = posn_obj(ad_view, dobj, &dx, &dy, dw, dh, FALSE);
+					dobj = posn_obj(ad_view, dobj, &dx, &dy, dw, dh, false);
 					if (dobj == NIL)
-						return (FALSE);
+						return (false);
 					else
 					{
-						sobj = copy_objs(stree, sobj, ad_view, TRUE);
+						sobj = copy_objs(stree, sobj, ad_view, true);
 						tree = ad_view;				     
 						if ( type == G_IMAGE || type == G_ICON)
 						{
 							obmsb = 1;
 							otaddr = OB_TYPE(sobj);
-							LWSET(otaddr, (obmsb << 8) | type );
+							(*(short *)(otaddr) = ((obmsb << 8) | type));
 						}
 						if (stree == ad_pbx)
 							SET_STATE(tree, sobj, NORMAL);
-						objc_add((OBJECT FAR *)ad_view, dobj, sobj);
+						objc_add((OBJECT  *)ad_view, dobj, sobj);
 						SET_X(tree, sobj, dx);
 						SET_Y(tree, sobj, dy);
 						obj_redraw(tree, sobj);
-						return (TRUE);
+						return (true);
 					}
 				}
 			case MENU_STATE:
-				if (LLOBT(GET_TYPE(tree, sobj)) == G_TITLE)
+				if (((GET_TYPE(tree, sobj)) & 0xff) == G_TITLE)
 				{
 					tree = ad_view;
 					if (GET_HEAD(tree, ROOT) == dobj)  /* is_bar? */
 						add_at = -1;
 					else if ((add_at = in_bar(tree, dobj) - 1) < 1)
-						return (FALSE);
-					sobj = copy_objs(stree, sobj, ad_view, TRUE);
+						return (false);
+					sobj = copy_objs(stree, sobj, ad_view, true);
 					SET_Y(tree, sobj, 0);
-					objc_add((OBJECT FAR *)tree, get_active(tree), sobj);
-					objc_order((OBJECT FAR *)tree, sobj, add_at);
+					objc_add((OBJECT  *)tree, get_active(tree), sobj);
+					objc_order((OBJECT  *)tree, sobj, add_at);
 					sobj = blank_menu(tree, sobj);
-					objc_add((OBJECT FAR *)tree, GET_TAIL(tree, ROOT), sobj);
-					objc_order((OBJECT FAR *)tree, sobj, add_at);
+					objc_add((OBJECT  *)tree, GET_TAIL(tree, ROOT), sobj);
+					objc_order((OBJECT  *)tree, sobj, add_at);
 					fix_menu_bar(tree);
 					break;
 				}
 				if (stree == ad_view && is_menu(tree, sobj))
-					return (FALSE);
+					return (false);
 				else
 				{
-					dobj = posn_obj(ad_view, dobj, &dx, &dy, dw, dh, TRUE);
+					dobj = posn_obj(ad_view, dobj, &dx, &dy, dw, dh, true);
 					if (dobj == NIL)
-						return (FALSE);
+						return (false);
 					else
 					{
 						tree = ad_view;
@@ -463,11 +455,11 @@ WORD new_obj(LONG stree, WORD sobj, WORD dobj, WORD dx, WORD dy)
 							dobj = get_parent(tree, dobj);
 						}
 						if (is_menu(tree, dobj) < 2)
-							return (FALSE);
+							return (false);
 						else
 						{
-							sobj = copy_objs(stree, sobj, ad_view, TRUE);
-							objc_add((OBJECT FAR *)tree, dobj, sobj);
+							sobj = copy_objs(stree, sobj, ad_view, true);
+							objc_add((OBJECT  *)tree, dobj, sobj);
 							SET_X(tree, sobj, dx);
 							SET_Y(tree, sobj, dy);
 						}
@@ -481,39 +473,39 @@ WORD new_obj(LONG stree, WORD sobj, WORD dobj, WORD dx, WORD dy)
 				{
 					case G_IMAGE:
 						if (stree == ad_clip)
-							return (FALSE);
+							return (false);
 						add_at = ALRTIMG;
 						break;
 					case G_STRING:
 						add_at = pt_roomp(tree, ALRTSTR0, 5);
 						if ( !add_at )
-							return (FALSE);
+							return (false);
 						break;
 					case G_BUTTON:
 						add_at = pt_roomp(tree, ALRTBTN0, 3);
 						if ( !add_at )
-							return (FALSE);
+							return (false);
 						break;
 					default:
-						return (FALSE);
+						return (false);
 				}
 				SET_SPEC(tree, add_at, taddr);
 				fix_alert(tree);
 				break;
 			default:
-				return (FALSE);
+				return (false);
 		}
 
 		view_objs();
-		return (TRUE);
+		return (true);
 	}
 }
 
-VOID mov_obj(WORD sobj, WORD dobj, WORD dx, WORD dy)
+void mov_obj(short sobj, short dobj, short dx, short dy)
 {
-	LONG	tree;
-	WORD	dw, dh;
-	WORD	pobj, n, add_at;
+	long	tree;
+	short	dw, dh;
+	short	pobj, n, add_at;
 
 	tree = ad_view;
 	dw = GET_WIDTH(tree, sobj);
@@ -526,7 +518,7 @@ VOID mov_obj(WORD sobj, WORD dobj, WORD dx, WORD dy)
 		case PANL_STATE:
 		case DIAL_STATE:
 			pobj = get_parent(tree, sobj);
-			dobj = posn_obj(tree, dobj, &dx, &dy, dw, dh, FALSE);
+			dobj = posn_obj(tree, dobj, &dx, &dy, dw, dh, false);
 			if (dobj == NIL)
 				return;
 			if (pobj != dobj)
@@ -539,8 +531,8 @@ VOID mov_obj(WORD sobj, WORD dobj, WORD dx, WORD dy)
 				if (!rcs_xpert)
 					if (hndl_alert(2, string_addr(STMOVED)) == 1)
 						return;
-				objc_delete((OBJECT FAR *)tree, sobj);
-				objc_add((OBJECT FAR *)tree, dobj, sobj);
+				objc_delete((OBJECT  *)tree, sobj);
+				objc_add((OBJECT  *)tree, dobj, sobj);
 			}
 			SET_X(tree, sobj, dx);
 			SET_Y(tree, sobj, dy);
@@ -561,9 +553,9 @@ VOID mov_obj(WORD sobj, WORD dobj, WORD dx, WORD dy)
 					add_at = -1;
 				else if ((add_at = in_bar(tree, dobj) - 1) < 1)
 					return;
-				objc_order((OBJECT FAR *)tree, sobj, add_at);
+				objc_order((OBJECT  *)tree, sobj, add_at);
 				sobj = menu_n(tree, n);
-				objc_order((OBJECT FAR *)tree, sobj, add_at);
+				objc_order((OBJECT  *)tree, sobj, add_at);
 				fix_menu_bar(tree);
 				view_objs();
 				return;
@@ -573,7 +565,7 @@ VOID mov_obj(WORD sobj, WORD dobj, WORD dx, WORD dy)
 			pobj = get_parent(tree, sobj);
 			if (is_menu(tree, pobj) == 1)
 				return;
-			dobj = posn_obj(tree, dobj, &dx, &dy, dw, dh, FALSE);
+			dobj = posn_obj(tree, dobj, &dx, &dy, dw, dh, false);
 			if (dobj == NIL)
 				return;
 			if (in_menu(tree, dobj))
@@ -593,12 +585,12 @@ VOID mov_obj(WORD sobj, WORD dobj, WORD dx, WORD dy)
 	}
 }
 
-VOID size_obj(LONG tree, WORD obj)
+void size_obj(long tree, short obj)
 {
-	LONG	amax, obspec;
+	long	amax, obspec;
 	GRECT	p;
-	WORD	cobj, pobj, n,type;
-	WORD	wlim, hlim, wmax, hmax, wtmp, htmp;
+	short	cobj, pobj, n,type;
+	short	wlim, hlim, wmax, hmax, wtmp, htmp;
 
 	wlim = gl_wchar;
 	hlim = gl_hchar;
@@ -614,11 +606,11 @@ VOID size_obj(LONG tree, WORD obj)
 
 		case DIAL_STATE:			      
 			obspec = OB_SPEC(obj);
-			if ( (type = LLOBT(GET_TYPE(tree, obj))) == G_BUTTON )
-				wlim = (WORD)LSTRLEN(LLGET(obspec)) * gl_wchar;
+			if ( (type = ((GET_TYPE(tree, obj)) & 0xff)) == G_BUTTON )
+				wlim = (short)strlen((char *)((*(long *)(obspec)))) * gl_wchar;
 			else if (type == G_BOXTEXT || type == G_FBOXTEXT ||
 				 type == G_FTEXT)
-				wlim = (WORD)LSTRLEN(LLGET(TE_PTEXT(LLGET(obspec)))) 
+				wlim = (short)strlen((char *)((*(long *)(TE_PTEXT((*(long *)(obspec))))))) 
 					*  gl_wchar;
 			break;
 		case MENU_STATE:
@@ -629,8 +621,8 @@ VOID size_obj(LONG tree, WORD obj)
 			if ((n = is_menu(tree, obj)) > 1)
 			{
 				wlim = GET_WIDTH(tree, bar_n(tree, n));
-				amax = (LONG) (gl_nrows * gl_hchar) *
-					(LONG) (gl_ncols * gl_wchar) / 4L;
+				amax = (long) (gl_nrows * gl_hchar) *
+					(long) (gl_ncols * gl_wchar) / 4L;
 				break;
 			}
 			return;
@@ -662,7 +654,7 @@ VOID size_obj(LONG tree, WORD obj)
 		if (rcs_state == MENU_STATE)
 		if (in_bar(tree, obj))
 			pobj = get_parent(tree, pobj);
-		objc_offset((OBJECT FAR *)tree, pobj, &wtmp, &htmp);
+		objc_offset((OBJECT  *)tree, pobj, &wtmp, &htmp);
 		wmax = min(view.g_w + view.g_x, wtmp + GET_WIDTH(tree, pobj)); 
 		hmax = min(view.g_h + view.g_y, htmp + GET_HEIGHT(tree, pobj)); 
 	}
@@ -695,15 +687,15 @@ VOID size_obj(LONG tree, WORD obj)
 	}
 }	
 
-VOID slct_obj(LONG tree, WORD obj)
+void slct_obj(long tree, short obj)
 {
-	WORD	nbar, type;
+	short	nbar, type;
 
 	if (rcs_nsel)
 		mslct_obj(tree, obj);
 	else
 	{
-		type = LLOBT(GET_TYPE(tree, obj));
+		type = ((GET_TYPE(tree, obj)) & 0xff);
 		switch (rcs_state)
 		{
 			case MENU_STATE:
@@ -730,7 +722,7 @@ VOID slct_obj(LONG tree, WORD obj)
 					{
 						hide_obj(tree, rcs_menusel);
 						obj_redraw(tree, rcs_menusel);
-						rcs_menusel = FALSE;
+						rcs_menusel = false;
 					}
 					return;
 				}
@@ -756,9 +748,9 @@ VOID slct_obj(LONG tree, WORD obj)
 	}
 }
 
-VOID mslct_obj(LONG tree, WORD obj)
+void mslct_obj(long tree, short obj)
 {
-	WORD	i;
+	short	i;
 
 	if (rcs_state == MENU_STATE)
 		if (!in_menu(tree, obj))
@@ -786,9 +778,9 @@ VOID mslct_obj(LONG tree, WORD obj)
 	}
 }
 
-VOID dslct_1obj(LONG tree, WORD obj)
+void dslct_1obj(long tree, short obj)
 {
-	WORD	i;
+	short	i;
 
 	for (i = rcs_nsel; i; i--)
 		if (rcs_sel[i - 1] == obj)
@@ -805,12 +797,12 @@ VOID dslct_1obj(LONG tree, WORD obj)
 	}
 }
 
-VOID map_dslct(LONG tree, WORD obj)
+void map_dslct(long tree, short obj)
 {
 	map_tree(tree, obj, GET_NEXT(tree, obj), (fkt_parm)dslct_1obj);
 }
 
-VOID dslct_obj(LONG tree, WORD obj)
+void dslct_obj(long tree, short obj)
 {
 	if (!iconedit_flag)
 	{
@@ -821,9 +813,9 @@ VOID dslct_obj(LONG tree, WORD obj)
 	}
 }
 
-VOID unhid_part(WORD obj)
+void unhid_part(short obj)
 {
-	WORD	iobj;
+	short	iobj;
 
 	for (iobj = GET_HEAD(ad_view, obj); iobj != obj; 
 		iobj = GET_NEXT(ad_view, iobj))
@@ -831,9 +823,9 @@ VOID unhid_part(WORD obj)
 	obj_redraw(ad_view, obj);
 }
 
-LOCAL WORD less_ob(LONG tree, WORD obj1, WORD obj2, WORD mode)
+static short less_ob(long tree, short obj1, short obj2, short mode)
 {
-	WORD	x1, y1, x2, y2;
+	short	x1, y1, x2, y2;
 
 	x1 = GET_X(tree, obj1);
 	y1 = GET_Y(tree, obj1);
@@ -857,13 +849,13 @@ LOCAL WORD less_ob(LONG tree, WORD obj1, WORD obj2, WORD mode)
 			else
 				return (y2 < y1);
         default:
-			return (FALSE);
+			return (false);
 	}
 }
 
-LOCAL VOID sort_tree(LONG tree, WORD pobj, WORD mode)
+static void sort_tree(long tree, short pobj, short mode)
 {
-	WORD	i, n, sobj, tobj, obj;
+	short	i, n, sobj, tobj, obj;
 
 	n = 0;
 	for (obj = GET_HEAD(tree, pobj); obj != pobj; 
@@ -878,16 +870,16 @@ LOCAL VOID sort_tree(LONG tree, WORD pobj, WORD mode)
 				if (less_ob(tree, sobj, tobj, mode))
 					sobj = tobj;
 			if (obj != sobj)
-				objc_order((OBJECT FAR *)tree, sobj, i - 1);
+				objc_order((OBJECT  *)tree, sobj, i - 1);
 		}
 	}
 }
 
-VOID sort_part(WORD obj)
+void sort_part(short obj)
 {
-	LONG	tree;
+	long	tree;
 	GRECT	p;
-	WORD	mode;
+	short	mode;
 
 	objc_xywh(ad_view, obj, &p);
 
@@ -904,11 +896,11 @@ VOID sort_part(WORD obj)
 	map_tree(tree, ROOT, NIL, (fkt_parm)desel_obj);
 }
 
-VOID flatten_part(WORD obj)
+void flatten_part(short obj)
 {
-	LONG	tree;
-	WORD	pobj, cobj, nobj;
-	WORD	x, y;
+	long	tree;
+	short	pobj, cobj, nobj;
+	short	x, y;
 
 	tree = ad_view;
 	x = GET_X(ad_view, obj);
@@ -917,13 +909,13 @@ VOID flatten_part(WORD obj)
 	pobj = get_parent(tree, obj);
 	dslct_1obj(tree, obj);
 	del_objindex(tree, obj);
-	objc_delete((OBJECT FAR *)tree, obj);
+	objc_delete((OBJECT  *)tree, obj);
 
 	for (cobj = GET_HEAD(tree, obj); cobj != obj; cobj = nobj)
 	{
 		SET_X(tree, cobj, x + GET_X(tree, cobj));
 		SET_Y(tree, cobj, y + GET_Y(tree, cobj));
 		nobj = GET_NEXT(tree, cobj);
-		objc_add((OBJECT FAR *)tree, pobj, cobj);
+		objc_add((OBJECT  *)tree, pobj, cobj);
 	}
 }

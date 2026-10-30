@@ -4,97 +4,89 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
-#include <portab.h>
-#include <machine.h>
-#if GEMDOS
-#if TURBO_C
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <obdefs.h>
-#include <gembind.h>
-#endif
+#include <gem.h>
+#include <string.h>
+#include <stdbool.h>
 #include "rcsdefs.h"
 #include "rcs.h"
 #include "rcslib.h"
 #include "rcsdata.h"
 #include "rcsmenu.h"
 
-WORD in_bar(LONG tree, WORD obj)
+short in_bar(long tree, short obj)
 {
-	WORD	nobj;
+	short	nobj;
 
 	if (GET_HEAD(tree, ROOT) != get_parent(tree, nobj =
 		get_parent(tree, obj)))
-		return (FALSE);
+		return (false);
 	else
 		return (child_of(tree, nobj, obj));
 }
 
-WORD in_menu(LONG tree, WORD obj)
+short in_menu(long tree, short obj)
 {
-	WORD	nobj;
+	short	nobj;
 
 	if (GET_TAIL(tree, ROOT) != get_parent(tree, nobj =
 		get_parent(tree, obj)))
-		return (FALSE);
+		return (false);
 	else
 		return (child_of(tree, nobj, obj));
 }
 
-WORD is_menu(LONG tree, WORD obj)
+short is_menu(long tree, short obj)
 {
-	WORD	nobj;
+	short	nobj;
 
 	if (GET_TAIL(tree, ROOT) !=
 		(nobj = get_parent(tree, obj)))
-		return (FALSE);
+		return (false);
 	else
 		return (child_of(tree, nobj, obj));
 }
 
-WORD in_which_menu(LONG tree, WORD obj)
+short in_which_menu(long tree, short obj)
 {
 	return is_menu(tree, get_parent(tree, obj));
 }
 
-WORD menu_n(LONG tree, WORD n)
+short menu_n(long tree, short n)
 {
-	WORD	nobj;
+	short	nobj;
 
 	nobj = GET_TAIL(tree, ROOT);
 	return (nth_child(tree, nobj, n));
 }
 
-WORD bar_n(LONG tree, WORD n)
+short bar_n(long tree, short n)
 {
-	WORD	nobj;
+	short	nobj;
 
 	nobj = GET_HEAD(tree, ROOT);
 	return (nth_child(tree, GET_HEAD(tree, nobj), n));
 }
 
-WORD get_active(LONG tree)
+short get_active(long tree)
 {
 	return GET_HEAD(tree, GET_HEAD(tree, ROOT));
 }
 
-WORD blank_menu(LONG tree, WORD sobj)
+short blank_menu(long tree, short sobj)
 {
-	LONG 	dobj_ptr;
+	long 	dobj_ptr;
 
 	blank_obj.ob_width = GET_WIDTH(tree, sobj);
 	blank_obj.ob_height = gl_hchar;
 	dobj_ptr = get_obmem();
-	LBCOPY(dobj_ptr, ADDR(&blank_obj), sizeof(OBJECT) );
-	return (WORD) ((dobj_ptr - tree) / sizeof(OBJECT));
+	memcpy((void *)(dobj_ptr), (void *)(((long)(&blank_obj))), sizeof(OBJECT));
+	return (short) ((dobj_ptr - tree) / sizeof(OBJECT));
 }
 
-VOID fix_menu_bar(LONG tree)
+void fix_menu_bar(long tree)
 {
-	WORD	the_active, the_menus, the_bar;
-	WORD	bar_obj, menu_obj, x, x1, x2;
+	short	the_active, the_menus, the_bar;
+	short	bar_obj, menu_obj, x, x1, x2;
 
 	the_menus = GET_TAIL(tree, ROOT);
 	the_bar = GET_HEAD(tree, ROOT);
@@ -123,35 +115,35 @@ VOID fix_menu_bar(LONG tree)
 	SET_WIDTH(tree, the_active, x);
 }
 
-WORD menu_ok(LONG tree, WORD obj)
+short menu_ok(long tree, short obj)
 {
-	WORD	n;
+	short	n;
 
 	n = in_bar(tree, obj);
 	if (n)
-		return (n == 1? FALSE: TRUE);
+		return (n == 1? false: true);
 	else
 	{
 		n = in_menu(tree, obj);
 		if (n)
 		{
 			if (in_which_menu(tree, obj) != 1)
-				return (TRUE);
+				return (true);
 			else
-				return (n == 1? TRUE: FALSE);
+				return (n == 1? true: false);
 		}
 		else
-			return (FALSE);
+			return (false);
 	}
 }
 
-VOID desk_menufix(LONG tree)
+void desk_menufix(long tree)
 {
-	WORD	desktitle, offw, the_active,the_menus, drop_dwn1;
+	short	desktitle, offw, the_active,the_menus, drop_dwn1;
 	GRECT	ta, dt, tmp;
       
 	the_active = get_active(tree);
-	desktitle = LWGET(OB_HEAD(the_active));
+	desktitle = (*(short *)(OB_HEAD(the_active)));
 	ob_relxywh(tree, desktitle, &dt);
 	ob_relxywh(tree, the_active, &ta);
 	/* if desk title not	*/
@@ -166,7 +158,7 @@ VOID desk_menufix(LONG tree)
 	/* move desk menu drop down */	       
 	
 	the_menus = GET_TAIL(tree, ROOT);
-	drop_dwn1 = LWGET( OB_HEAD(the_menus));
+	drop_dwn1 = (*(short *)(OB_HEAD(the_menus)));
 	ob_relxywh( tree, drop_dwn1, &tmp);
 	tmp.g_x = gl_width - tmp.g_w - ta.g_x;
 	ob_setxywh(tree, drop_dwn1, &tmp);
@@ -178,10 +170,10 @@ VOID desk_menufix(LONG tree)
 		SET_WIDTH( tree, THEBAR, gl_width);
 }
 
-VOID undo_menufix(LONG tree)
+void undo_menufix(long tree)
 {
-	WORD	the_active, the_menus, the_bar;
-	WORD	bar_obj, menu_obj, x, x1, x2;
+	short	the_active, the_menus, the_bar;
+	short	bar_obj, menu_obj, x, x1, x2;
 
 	the_menus = GET_TAIL(tree, ROOT);
 	the_bar = GET_HEAD(tree, ROOT);

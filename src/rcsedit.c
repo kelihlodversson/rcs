@@ -4,18 +4,9 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
+#include <gem.h>
+#include <stdbool.h>
 #include <string.h>
-#include <portab.h>
-#include <machine.h>
-#if GEMDOS
-#if TURBO_C
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <obdefs.h>
-#include <gembind.h>
-#endif
 #include "rcsdefs.h"
 #include "rcs.h"
 #include "rcslib.h"
@@ -27,24 +18,24 @@
 #include "rcsalert.h"
 #include "rcsedit.h"
 
-VOID set_text(LONG tree, WORD obj, LONG addr, WORD len)
+void set_text(long tree, short obj, long addr, short len)
 {
-	LONG	taddr;
+	long	taddr;
 
 	taddr = GET_SPEC(tree, obj);
-	LLSET(TE_PTEXT(taddr), addr);
-	LWSET(TE_TXTLEN(taddr), len);
+	(*(long *)(TE_PTEXT(taddr)) = (addr));
+	(*(short *)(TE_TXTLEN(taddr)) = (len));
 }
 
-VOID ted_set(LONG taddr, BYTE *tmplt, BYTE *valid, BYTE *text)
+void ted_set(long taddr, char *tmplt, char *valid, char *text)
 {
-	WORD	imap, itmp;
+	short	imap, itmp;
 
 	if (!tmplt[0])
 	{
 		tmplt[0] = '@';
-		LLSTRCPY(LLGET(TE_PVALID(taddr)), (LONG)ADDR(valid));
-		LLSTRCPY(LLGET(TE_PTEXT(taddr)), (LONG)ADDR(text));
+		LLSTRCPY((*(long *)(TE_PVALID(taddr))), (long)((long)(valid)));
+		LLSTRCPY((*(long *)(TE_PTEXT(taddr))), (long)((long)(text)));
 		if (!valid[0])
 			valid[0] = '@';
 		if (!text[0])
@@ -56,8 +47,8 @@ VOID ted_set(LONG taddr, BYTE *tmplt, BYTE *valid, BYTE *text)
 			if (tmplt[itmp] == '_')
 			{
 				tmplt[itmp] = '~';
-				valid[itmp] = LBGET(imap + LLGET(TE_PVALID(taddr)));
-				text[itmp] = LBGET(imap + LLGET(TE_PTEXT(taddr)));
+				valid[itmp] = (*(char *)(imap + (*(long *)(TE_PVALID(taddr)))));
+				text[itmp] = (*(char *)(imap + (*(long *)(TE_PTEXT(taddr)))));
 				imap++;
 			}
 			else
@@ -66,9 +57,9 @@ VOID ted_set(LONG taddr, BYTE *tmplt, BYTE *valid, BYTE *text)
 	}
 }
 
-VOID ted_get(LONG taddr, BYTE *tmplt, BYTE *valid, BYTE *text)
+void ted_get(long taddr, char *tmplt, char *valid, char *text)
 {
-	WORD	imap, itmp;
+	short	imap, itmp;
 
 	if (tmplt[0] == '@')
 		tmplt[0] = '\0';
@@ -92,33 +83,32 @@ VOID ted_get(LONG taddr, BYTE *tmplt, BYTE *valid, BYTE *text)
 	update_if(TE_PTMPLT(taddr), tmplt);
 	update_if(TE_PVALID(taddr), valid);
 	update_if(TE_PTEXT(taddr), text);
-	LWSET(TE_TMPLEN(taddr), strlen(tmplt) + 1);
-	LWSET(TE_TXTLEN(taddr), strlen(text) + 1);
+	(*(short *)(TE_TMPLEN(taddr)) = (strlen(tmplt) + 1));
+	(*(short *)(TE_TXTLEN(taddr)) = (strlen(text) + 1));
 }
 
-VOID icon_set(LONG taddr, BYTE *text, BYTE *chr)
+void icon_set(long taddr, char *text, char *chr)
 {
-	LLSTRCPY(LLGET(IB_PTEXT(taddr)), (LONG)ADDR(text));
+	LLSTRCPY((*(long *)(IB_PTEXT(taddr))), (long)((long)(text)));
 	if (!text[0])
 		text[0] = '@';
-	chr[0] = LLOBT(LWGET(IB_CHAR(taddr))); 
+	chr[0] = (((*(short *)(IB_CHAR(taddr)))) & 0xff); 
 	if (!chr[0])
 		chr[0] = '@';
 	chr[1] = '\0';
 }
 
-VOID icon_get(LONG taddr, BYTE *text, BYTE *chr)
+void icon_get(long taddr, char *text, char *chr)
 {
 	if (text[0] == '@')
 		text[0] = '\0';
 	update_if(IB_PTEXT(taddr), text);
 	if (chr[0] == '@')
 		chr[0] = '\0';
-	LWSET(IB_CHAR(taddr), 
-			LWGET((IB_CHAR(taddr)) & 0xff00) | (UWORD) chr[0]);
+	(*(short *)(IB_CHAR(taddr)) = ((*(short *)((IB_CHAR(taddr)) & 0xff00)) | (unsigned short) chr[0]));
 } 
 
-WORD icon_cwhich(WORD xy, WORD wh, WORD iwh)
+short icon_cwhich(short xy, short wh, short iwh)
 {
 	if (!xy)
 		return (0);
@@ -128,7 +118,7 @@ WORD icon_cwhich(WORD xy, WORD wh, WORD iwh)
 		return(1);
 }
 
-WORD icon_twhich(WORD xy, WORD iwh)
+short icon_twhich(short xy, short iwh)
 {
 	if (!xy)
 		return (0);
@@ -138,7 +128,7 @@ WORD icon_twhich(WORD xy, WORD iwh)
 		return(1);
 }
 
-WORD icon_tapply(WORD rule, WORD wh, WORD iwh)
+short icon_tapply(short rule, short wh, short iwh)
 {
 	switch (rule)
 	{
@@ -153,7 +143,7 @@ WORD icon_tapply(WORD rule, WORD wh, WORD iwh)
 	}
 }
 
-WORD icon_capply(WORD rule, WORD wh, WORD iwh)
+short icon_capply(short rule, short wh, short iwh)
 {
 	switch (rule)
 	{
@@ -168,35 +158,35 @@ WORD icon_capply(WORD rule, WORD wh, WORD iwh)
 	}
 } 
 
-VOID get_obf(LONG tree, WORD obj, WORD *type, LONG *obspec)
+void get_obf(long tree, short obj, short *type, long *obspec)
 {
-	*type = LLOBT(GET_TYPE(tree, obj));
+	*type = ((GET_TYPE(tree, obj)) & 0xff);
 	*obspec = GET_SPEC(tree, obj);
 }
 
-VOID get_fields(LONG tree, WORD sobj, WORD *type, LONG *obspec, GRECT *p)
+void get_fields(long tree, short sobj, short *type, long *obspec, GRECT *p)
 {
-	*type = LLOBT(GET_TYPE(tree, sobj));
+	*type = ((GET_TYPE(tree, sobj)) & 0xff);
 	*obspec = OB_SPEC(sobj);	/* Notice that this is the ADDR of */
 	objc_xywh(tree, sobj, p);	/* the OB_SPEC, not the value! */
 }
 
-VOID edit_str(LONG tree, WORD sobj)
+void edit_str(long tree, short sobj)
 {
-	LONG	obspec; 
-	WORD	where, type, exitobj, ok;
+	long	obspec; 
+	short	where, type, exitobj, ok;
 	GRECT	p;
-	WORD	min_width, neww, len; 
-	BYTE	text[73], name[9]; 
+	short	min_width, neww, len; 
+	char	text[73], name[9]; 
 
 	get_fields(tree, sobj, &type, &obspec, &p);
-	len = (WORD)LSTRLEN(LLGET(obspec));
+	len = (short)strlen((char *)((*(long *)(obspec))));
 	if (len <= 72)
 	{
 		ini_tree(&tree, STRDIAL);
 		where = set_obname(tree, STRNAME, name, ad_view, sobj);
-		set_text(tree, OSTRITEM, (LONG)ADDR(&text[0]), 73);
-		LLSTRCPY(LLGET(obspec), (LONG)ADDR(&text[0]));
+		set_text(tree, OSTRITEM, (long)((long)(&text[0])), 73);
+		LLSTRCPY((*(long *)(obspec)), (long)((long)(&text[0])));
 		if ( rcs_state == ALRT_STATE )
 			hide_obj( tree, STRNAME);
 		if (!text[0])
@@ -205,11 +195,11 @@ VOID edit_str(LONG tree, WORD sobj)
 			exitobj = hndl_dial(tree, OSTRITEM, &p);
 			desel_obj(tree, exitobj);
 			ok = DEFAULT & GET_FLAGS(tree, exitobj);
-		} while ( ok && !name_ok(name, where, TRUE));
+		} while ( ok && !name_ok(name, where, true));
 
 		if (ok)
 		{
-			rcs_edited = TRUE;
+			rcs_edited = true;
 			get_obname(name, ad_view, sobj);
 			if (text[0] == '@')
 				text[0] = '\0';
@@ -227,12 +217,12 @@ VOID edit_str(LONG tree, WORD sobj)
 			}
 			else
 			{
-				neww = (WORD)(gl_wchar * strlen(text));
+				neww = (short)(gl_wchar * strlen(text));
 				if (rcs_state == MENU_STATE)
 				{
 					if (type == G_TITLE)
 					{
-						if (!newsize_obj(ad_view, sobj, neww,gl_hchar, TRUE))
+						if (!newsize_obj(ad_view, sobj, neww,gl_hchar, true))
 							text[len] = '\0';
 						fix_menu_bar(ad_view);
 					}
@@ -243,14 +233,14 @@ VOID edit_str(LONG tree, WORD sobj)
 						hndl_alert(1, string_addr(STOOLONG));	
 						text[20] = '\0';
 					}
-					else  if(!newsize_obj(ad_view, sobj, neww,gl_hchar, FALSE))
+					else  if(!newsize_obj(ad_view, sobj, neww,gl_hchar, false))
 						text[len] = '\0';
 				}
 				else if (type == G_STRING || type == G_BUTTON )
 				{
 					min_width = GET_WIDTH(ad_view, sobj);
 					if( neww > min_width )
-						if(!newsize_obj(ad_view, sobj, neww,gl_hchar, FALSE))
+						if(!newsize_obj(ad_view, sobj, neww,gl_hchar, false))
 							text[len] = '\0';
 				}
 			}
@@ -260,11 +250,11 @@ VOID edit_str(LONG tree, WORD sobj)
 	}
 }
 
-VOID edit_box(LONG tree, WORD sobj)
+void edit_box(long tree, short sobj)
 {
-	LONG	obspec; 
-	WORD	where, type, exitobj, ok, nilok;
-	BYTE	name[9], text[2], bxchar;
+	long	obspec; 
+	short	where, type, exitobj, ok, nilok;
+	char	name[9], text[2], bxchar;
 	GRECT	p;
 
 	if (rcs_state != ALRT_STATE)
@@ -274,11 +264,11 @@ VOID edit_box(LONG tree, WORD sobj)
 		ini_tree(&tree, BOXDIAL);
 		where = set_obname(tree, BOXNAME, name, ad_view, sobj);
 		if ( where != NIL && tree_view() && tree_kind( get_kind(where)) )
-			nilok = FALSE;
+			nilok = false;
 		else
-			nilok = TRUE;
-		bxchar = LHIBT(LHIWD(LLGET(obspec)));
-		set_text(tree, OCHRITEM, (LONG)ADDR(&text[0]), 2);
+			nilok = true;
+		bxchar = (((((((*(long *)(obspec))) >> 16) & 0xffff)) >> 8) & 0xff);
+		set_text(tree, OCHRITEM, (long)((long)(&text[0])), 2);
 		text[0] = bxchar? bxchar: '@';
 		text[1] = '\0';
 
@@ -290,40 +280,40 @@ VOID edit_box(LONG tree, WORD sobj)
 
 		if (ok)
 		{
-			rcs_edited = TRUE;
+			rcs_edited = true;
 			get_obname(name, ad_view, sobj);
 			bxchar = (text[0] == '@')? '\0': text[0];
-			LLSET(obspec, (LLGET(obspec) & 0xffffffL) | 
-				((LONG) ((UWORD) bxchar) << 24));
+			(*(long *)(obspec) = (((*(long *)(obspec)) & 0xffffffL) | 
+				((long) ((unsigned short) bxchar) << 24)));
 		}
 	}
 }
 
-VOID edit_text(LONG tree, WORD sobj)
+void edit_text(long tree, short sobj)
 {
-	LONG	obspec, taddr; 
-	WORD	min_width, where, type, deftext, w, h, exitobj, ok;
+	long	obspec, taddr; 
+	short	min_width, where, type, deftext, w, h, exitobj, ok;
 	GRECT	p;
-	BYTE	text[73], valid[73], tmplt[73], name[9]; 
+	char	text[73], valid[73], tmplt[73], name[9]; 
 
 	if (rcs_state != ALRT_STATE)
 	{
 		get_fields(tree, sobj, &type, &obspec, &p);
-		taddr = LLGET(obspec);
+		taddr = (*(long *)(obspec));
 		if (type == G_FTEXT || type == G_FBOXTEXT)
-			if (LSTRLEN(LLGET(TE_PTMPLT(taddr))) > 72)
+			if (strlen((char *)((*(long *)(TE_PTMPLT(taddr))))) > 72)
 				return;
 		ini_tree(&tree, TEXTDIAL);
 		where = set_obname(tree, TEXTNAME, name, ad_view, sobj);
-		set_text(tree, OTMPITEM, (LONG)ADDR(&tmplt[0]), 73);
-		set_text(tree, OVALITEM, (LONG)ADDR(&valid[0]), 73);
-		set_text(tree, OTEXITEM, (LONG)ADDR(&text[0]), 73);
-		LLSTRCPY(LLGET(TE_PTMPLT(taddr)), (LONG)ADDR(&tmplt[0]));
+		set_text(tree, OTMPITEM, (long)((long)(&tmplt[0])), 73);
+		set_text(tree, OVALITEM, (long)((long)(&valid[0])), 73);
+		set_text(tree, OTEXITEM, (long)((long)(&text[0])), 73);
+		LLSTRCPY((*(long *)(TE_PTMPLT(taddr))), (long)((long)(&tmplt[0])));
 		ted_set(taddr, &tmplt[0], &valid[0], &text[0]);
 
 		if (type == G_TEXT || type == G_BOXTEXT)
 		{
-			if (LSTRLEN(LLGET(TE_PTEXT(taddr))) > 72)
+			if (strlen((char *)((*(long *)(TE_PTEXT(taddr))))) > 72)
 				return;
 			hide_obj(tree, TMPLTTAG);
 			hide_obj(tree, OTMPITEM);
@@ -337,11 +327,11 @@ VOID edit_text(LONG tree, WORD sobj)
 			exitobj = hndl_dial(tree, deftext, &p);
 			desel_obj(tree, exitobj);
 			ok = DEFAULT & GET_FLAGS(tree, exitobj);
-		} while (ok && !name_ok(name, where, TRUE));
+		} while (ok && !name_ok(name, where, true));
 
 		if (ok)
 		{
-			rcs_edited = TRUE;
+			rcs_edited = true;
 			get_obname(name, ad_view, sobj);
 			ted_get(taddr, &tmplt[0], &valid[0], &text[0]);
 			if (type == G_TEXT || type == G_FTEXT || type == G_BOXTEXT)
@@ -349,7 +339,7 @@ VOID edit_text(LONG tree, WORD sobj)
 				text_wh(taddr, type, &w, &h);
 				min_width = GET_WIDTH(ad_view, sobj);
 				if ( w > min_width)
-					newsize_obj(ad_view, sobj, w, h, TRUE);
+					newsize_obj(ad_view, sobj, w, h, true);
 			}
 		}
 
@@ -361,10 +351,10 @@ VOID edit_text(LONG tree, WORD sobj)
 	}
 }
 
-VOID edit_bit(LONG tree, WORD sobj)
+void edit_bit(long tree, short sobj)
 {
-	WORD	where, exitobj, ok;
-	BYTE	name[9];
+	short	where, exitobj, ok;
+	char	name[9];
 	GRECT	p;
 
 	if (rcs_state != ALRT_STATE)
@@ -377,23 +367,23 @@ VOID edit_bit(LONG tree, WORD sobj)
 			exitobj = hndl_dial(tree, 0, &p);
 			desel_obj(tree, exitobj);
 			ok = DEFAULT & GET_FLAGS(tree, exitobj);
-		} while (ok && !name_ok(name, where, TRUE));
+		} while (ok && !name_ok(name, where, true));
 
 		if (ok)
 		{
-			rcs_edited = TRUE;
+			rcs_edited = true;
 			get_obname(name, ad_view, sobj);
 		}
 	}
 }
 
-VOID edit_icon(LONG tree, WORD sobj)
+void edit_icon(long tree, short sobj)
 {
-	LONG	obspec, taddr; 
-	WORD	where, type, itmp, exitobj, ok;
+	long	obspec, taddr; 
+	short	where, type, itmp, exitobj, ok;
 	GRECT	p;
-	BYTE	text[14], valid[2], name[9]; 
-	WORD	trule, crule, w, h;
+	char	text[14], valid[2], name[9]; 
+	short	trule, crule, w, h;
 
 	if (rcs_state != ALRT_STATE)
 	{
@@ -401,16 +391,16 @@ VOID edit_icon(LONG tree, WORD sobj)
 
 		ini_tree(&tree, ICONDIAL);
 		where = set_obname(tree, ICONNAME, name, ad_view, sobj);
-		taddr = LLGET(obspec);
-		set_text(tree, IBTEXT, (LONG)ADDR(&text[0]), 13);
-		set_text(tree, IBCHAR, (LONG)ADDR(&valid[0]), 2);
+		taddr = (*(long *)(obspec));
+		set_text(tree, IBTEXT, (long)((long)(&text[0])), 13);
+		set_text(tree, IBCHAR, (long)((long)(&valid[0])), 2);
 		icon_set(taddr, &text[0], &valid[0]);
-		trule = icon_twhich(LWGET(IB_YTEXT(taddr)), LWGET(IB_HICON(taddr)));
+		trule = icon_twhich((*(short *)(IB_YTEXT(taddr))), (*(short *)(IB_HICON(taddr))));
 		sel_obj(tree, IBTPOS0 + trule);
-		itmp = icon_cwhich(LWGET(IB_YCHAR(taddr)),
-			gl_hschar, LWGET(IB_HICON(taddr)));
-		crule = icon_cwhich(LWGET(IB_XCHAR(taddr)),
-			gl_wschar, LWGET(IB_WICON(taddr)));
+		itmp = icon_cwhich((*(short *)(IB_YCHAR(taddr))),
+			gl_hschar, (*(short *)(IB_HICON(taddr))));
+		crule = icon_cwhich((*(short *)(IB_XCHAR(taddr))),
+			gl_wschar, (*(short *)(IB_WICON(taddr))));
 		crule += 3 * itmp;
 		sel_obj(tree, IBCPOS0 + crule);
 
@@ -418,44 +408,44 @@ VOID edit_icon(LONG tree, WORD sobj)
 			exitobj = hndl_dial(tree, IBTEXT, &p);
 			desel_obj(tree, exitobj);
 			ok = DEFAULT & GET_FLAGS(tree, exitobj);
-		} while (ok && !name_ok(name, where, TRUE));
+		} while (ok && !name_ok(name, where, true));
 
 		if (ok)
 		{
-			rcs_edited = TRUE;
+			rcs_edited = true;
 			get_obname(name, ad_view, sobj);
 			icon_get(taddr, &text[0], &valid[0]);
 			itmp = encode(tree, IBTPOS0, 3);
 			if (itmp != trule)
 			{		
 				itmp = icon_tapply(itmp, gl_hschar,
-					LWGET(IB_HICON(taddr)));
-				LWSET(IB_YTEXT(taddr), itmp);
+					(*(short *)(IB_HICON(taddr))));
+				(*(short *)(IB_YTEXT(taddr)) = (itmp));
 			}
-			LWSET(IB_WTEXT(taddr), (WORD)(gl_wschar * strlen(text)));
+			(*(short *)(IB_WTEXT(taddr)) = ((short)(gl_wschar * strlen(text))));
 			icon_tfix(taddr);
 			itmp = encode(tree, IBCPOS0, 9);
 			if (itmp != crule)
 			{
 				crule = itmp;
 				itmp = icon_capply(crule / 3, gl_hschar,
-					LWGET(IB_HICON(taddr)));
-				LWSET(IB_YCHAR(taddr), itmp);
+					(*(short *)(IB_HICON(taddr))));
+				(*(short *)(IB_YCHAR(taddr)) = (itmp));
 				itmp = icon_capply(crule % 3, gl_wschar,
-					LWGET(IB_WICON(taddr)));
-				LWSET(IB_XCHAR(taddr), itmp);
+					(*(short *)(IB_WICON(taddr))));
+				(*(short *)(IB_XCHAR(taddr)) = (itmp));
 			}
 			icon_wh(taddr, &w, &h);
-			newsize_obj(ad_view, sobj, w, h, FALSE);
+			newsize_obj(ad_view, sobj, w, h, false);
 		}
 		map_tree(tree, ROOT, NIL, (fkt_parm)desel_obj);	/* clear radio buttons */
 	}
 }
 
-VOID open_obj(WORD sobj)
+void open_obj(short sobj)
 {
-	LONG	tree; 
-	WORD	type; 
+	long	tree; 
+	short	type; 
 
 	if (rcs_state == MENU_STATE)
 		if (!in_bar(ad_view, sobj))
@@ -467,7 +457,7 @@ VOID open_obj(WORD sobj)
 
 	tree = ad_view;
 	obj_redraw(tree, sobj);
-	type = LLOBT(GET_TYPE(tree, sobj));
+	type = ((GET_TYPE(tree, sobj)) & 0xff);
 
 	switch (type)
 	{
@@ -503,10 +493,10 @@ VOID open_obj(WORD sobj)
 		obj_redraw(ad_view, sobj);
 }
 
-VOID do_bdcol(LONG tree, WORD obj, WORD item)
+void do_bdcol(long tree, short obj, short item)
 {
-	LONG	obspec;
-	WORD	type, color;
+	long	obspec;
+	short	type, color;
 
 	color = item - COL0POP;
 	get_obf(tree, obj, &type, &obspec);
@@ -516,24 +506,24 @@ VOID do_bdcol(LONG tree, WORD obj, WORD item)
 		case G_IBOX:
 		case G_BOXCHAR:
 			obspec &= 0xffff0fffL;
-			SET_SPEC(tree, obj, obspec | ((LONG) color << 12));
+			SET_SPEC(tree, obj, obspec | ((long) color << 12));
 			break;
 		case G_BOXTEXT:
 		case G_FBOXTEXT:
-			color = (color << 12) | (LWGET(TE_FG(obspec))
+			color = (color << 12) | ((*(short *)(TE_FG(obspec)))
 				& 0xfff);
-			LWSET(TE_FG(obspec), color);
+			(*(short *)(TE_FG(obspec)) = (color));
 			break;
 		default:
 			return;
 	}
-	rcs_edited = TRUE;
+	rcs_edited = true;
 }
 
-VOID do_bgcol(LONG tree, WORD obj, WORD item)
+void do_bgcol(long tree, short obj, short item)
 {
-	LONG	obspec;
-	WORD	type, color;
+	long	obspec;
+	short	type, color;
 
 	color = item - COL0POP;
 	get_obf(tree, obj, &type, &obspec);
@@ -542,28 +532,28 @@ VOID do_bgcol(LONG tree, WORD obj, WORD item)
 		case G_BOX:
 		case G_BOXCHAR:
 			obspec &= 0xfffffff0L;
-			SET_SPEC(tree, obj, obspec | (LONG) color);
+			SET_SPEC(tree, obj, obspec | (long) color);
 			break;
 		case G_BOXTEXT:
 		case G_FBOXTEXT:
-			color = color | (LWGET(TE_FG(obspec)) & 0xfff0);
-			LWSET(TE_FG(obspec), color);
+			color = color | ((*(short *)(TE_FG(obspec))) & 0xfff0);
+			(*(short *)(TE_FG(obspec)) = (color));
 			break;
 		case G_ICON:
-			color = (color << 8) | (LWGET(IB_CHAR(obspec))
+			color = (color << 8) | ((*(short *)(IB_CHAR(obspec)))
 				& 0xf0ff);
-			LWSET(IB_CHAR(obspec), color);
+			(*(short *)(IB_CHAR(obspec)) = (color));
 			break;
 		default:
 			return;
 	}
-	rcs_edited = TRUE;
+	rcs_edited = true;
 }
 
-VOID do_fgcol(LONG tree, WORD obj, WORD item)
+void do_fgcol(long tree, short obj, short item)
 {
-	LONG	obspec;
-	WORD	type, color;
+	long	obspec;
+	short	type, color;
 
 	color = item - COL0POP;
 	get_obf(tree, obj, &type, &obspec);
@@ -571,34 +561,34 @@ VOID do_fgcol(LONG tree, WORD obj, WORD item)
 	{
 		case G_BOXCHAR:
 			obspec &= 0xfffff0ffL;
-			SET_SPEC(tree, obj, obspec | ((LONG) color << 8));
+			SET_SPEC(tree, obj, obspec | ((long) color << 8));
 			return;
 		case G_TEXT:
 		case G_FTEXT:
 		case G_BOXTEXT:
 		case G_FBOXTEXT:
-			color = (color << 8) | (LWGET(TE_FG(obspec)) 
+			color = (color << 8) | ((*(short *)(TE_FG(obspec))) 
 				& 0xf0ff);
-			LWSET(TE_FG(obspec), color);
+			(*(short *)(TE_FG(obspec)) = (color));
 			break;
 		case G_ICON:
-			color = (color << 12) | (LWGET(IB_CHAR(obspec))
+			color = (color << 12) | ((*(short *)(IB_CHAR(obspec)))
 				& 0xfff);
-			LWSET(IB_CHAR(obspec), color);
+			(*(short *)(IB_CHAR(obspec)) = (color));
 			break;
 		case G_IMAGE:
-			LWSET(BI_COLOR(obspec), color);
+			(*(short *)(BI_COLOR(obspec)) = (color));
 			break;
 		default:
 			return;
 	}
-	rcs_edited = TRUE;
+	rcs_edited = true;
 }
 
-VOID do_patrn(LONG tree, WORD obj, WORD item)
+void do_patrn(long tree, short obj, short item)
 {
-	LONG	obspec;
-	WORD	type, patrn;
+	long	obspec;
+	short	type, patrn;
 
 	patrn = item - PAT0POP;
 	get_obf(tree, obj, &type, &obspec);
@@ -607,23 +597,23 @@ VOID do_patrn(LONG tree, WORD obj, WORD item)
 		case G_BOX:
 		case G_BOXCHAR:
 			obspec &= 0xffffff8fL;
-			SET_SPEC(tree, obj, obspec | ((LONG) patrn << 4));
+			SET_SPEC(tree, obj, obspec | ((long) patrn << 4));
 			break;
 		case G_BOXTEXT:
 		case G_FBOXTEXT:
-			patrn = (patrn << 4) | (LWGET(TE_FG(obspec)) & 0xff8f);
-			LWSET(TE_FG(obspec), patrn);
+			patrn = (patrn << 4) | ((*(short *)(TE_FG(obspec))) & 0xff8f);
+			(*(short *)(TE_FG(obspec)) = (patrn));
 			break;
 		default:
 			return;
 	}
-	rcs_edited = TRUE;
+	rcs_edited = true;
 }
 
-VOID do_thick(LONG tree, WORD obj, WORD item)
+void do_thick(long tree, short obj, short item)
 {
-	LONG	obspec;
-	WORD	type, i, thick;
+	long	obspec;
+	short	type, i, thick;
 
 	for (i = 0; rcs_it2thk[i].mfrom && rcs_it2thk[i].mfrom != item; i++);
 	if (rcs_it2thk[i].mfrom)
@@ -637,23 +627,23 @@ VOID do_thick(LONG tree, WORD obj, WORD item)
 			case G_BOXCHAR:
 				obspec &= 0xff00ffffL;
 				SET_SPEC(tree, obj, obspec |
-					((LONG) (thick & 0xff) << 16));
+					((long) (thick & 0xff) << 16));
 				break;
 			case G_BOXTEXT:
 			case G_FBOXTEXT:
-				LWSET(TE_THICK(obspec), thick);
+				(*(short *)(TE_THICK(obspec)) = (thick));
 				break;
 			default:
 				return;
 		}
-		rcs_edited = TRUE;
+		rcs_edited = true;
 	}
 }
 
-VOID do_rule(LONG tree, WORD obj, WORD item)
+void do_rule(long tree, short obj, short item)
 {
-	LONG	obspec;
-	WORD	type, rule;
+	long	obspec;
+	short	type, rule;
 
 	rule = item == RPLACPOP? 1: 0;
 	get_obf(tree, obj, &type, &obspec);
@@ -663,7 +653,7 @@ VOID do_rule(LONG tree, WORD obj, WORD item)
 			if (item > RPLACPOP)
 				break;
 			obspec &= 0xffffff7fL;
-			SET_SPEC(tree, obj, obspec | ((LONG) rule << 7));
+			SET_SPEC(tree, obj, obspec | ((long) rule << 7));
 			break;
 		case G_TEXT:
 		case G_FTEXT:
@@ -672,25 +662,25 @@ VOID do_rule(LONG tree, WORD obj, WORD item)
 			if (item <= RPLACPOP)
 			{
 				rule = (rule << 7) | 
-					(LWGET(TE_FG(obspec)) & 0xff7f);
-				LWSET(TE_FG(obspec), rule);
+					((*(short *)(TE_FG(obspec))) & 0xff7f);
+				(*(short *)(TE_FG(obspec)) = (rule));
 			}
 			else if (item <= SMALLPOP)
-				LWSET(TE_FONT(obspec), item == SMALLPOP?
-					SMALL: IBM);
+				(*(short *)(TE_FONT(obspec)) = (item == SMALLPOP?
+					SMALL: IBM));
 			else if (item <= CENTPOP)
-				LWSET(TE_JUST(obspec), item - LEFTPOP);
+				(*(short *)(TE_JUST(obspec)) = (item - LEFTPOP));
 
 			break;
 		default:
 			return;
 	}
-	rcs_edited = TRUE;
+	rcs_edited = true;
 }
 
-VOID do_posn(LONG tree, WORD obj, WORD item)
+void do_posn(long tree, short obj, short item)
 {
-	WORD	pobj;
+	short	pobj;
 	GRECT	o, p;
 
 	if (obj != ROOT)
@@ -734,7 +724,7 @@ VOID do_posn(LONG tree, WORD obj, WORD item)
 			default:
 				return;
 		}
-		rcs_edited = TRUE;
+		rcs_edited = true;
 		if (rcs_state != PANL_STATE || item == SNAPPOP)
 		{
 			snap_xy(&o.g_x, &o.g_y);
@@ -746,10 +736,10 @@ VOID do_posn(LONG tree, WORD obj, WORD item)
 	}
 }
 
-VOID do_swtch(LONG tree, WORD obj, WORD item)
+void do_swtch(long tree, short obj, short item)
 {
-	LONG	where;
-	WORD	i, mask;
+	long	where;
+	short	i, mask;
 
 	if (item != HDDNPOP || obj != ROOT)
 	{
@@ -771,8 +761,8 @@ VOID do_swtch(LONG tree, WORD obj, WORD item)
 					return;
 			}
 		}
-		if (!(LWGET(where) & mask))
-			rcs_edited = TRUE;
-		LWSET(where, LWGET(where) ^ mask);
+		if (!((*(short *)(where)) & mask))
+			rcs_edited = true;
+		(*(short *)(where) = ((*(short *)(where)) ^ mask));
 	}
 }

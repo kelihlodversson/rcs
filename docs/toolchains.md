@@ -31,7 +31,7 @@ libcmini's configuration also needs Python 3 and kconfiglib:
     brew install gcc-arm-embedded                   # macOS
 
 `make arm` builds libcmini and gemlib for ARM from the submodules and links
-`build/arm/SMOKE.PRG`. It needs kconfiglib, as the m68k build does.
+`build/arm/RCS.PRG`. It needs kconfiglib, as the m68k build does.
 
 ## x86-64
 

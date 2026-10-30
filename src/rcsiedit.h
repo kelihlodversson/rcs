@@ -8,20 +8,20 @@
 
 #define RCSIEDIT_H
 
-EXTERN	VOID	del_img(BOOLEAN mouse, WORD which);
-EXTERN	VOID	clear_clipb(VOID);
-EXTERN	VOID	draw_outline(GRECT *area);
-EXTERN	VOID	copy_clor(LONG spt, WORD color);
-EXTERN	VOID	draw_clipb(BOOLEAN mouse, GRECT *dirty);
-EXTERN	VOID	copy_img(BOOLEAN mouse);
-EXTERN	VOID	cut_img(VOID);
-EXTERN	VOID	do_paste_img(VOID);
-EXTERN	VOID	solid_img(VOID);
-EXTERN	VOID	invrt_img(VOID);
-EXTERN	VOID	icon_size(WORD *pwidth, WORD *pheight);
-EXTERN	VOID	horiz_scale(BYTE *srcpt, WORD srcw, BYTE *despt);
-EXTERN	VOID	scale_img(LONG srcpt, WORD srcw, WORD srch, LONG despt);
-EXTERN	VOID	keep_img(LONG srcpt, WORD srcw, WORD srch, LONG despt);
-EXTERN	VOID	resize(LONG src_pt, WORD src_w, WORD src_h, LONG des_pt);
+extern	void	del_img(short mouse, short which);
+extern	void	clear_clipb(void);
+extern	void	draw_outline(GRECT *area);
+extern	void	copy_clor(long spt, short color);
+extern	void	draw_clipb(short mouse, GRECT *dirty);
+extern	void	copy_img(short mouse);
+extern	void	cut_img(void);
+extern	void	do_paste_img(void);
+extern	void	solid_img(void);
+extern	void	invrt_img(void);
+extern	void	icon_size(short *pwidth, short *pheight);
+extern	void	horiz_scale(char *srcpt, short srcw, char *despt);
+extern	void	scale_img(long srcpt, short srcw, short srch, long despt);
+extern	void	keep_img(long srcpt, short srcw, short srch, long despt);
+extern	void	resize(long src_pt, short src_w, short src_h, long des_pt);
 
 #endif

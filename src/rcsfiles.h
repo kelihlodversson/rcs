@@ -8,20 +8,20 @@
 
 #define RCSFILES_H
 
-EXTERN	VOID	get_path(BYTE *tmp_path, BYTE *spec);
-EXTERN	VOID	r_to_xfile(BYTE *where, BYTE *ext);
-EXTERN	WORD	get_file(WORD label);
-EXTERN	WORD	rvrt_files(VOID);
-EXTERN	WORD	ok_rvrt_files(VOID);
-EXTERN	VOID	rsc_title(VOID);
-EXTERN	WORD	abandon_button(VOID);
-EXTERN	WORD	new_rsc(VOID);
-EXTERN	WORD	open_rsc(VOID);
-EXTERN	WORD	clos_rsc(VOID);
-EXTERN	VOID	save_rsc(VOID);
-EXTERN	WORD	svas_rsc(VOID);
-EXTERN	WORD	rvrt_rsc(VOID);
-EXTERN	VOID	merge_rsc(VOID);
-EXTERN	WORD	quit_rsc(VOID);
+extern	void	get_path(char *tmp_path, char *spec);
+extern	void	r_to_xfile(char *where, char *ext);
+extern	short	get_file(short label);
+extern	short	rvrt_files(void);
+extern	short	ok_rvrt_files(void);
+extern	void	rsc_title(void);
+extern	short	abandon_button(void);
+extern	short	new_rsc(void);
+extern	short	open_rsc(void);
+extern	short	clos_rsc(void);
+extern	void	save_rsc(void);
+extern	short	svas_rsc(void);
+extern	short	rvrt_rsc(void);
+extern	void	merge_rsc(void);
+extern	short	quit_rsc(void);
 
 #endif

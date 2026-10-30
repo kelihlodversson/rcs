@@ -4,22 +4,11 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
+#include <gem.h>
+#include <stdbool.h>
 #include <string.h>
+#include <mint/osbind.h>
 #include <stdio.h>
-#include <portab.h>
-#include <machine.h>
-#include <rclib.h>
-#if GEMDOS
-#if TURBO_C
-#include <tos.h>
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <dosbind.h>
-#include <obdefs.h>
-#include <gembind.h>
-#endif
 #include "rcsdefs.h"
 #include "rcs.h"
 #include "rcsdata.h"
@@ -35,25 +24,25 @@
 
 FILE	*r_infhndl;
 
-MLOCAL  LONG	ad_prog;
-MLOCAL	GRECT	prog;
-MLOCAL	GRECT	tools_tmp;
+static  long	ad_prog;
+static	GRECT	prog;
+static	GRECT	tools_tmp;
 
-EXTERN	MFDB	gl_tmp;		/* references to RCSVDI.C */
+extern	MFDB	gl_tmp;		/* references to RCSVDI.C */
 
-WORD hndl_dial(LONG tree, WORD def, GRECT *p)
+short hndl_dial(long tree, short def, GRECT *p)
 {
-	WORD	xdial, ydial, wdial, hdial, exitobj;
+	short	xdial, ydial, wdial, hdial, exitobj;
 
-	form_center((OBJECT FAR *)tree, &xdial, &ydial, &wdial, &hdial);
+	form_center((OBJECT  *)tree, &xdial, &ydial, &wdial, &hdial);
 	form_dial(0, p->g_x, p->g_y, p->g_w, p->g_h, 
 		xdial, ydial, wdial, hdial);
 	if (!rcs_xpert)  
 		form_dial(1, p->g_x, p->g_y, p->g_w, p->g_h, 
 			xdial, ydial, wdial, hdial);
-	objc_draw((OBJECT FAR *)tree, ROOT, MAX_DEPTH, xdial, ydial, wdial, hdial);
+	objc_draw((OBJECT  *)tree, ROOT, MAX_DEPTH, xdial, ydial, wdial, hdial);
 
-	exitobj = form_do((OBJECT FAR *)tree, def) & 0x7FFF;
+	exitobj = form_do((OBJECT  *)tree, def) & 0x7FFF;
 
 	if (!rcs_xpert)	 
 		form_dial(2, p->g_x, p->g_y, p->g_w, p->g_h, 
@@ -63,9 +52,9 @@ WORD hndl_dial(LONG tree, WORD def, GRECT *p)
 	return (exitobj);
 }
 
-WORD hndl_alert(WORD b_num, LONG addr)
+short hndl_alert(short b_num, long addr)
 {
-	WORD	ret;
+	short	ret;
 
 	graf_mouse(ARROW, 0x0L);
 	ret = form_alert(b_num, (const char *)addr);
@@ -73,18 +62,18 @@ WORD hndl_alert(WORD b_num, LONG addr)
 	return (ret);
 }
 
-VOID hndl_locked(VOID)
+void hndl_locked(void)
 {
 	hndl_alert(1, string_addr(STLOCKED));
 }
 
-VOID mouse_form(WORD f_num)
+void mouse_form(short f_num)
 {
 	rcs_mform = f_num;
 	graf_mouse(f_num, NULL);
 }
 
-VOID ini_panes(VOID)
+void ini_panes(void)
 {
 	wind_get(rcs_view, WF_WORKXYWH, &view.g_x, &view.g_y,
 		&view.g_w, &view.g_h);
@@ -148,9 +137,9 @@ VOID ini_panes(VOID)
 		init_img();
 }		 
 
-LOCAL VOID arrge_icntree(LONG tree, WORD wint, WORD hint)
+static void arrge_icntree(long tree, short wint, short hint)
 {
-	WORD	obj, x, y, rowh, wroot, offx, i;
+	short	obj, x, y, rowh, wroot, offx, i;
 
 	wroot = GET_WIDTH(tree, ROOT);
 	if ( wroot )
@@ -196,9 +185,9 @@ LOCAL VOID arrge_icntree(LONG tree, WORD wint, WORD hint)
 	}
 }
 
-VOID view_parts(VOID)
+void view_parts(void)
 {
-	WORD  foo;
+	short  foo;
 	
 	ob_setxywh(ad_pbx, ROOT, &pbx);	
 	if (iconedit_flag)
@@ -207,9 +196,9 @@ VOID view_parts(VOID)
       	arrange_tree(ad_pbx, PBX_WINT, PBX_HINT, &foo, &foo);
 }
 
-LOCAL VOID lock_menus(VOID)
+static void lock_menus(void)
 {
-	WORD	*i;
+	short	*i;
 
 	for (i = ILL_LOCK; *i; i++)
 		disab_obj(ad_menu, *i);
@@ -218,9 +207,9 @@ LOCAL VOID lock_menus(VOID)
 	unsble_obj(ad_tools, HOTSWTCH);
 }
 
-VOID set_menus(VOID)
+void set_menus(void)
 {
-	WORD	*ok_list, obj;
+	short	*ok_list, obj;
 
 	obj = GET_NEXT(ad_menu, GET_HEAD(ad_menu, SCREEN));
 	map_tree(ad_menu, obj, SCREEN, (fkt_parm)disab_obj);
@@ -256,11 +245,11 @@ VOID set_menus(VOID)
 		lock_menus();
 }
 
-VOID menu_opts(LONG tree, WORD obj)
+void menu_opts(long tree, short obj)
 {
-	WORD	type;
+	short	type;
 
-	type = LLOBT(GET_TYPE(tree, obj));
+	type = ((GET_TYPE(tree, obj)) & 0xff);
 	switch (rcs_state)
 	{
 		case PANL_STATE:
@@ -296,7 +285,7 @@ VOID menu_opts(LONG tree, WORD obj)
 	}
 }
 
-VOID clr_hot(VOID)
+void clr_hot(void)
 {
 	if(iconedit_flag)
 	{
@@ -307,9 +296,9 @@ VOID clr_hot(VOID)
 		map_tree(ad_tools, ROOT, NIL, (fkt_parm)unsble_obj);
 }
 
-VOID set_hot(VOID)
+void set_hot(void)
 {
-	WORD	j, obj, *i, type, *null = 0;
+	short	j, obj, *i, type, *null = 0;
 
 	if (rcs_nsel)
 	{
@@ -318,7 +307,7 @@ VOID set_hot(VOID)
 		for (j = rcs_nsel; j; )
 		{
 			obj = rcs_sel[--j];
-			type = LLOBT(GET_TYPE(ad_view, obj));
+			type = ((GET_TYPE(ad_view, obj)) & 0xff);
 
 			switch (type)
 			{
@@ -366,10 +355,10 @@ VOID set_hot(VOID)
 	}
 }
 
-VOID set_switch(VOID)
+void set_switch(void)
 {
-	LONG	tree;
-	WORD	obj, j, flags, state;
+	long	tree;
+	short	obj, j, flags, state;
 
 	obj = rcs_sel[0];
 	flags = GET_FLAGS(ad_view, obj);
@@ -386,9 +375,9 @@ VOID set_switch(VOID)
 	}
 }
 
-VOID new_state(WORD new)
+void new_state(short new)
 {
-	WORD	pbxno;
+	short	pbxno;
 
 	rcs_state = new;
 	map_tree(ad_menu, ROOT, NIL, (fkt_parm)enab_obj);
@@ -425,42 +414,38 @@ VOID new_state(WORD new)
 	send_redraw(rcs_view, &pbx);
 } 
 
-WORD file_view(VOID)		/* Are we showing tree icons */
+short file_view(void)		/* Are we showing tree icons */
 {
 	return (rcs_state == FILE_STATE || rcs_state == NOFILE_STATE);
 }
 
-WORD tree_view(VOID)		/* Or the inside of a tree ? */
+short tree_view(void)		/* Or the inside of a tree ? */
 {
 	return !file_view();
 }
 
-VOID clr_clip(VOID)
+void clr_clip(void)
 {
 	ad_clip = 0;
 	SET_SPEC(ad_tools, CLIPBORD, image_addr(CLIPMPTY));
 	obj_nowdraw(ad_tools, CLIPBORD);
 }
 
-VOID set_title(BYTE *new)
+void set_title(char *new)
 {
 	rcs_title[0] = ' ';
 	strcpy(&rcs_title[1], new);
 	strcat(&rcs_title[0], " ");
-	wind_set(rcs_view, WF_NAME, ADDR(&rcs_title[0]), 0x0, 0x0);
+	wind_set_str(rcs_view, WF_NAME, &rcs_title[0]);
 }
 
-VOID get_defpath(BYTE *path, BYTE *spec)
+void get_defpath(char *path, char *spec)
 {
 	if(rsc_path[0])
 		strcpy(path, &rsc_path[1]);
 	else
 	{
-#if GEMDOS
 		path[0] = Dgetdrv() + 'A';
-#else
-		path[0] = dos_gdrv() + 'A';
-#endif
 		path[1] = ':';
 		path[2] = '\\';
 		path[3] = '\0';
@@ -468,17 +453,17 @@ VOID get_defpath(BYTE *path, BYTE *spec)
 	strcat(path, spec);
 }
 
-VOID clr_title(VOID)
+void clr_title(void)
 {
-	BYTE	temp[20];
+	char	temp[20];
 
 	rcs_title[0] = ' ';
-	LLSTRCPY(string_addr(STTITLE), (LONG)ADDR(temp));
+	LLSTRCPY(string_addr(STTITLE), (long)((long)(temp)));
 	get_defpath(&rcs_title[1], temp);
-	wind_set(rcs_view, WF_NAME, ADDR(&rcs_title[0]), 0x0, 0x0);
+	wind_set_str(rcs_view, WF_NAME, &rcs_title[0]);
 }
 
-VOID hot_off(VOID)
+void hot_off(void)
 {
 	if (rcs_hot != NIL)
 	{
@@ -492,33 +477,33 @@ VOID hot_off(VOID)
 	}
 }
 
-VOID wait_tools(VOID)
+void wait_tools(void)
 {
 	wait_io = 0x0;		/* wait to enter */
 	rc_copy(&tools, &wait);	/* the toolbox	*/
 }
 
-VOID wait_obj(LONG tree, WORD obj)
+void wait_obj(long tree, short obj)
 {	
 	wait_io = 0x1;			/* wait to exit */
 	objc_xywh(tree, obj, &wait);	/* an object's rectangle */
 }
 
-WORD pane_find(LONG *tree, WORD *obj, WORD mx, WORD my)
+short pane_find(long *tree, short *obj, short mx, short my)
 {
 	GRECT	dt;
-	WORD	desktitle, the_active;
-	*obj = objc_find((OBJECT FAR *)(*tree = ad_pbx), 0, MAX_DEPTH, mx, my);
+	short	desktitle, the_active;
+	*obj = objc_find((OBJECT  *)(*tree = ad_pbx), 0, MAX_DEPTH, mx, my);
 	if (*obj != NIL)
-		return (TRUE);
+		return (true);
 	else
 	{
-		*obj = objc_find((OBJECT FAR *)(*tree = ad_tools), 0, MAX_DEPTH, mx, my);
+		*obj = objc_find((OBJECT  *)(*tree = ad_tools), 0, MAX_DEPTH, mx, my);
 		if (*obj != NIL)
-			return (TRUE);
+			return (true);
 		else
 		{
-			*obj = objc_find((OBJECT FAR *)(*tree = ad_view), 0, MAX_DEPTH, mx, my);
+			*obj = objc_find((OBJECT  *)(*tree = ad_view), 0, MAX_DEPTH, mx, my);
 			if ( rcs_state == MENU_STATE && *obj == THEBAR)
 			/* special case desk menu */
 			{
@@ -529,18 +514,18 @@ WORD pane_find(LONG *tree, WORD *obj, WORD mx, WORD my)
 					*obj = desktitle;
 			}
 			if (*obj != NIL)
-				return (TRUE);
+				return (true);
 			else
-				return(FALSE);
+				return(false);
 		}
 	}
 }
 
-WORD hndl_pop(WORD obj, BOOLEAN itool)
+short hndl_pop(short obj, short itool)
 {
-	WORD	i, event, mx, my, sel_obj, disab, outline, foo;
-	UWORD	buf_seg, buf_off;
-	LONG	tree;
+	short	i, event, mx, my, sel_obj, disab, outline, foo;
+	unsigned short	buf_seg, buf_off;
+	long	tree;
 	GRECT	poparea, bltarea;
 
 	if (itool)
@@ -559,7 +544,7 @@ WORD hndl_pop(WORD obj, BOOLEAN itool)
 	}
 	ini_tree(&tree, itool ? icn_ht2pop[i].popmenu: rcs_ht2pop[i].popmenu);
 	objc_xywh(tree, ROOT, &poparea);
-	objc_offset((OBJECT FAR *)(itool ? ad_itool:ad_tools), obj, &poparea.g_x, &poparea.g_y);
+	objc_offset((OBJECT  *)(itool ? ad_itool:ad_tools), obj, &poparea.g_x, &poparea.g_y);
 	ob_setxywh(tree, ROOT, &poparea);
 
 	rc_copy(&poparea, &bltarea);
@@ -570,36 +555,32 @@ WORD hndl_pop(WORD obj, BOOLEAN itool)
 	gl_tmp.fd_nplanes = gl_nplanes;
 	wind_get(0, 17, &buf_off, &buf_seg, &foo, &foo);
 	if (!buf_off && !buf_seg)
-		gl_tmp.fd_addr = (VOID *)0xffffffffl;
+		gl_tmp.fd_addr = (void *)0xffffffffl;
 	else
 	{
-#if  MC68K
-		gl_tmp.fd_addr = (VOID *)(HW(buf_off)| LW(buf_seg));
-#else   /* swap hi lo word order for intel environment */
-		gl_tmp.fd_addr = HW(buf_seg) | LW(buf_off);
-#endif
+		gl_tmp.fd_addr = (void *)(((long)buf_off << 16) | ((short)(buf_seg)));
 	}
 	wind_update(BEG_MCTRL);		/* protection vs. buffer collisions! */
 
 	bb_save(&bltarea);
-	objc_draw((OBJECT FAR *)tree, ROOT, MAX_DEPTH, 
+	objc_draw((OBJECT  *)tree, ROOT, MAX_DEPTH, 
 		bltarea.g_x, bltarea.g_y, bltarea.g_w, bltarea.g_h);
 	outline = itool ? icn_ht2pop[i].outline : rcs_ht2pop[i].outline; 
 
-	FOREVER
+	for (;;)
 	{
 		sel_obj = NIL;
 		objc_xywh(tree, ROOT, &poparea);
 
 		event = evnt_multi(MU_BUTTON | MU_M1, 0x01, 0xff, 0x1,
-			FALSE, poparea.g_x, poparea.g_y, 
+			false, poparea.g_x, poparea.g_y, 
 				poparea.g_w, poparea.g_h,
-			0, 0, 0, 0, 0, 0x0L, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 			&mx, &my, &foo, &foo, &foo, &foo);
 
 		if ( !(event & MU_M1))
 			break;
-		sel_obj = objc_find((OBJECT FAR *)tree, ROOT, MAX_DEPTH, mx, my);
+		sel_obj = objc_find((OBJECT  *)tree, ROOT, MAX_DEPTH, mx, my);
 		if (event & MU_BUTTON)
 			break;
 
@@ -612,9 +593,9 @@ WORD hndl_pop(WORD obj, BOOLEAN itool)
 
 		objc_xywh(tree, sel_obj, &poparea);
 		event = evnt_multi(MU_BUTTON | MU_M1, 0x01, 0xff, 0x1,
-			TRUE, poparea.g_x, poparea.g_y, 
+			true, poparea.g_x, poparea.g_y, 
 				poparea.g_w, poparea.g_h,
-			0, 0, 0, 0, 0, 0x0L, 0, 0,
+			0, 0, 0, 0, 0, 0, 0,
 			&mx, &my, &foo, &foo, &foo, &foo);
 
 		if (disab)
@@ -633,17 +614,17 @@ WORD hndl_pop(WORD obj, BOOLEAN itool)
 	return (sel_obj);
 } 
 
-LOCAL WORD rub_wait(GRECT *po, WORD *mx, WORD *my)
+static short rub_wait(GRECT *po, short *mx, short *my)
 {
-	WORD	down, rets[6];
+	short	down, rets[6];
 
 	graf_mouse(M_OFF, NULL);
 	gsx_xbox(po);
 	graf_mouse(M_ON, NULL);
 
 	down = !(MU_BUTTON & evnt_multi(MU_BUTTON | MU_M1, 
-		0x01, 0xff, 0x00, TRUE, *mx, *my, 1, 1,
-		0, 0, 0, 0, 0, 0x0L, 0, 0,
+		0x01, 0xff, 0x00, true, *mx, *my, 1, 1,
+		0, 0, 0, 0, 0, 0, 0,
 		&rets[0], &rets[1], &rets[2],
 		&rets[3], &rets[4], &rets[5]));
 
@@ -657,12 +638,12 @@ LOCAL WORD rub_wait(GRECT *po, WORD *mx, WORD *my)
 	return (down);
 }
 
-VOID hot_dragbox(GRECT *p, GRECT *pc, WORD *mx, WORD *my, WORD hot)
+void hot_dragbox(GRECT *p, GRECT *pc, short *mx, short *my, short hot)
 {
-	WORD	offx, offy, down, over_obj;
+	short	offx, offy, down, over_obj;
 	GRECT	o;
 
-	gsx_attr(FALSE, MD_XOR, BLUE);
+	gsx_attr(false, MD_XOR, BLUE);
 	o.g_w = p->g_w;
 	o.g_h = p->g_h;
 	graf_mkstate(mx, my, &down, &down);
@@ -677,7 +658,7 @@ VOID hot_dragbox(GRECT *p, GRECT *pc, WORD *mx, WORD *my, WORD hot)
 		down = rub_wait(&o, mx, my);
 		if (hot)
 		{
-			over_obj = objc_find((OBJECT FAR *)ad_tools, ROOT, NIL, *mx, *my);
+			over_obj = objc_find((OBJECT  *)ad_tools, ROOT, NIL, *mx, *my);
 			if (over_obj != CLIPBORD && over_obj != TRASHCAN)
 				hot_off();
 			else if (over_obj != rcs_hot)
@@ -693,14 +674,14 @@ VOID hot_dragbox(GRECT *p, GRECT *pc, WORD *mx, WORD *my, WORD hot)
 	p->g_y = *my - offy;
 }
 
-VOID clamp_rubbox(WORD x, WORD y, WORD wlow, WORD hlow, WORD whigh, WORD hhigh,
-	LONG ahigh, WORD *w, WORD *h, GRECT *bound)
+void clamp_rubbox(short x, short y, short wlow, short hlow, short whigh, short hhigh,
+	long ahigh, short *w, short *h, GRECT *bound)
 {
 	GRECT	o;
-	WORD	mx, my, down; 
+	short	mx, my, down; 
 
 	gsx_sclip(bound);
-	gsx_attr(FALSE, MD_XOR, BLUE);
+	gsx_attr(false, MD_XOR, BLUE);
 	rc_set(&o, x, y, 0, 0);
 
 	do {
@@ -711,7 +692,7 @@ VOID clamp_rubbox(WORD x, WORD y, WORD wlow, WORD hlow, WORD whigh, WORD hhigh,
 		o.g_h = min(o.g_h, hhigh);
 		if (ahigh)
 			o.g_h = min(o.g_h, 
-				(WORD) ((ahigh + o.g_w - 1) / o.g_w) );
+				(short) ((ahigh + o.g_w - 1) / o.g_w) );
 		down = rub_wait(&o, &mx, &my);
 	} while (down);
 
@@ -719,9 +700,9 @@ VOID clamp_rubbox(WORD x, WORD y, WORD wlow, WORD hlow, WORD whigh, WORD hhigh,
 	*h = o.g_h;
 }
 
-VOID obj_handle(LONG tree, WORD obj, GRECT *p)
+void obj_handle(long tree, short obj, GRECT *p)
 {
-	WORD	t;
+	short	t;
 
 	objc_xywh(tree, obj, p);
 	t = max(p->g_w >> 3, gl_wchar);
@@ -732,9 +713,9 @@ VOID obj_handle(LONG tree, WORD obj, GRECT *p)
 	p->g_h = t;
 }
 
-VOID about_dial(VOID)
+void about_dial(void)
 {
-	LONG	tree;
+	long	tree;
 	GRECT	p;
 
 	objc_xywh(ad_menu, DESKMENU, &p);
@@ -743,13 +724,13 @@ VOID about_dial(VOID)
 	desel_obj(tree, AOKITEM);
 }
 
-VOID info_dial(WORD obj)
+void info_dial(short obj)
 {
-	LONG	savname, name, tree, space;
+	long	savname, name, tree, space;
 	GRECT	p;
-	WORD	temp, where; 
-	BYTE	nobj[6], nib[6], nbb[6], nti[6], nimg[6], nstr[6];
-	BYTE	ntree[6], ntot[8], nleft[8];
+	short	temp, where; 
+	char	nobj[6], nib[6], nbb[6], nti[6], nimg[6], nstr[6];
+	char	ntree[6], ntot[8], nleft[8];
 
 	ini_tree(&tree, INFODIAL);
 	savname = GET_SPEC(tree, INFONAME);
@@ -761,21 +742,21 @@ VOID info_dial(WORD obj)
 			if (rcs_state == NOFILE_STATE)
 				name = string_addr(STTITLE);
 			else 
-				name = (LONG)ADDR(rcs_title);
+				name = (long)((long)(rcs_title));
 			mouse_form(HGLASS);	/* This could take a while..*/
 			clr_tally();
 			map_all((fkt_parm)tally_obj);
 			tally_free();
-			rcs_tally.nbytes += LWGET(RSH_NTREE(head)) * sizeof(LONG);
+			rcs_tally.nbytes += (*(short *)(RSH_NTREE(head))) * sizeof(long);
 			rcs_tally.nbytes += sizeof(RSHDR);
 			mouse_form(ARROW);
-			temp = LWGET(RSH_NTREE(head));
+			temp = (*(short *)(RSH_NTREE(head)));
 			sprintf(ntree, "%hd", temp);
-			SET_SPEC(tree, INFOTREE, (LONG)ADDR(ntree));
+			SET_SPEC(tree, INFOTREE, (long)((long)(ntree)));
 		}
 		else
 		{
-			name = (LONG)ADDR(rcs_title);
+			name = (long)((long)(rcs_title));
 			hide_obj(tree, INFOPANL);
 			clr_tally();
 			map_tree(ad_view, ROOT, NIL, (fkt_parm)tally_obj);
@@ -788,7 +769,7 @@ VOID info_dial(WORD obj)
 		if (file_view())
 		{
 			where = find_tree(trpan_f(obj - 1));
-			name = (LONG)ADDR(get_name(where));
+			name = (long)((long)(get_name(where)));
 			clr_tally();
 			map_tree( tree_addr(trpan_f(obj - 1)), ROOT, NIL, (fkt_parm)tally_obj);
 		}
@@ -798,7 +779,7 @@ VOID info_dial(WORD obj)
 			if (where == NIL)
 				name = savname;
 			else
-				name = (LONG)ADDR(get_name(where));
+				name = (long)((long)(get_name(where)));
 			clr_tally();
 			tree = ad_view;
 			map_tree(tree, obj, GET_NEXT(tree, obj), (fkt_parm)tally_obj);
@@ -807,24 +788,24 @@ VOID info_dial(WORD obj)
 	}
 
 	SET_SPEC(tree, INFONAME, name);
-	SET_X(tree, INFONAME, (WORD)(gl_wchar * (25 - LSTRLEN(name) / 2)));
+	SET_X(tree, INFONAME, (short)(gl_wchar * (25 - strlen((char *)(name)) / 2)));
 	sprintf(nobj, "%hd", rcs_tally.nobj);
-	SET_SPEC(tree, INFOOBJ, (LONG)ADDR(nobj));
+	SET_SPEC(tree, INFOOBJ, (long)((long)(nobj)));
 	sprintf(nib, "%hd", rcs_tally.nib);
-	SET_SPEC(tree, INFOIB, (LONG)ADDR(nib));
+	SET_SPEC(tree, INFOIB, (long)((long)(nib)));
 	sprintf(nbb, "%hd", rcs_tally.nbb);
-	SET_SPEC(tree, INFOBB, (LONG)ADDR(nbb));
+	SET_SPEC(tree, INFOBB, (long)((long)(nbb)));
 	sprintf(nti, "%hd", rcs_tally.nti);
-	SET_SPEC(tree, INFOTI, (LONG)ADDR(nti));
+	SET_SPEC(tree, INFOTI, (long)((long)(nti)));
 	sprintf(nimg, "%hd", rcs_tally.nimg);
-	SET_SPEC(tree, INFOIMG, (LONG)ADDR(nimg));
+	SET_SPEC(tree, INFOIMG, (long)((long)(nimg)));
 	sprintf(nstr, "%hd", rcs_tally.nstr);
-	SET_SPEC(tree, INFOSTR, (LONG)ADDR(nstr));
+	SET_SPEC(tree, INFOSTR, (long)((long)(nstr)));
 	sprintf(ntot, "%ld", rcs_tally.nbytes);
-	SET_SPEC(tree, INFOTOT, (LONG)ADDR(ntot));
+	SET_SPEC(tree, INFOTOT, (long)((long)(ntot)));
 	space = avail_mem();
 	sprintf(nleft, "%ld", space);
-	SET_SPEC(tree, INFOLEFT, (LONG)ADDR(nleft));
+	SET_SPEC(tree, INFOLEFT, (long)((long)(nleft)));
 	hndl_dial(tree, 0, &p);
 
 	desel_obj(tree, INFOOK);
@@ -834,9 +815,9 @@ VOID info_dial(WORD obj)
 		dselct_tree(ad_view, obj);
 }
 
-LOCAL WORD find_opt(WORD opt)
+static short find_opt(short opt)
 {
-	WORD 	idx;
+	short 	idx;
 		    
 	for ( idx = 0; idx < NOPTS; idx++ )
 	    if ( deflt_options[idx].option == opt )
@@ -844,38 +825,38 @@ LOCAL WORD find_opt(WORD opt)
 	return (NIL);
 }				  
 
-LOCAL BOOLEAN get_opstate(WORD index)
+static short get_opstate(short index)
 {
 	return( deflt_options[index].state );
 }
 
-LOCAL VOID set_opstate(WORD index)
+static void set_opstate(short index)
 {
-	deflt_options[index].state = TRUE;
+	deflt_options[index].state = true;
 }
 
-VOID read_inf(WORD flag)
+void read_inf(short flag)
 {
-	WORD total_opt;
+	short total_opt;
 
-	r_infhndl = fopen(ADDR(&rcs_infile[0]), "rb");
+	r_infhndl = fopen(&rcs_infile[0], "rb");
 	if (r_infhndl == NULL)
 	{
 		/* no in file so set output and safety options to standard defaults */
-		rcs_fsrtflag = FALSE;
-		rcs_cflag = FALSE;
-		rcs_hflag = TRUE;
-		rcs_oflag = FALSE;
-		rcs_cbflag = FALSE;
-		rcs_f77flag = FALSE;
-		rcs_lock = FALSE;
-		rcs_xpert = FALSE;
+		rcs_fsrtflag = false;
+		rcs_cflag = false;
+		rcs_hflag = true;
+		rcs_oflag = false;
+		rcs_cbflag = false;
+		rcs_f77flag = false;
+		rcs_lock = false;
+		rcs_xpert = false;
 		rsc_path[0] = '\0';
 	}
 	else
 	{
-		total_opt = (WORD)sizeof(DEFLTS) * NOPTS;
-		dmcopy(r_infhndl, 0x0L, (LONG)ADDR(&deflt_options), total_opt);
+		total_opt = (short)sizeof(DEFLTS) * NOPTS;
+		dmcopy(r_infhndl, 0x0L, (long)((long)(&deflt_options)), total_opt);
 		rcs_fsrtflag = get_opstate( find_opt( FSRTITEM ));
 		rcs_cflag = get_opstate( find_opt( SRCITEM));
 		rcs_hflag = get_opstate( find_opt( CITEM));
@@ -886,17 +867,17 @@ VOID read_inf(WORD flag)
 		rcs_xpert = get_opstate( find_opt( SAFEXPRT ));
 		if (flag)
 		{
-			if (!dmcopy(r_infhndl, (LONG) total_opt, (LONG)ADDR(rsc_path), 1))
+			if (!dmcopy(r_infhndl, (long) total_opt, (long)((long)(rsc_path)), 1))
 				rsc_path[0] = '\0';  /*rsc_path is not in old .inf */
 			else if(rsc_path[0])
-				dmcopy(r_infhndl,(LONG) (total_opt+1), (LONG)ADDR(&rsc_path[1]),
-				(WORD) rsc_path[0] + 1); /*copy the 0 byte at the end of the path*/
+				dmcopy(r_infhndl,(long) (total_opt+1), (long)((long)(&rsc_path[1])),
+				(short) rsc_path[0] + 1); /*copy the 0 byte at the end of the path*/
 		}
 		fclose( r_infhndl );
 	}
 }	 
 
-LOCAL VOID init_deflts(VOID)
+static void init_deflts(void)
 {
 	deflt_options[0].option =  FSRTITEM;
 	deflt_options[1].option =  SRCITEM;
@@ -909,20 +890,20 @@ LOCAL VOID init_deflts(VOID)
 	rsc_path[0] = '\0';
 }
 
-VOID wrte_inf(VOID)
+void wrte_inf(void)
 {	 
-	WORD	idx;
+	short	idx;
 
-	r_infhndl = fopen( ADDR(&rcs_infile[0]), "rb");
+	r_infhndl = fopen( &rcs_infile[0], "rb");
 	if (r_infhndl == NULL)
 		init_deflts();
 	else
 		fclose(r_infhndl);
-	r_infhndl = fopen(ADDR(&rcs_infile[0]), "wb");
+	r_infhndl = fopen(&rcs_infile[0], "wb");
 	if (r_infhndl != NULL)
 	{
 		for ( idx = 0; idx < NOPTS; idx++ )
-			deflt_options[idx].state = FALSE;
+			deflt_options[idx].state = false;
 		if (rcs_fsrtflag )
 			set_opstate(find_opt(FSRTITEM) );
 		if (rcs_cflag )
@@ -939,19 +920,19 @@ VOID wrte_inf(VOID)
 			set_opstate(find_opt(SAFELOCK));
 		if (rcs_xpert)
 			set_opstate(find_opt(SAFEXPRT));
-		fwrite( ADDR(deflt_options), sizeof(DEFLTS), NOPTS, r_infhndl );
-		fwrite( ADDR(rsc_path), 1, 1, r_infhndl );
+		fwrite( deflt_options, sizeof(DEFLTS), NOPTS, r_infhndl );
+		fwrite( rsc_path, 1, 1, r_infhndl );
 		if (rsc_path[0])
-			fwrite( ADDR(&rsc_path[1]), 1, (size_t)(rsc_path[0]+1), r_infhndl );
+			fwrite( &rsc_path[1], 1, (size_t)(rsc_path[0]+1), r_infhndl );
 		fclose( r_infhndl );
 	}
 }
 
-VOID outp_dial(VOID)
+void outp_dial(void)
 {
-	LONG	tree;
+	long	tree;
 	GRECT	p;
-	WORD	exitobj;
+	short	exitobj;
 
 	ini_tree(&tree, OUTPTREE);
 	if (rcs_cflag)
@@ -980,11 +961,11 @@ VOID outp_dial(VOID)
 	map_tree(tree, ROOT, NIL, (fkt_parm)desel_obj);
 }
 
-VOID safe_dial(VOID)
+void safe_dial(void)
 {
-	LONG	tree;
+	long	tree;
 	GRECT	p;
-	WORD	exitobj;
+	short	exitobj;
 
 	ini_tree(&tree, SAFEDIAL);
 	if (rcs_lock)
@@ -1010,25 +991,25 @@ VOID safe_dial(VOID)
 	map_tree(tree, ROOT, NIL, (fkt_parm)desel_obj);
 }
 
-VOID ini_prog(VOID)
+void ini_prog(void)
 {
 	GRECT 	p;
 
 	ini_tree(&ad_prog, PROGRESS);	/* set up progress indicator */
-	form_center((OBJECT FAR *)ad_prog, &prog.g_x, &prog.g_y, &prog.g_w, &prog.g_h);
-	objc_draw((OBJECT FAR *)ad_prog, ROOT, MAX_DEPTH, 
+	form_center((OBJECT  *)ad_prog, &prog.g_x, &prog.g_y, &prog.g_w, &prog.g_h);
+	objc_draw((OBJECT  *)ad_prog, ROOT, MAX_DEPTH, 
 		prog.g_x, prog.g_y, prog.g_w, prog.g_h);
 	objc_xywh(ad_prog, WRITING, &p);
 	prog.g_y = p.g_y;  prog.g_h = p.g_h;
 }
 
-VOID show_prog(WORD strno)
+void show_prog(short strno)
 {
-	LONG	taddr;
+	long	taddr;
 
 	SET_SPEC(ad_prog, WRITING, taddr = string_addr(strno));
-	SET_WIDTH(ad_prog, WRITING, (WORD)(gl_wchar * LSTRLEN(taddr)));
+	SET_WIDTH(ad_prog, WRITING, (short)(gl_wchar * strlen((char *)(taddr))));
 	do_posn(ad_prog, WRITING, JCENPOP);	/* Use our own editing */
-	objc_draw((OBJECT FAR *)ad_prog, ROOT, MAX_DEPTH, 
+	objc_draw((OBJECT  *)ad_prog, ROOT, MAX_DEPTH, 
 		prog.g_x, prog.g_y, prog.g_w, prog.g_h);
 }

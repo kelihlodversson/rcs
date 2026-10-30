@@ -8,15 +8,15 @@
 
 #define RCSLOAD_H
 
-EXTERN	VOID	just_name(BYTE *pname);
-EXTERN	BYTE	dig_to_char(WORD number);
-EXTERN	WORD	writ_icon(LONG praster, WORD icon_w, WORD icon_h, WORD data_size, BOOLEAN data_field);
-EXTERN	VOID	get_icnfile(BYTE *full_path, WORD label);
-EXTERN	WORD	char_to_dig(BYTE chr);
-EXTERN	VOID	get_number(BYTE *ptr, WORD *result);
-EXTERN	LONG	read_icon(BYTE *buffer, WORD *icon_w, WORD *icon_h, WORD *data_size, BYTE *icon_name, BOOLEAN mask, WORD *icn_size);
-EXTERN	WORD	bb_get(LONG taddr, WORD *icon_w, WORD *icon_h);
-EXTERN	WORD	ib_get(LONG taddr, WORD *icon_w, WORD *icon_h, WORD maskp, WORD *file_size);
-EXTERN	VOID	load_part(WORD obj);
+extern	void	just_name(char *pname);
+extern	char	dig_to_char(short number);
+extern	short	writ_icon(long praster, short icon_w, short icon_h, short data_size, short data_field);
+extern	void	get_icnfile(char *full_path, short label);
+extern	short	char_to_dig(char chr);
+extern	void	get_number(char *ptr, short *result);
+extern	long	read_icon(char *buffer, short *icon_w, short *icon_h, short *data_size, char *icon_name, short mask, short *icn_size);
+extern	short	bb_get(long taddr, short *icon_w, short *icon_h);
+extern	short	ib_get(long taddr, short *icon_w, short *icon_h, short maskp, short *file_size);
+extern	void	load_part(short obj);
 
 #endif

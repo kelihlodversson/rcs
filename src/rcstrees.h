@@ -8,27 +8,27 @@
 
 #define RCSTREES_H
 
-EXTERN	WORD	trpan_f(WORD obj);
-EXTERN	WORD	fit_vtrees(VOID);
-EXTERN	WORD	fit_htrees(VOID);
-EXTERN	WORD	need_vtrees(VOID);
-EXTERN	WORD	snap_trs(WORD tr);
-EXTERN	WORD	clamp_trs(WORD tr);
-EXTERN	VOID	do_trsinc(WORD inc);
-EXTERN	VOID	view_trees(VOID);
-EXTERN  VOID    slid_trees(VOID);
-EXTERN	VOID	redo_trees(VOID);
-EXTERN	VOID	del_tree(WORD sobj);
-EXTERN	VOID	cut_tree(WORD sobj, WORD dup);
-EXTERN	VOID	paste_tree(WORD dobj, WORD dx, WORD dy, WORD dup);
-EXTERN	VOID	new_tree(WORD sobj, WORD dobj, WORD dx, WORD dy);
-EXTERN	VOID	dup_tree(WORD sobj, WORD dobj, WORD dx, WORD dy);
-EXTERN  WORD	mov_tree(WORD sobj, WORD dobj, WORD dx, WORD dy);
-EXTERN	VOID	open_tree(WORD obj);
-EXTERN	VOID	clos_tree(VOID);
-EXTERN	VOID	name_tree(WORD obj);
-EXTERN	VOID	type_tree(WORD obj);
-EXTERN  VOID	select_tree(LONG tree, WORD obj);
-EXTERN	VOID	dselct_tree(LONG tree, WORD obj);
+extern	short	trpan_f(short obj);
+extern	short	fit_vtrees(void);
+extern	short	fit_htrees(void);
+extern	short	need_vtrees(void);
+extern	short	snap_trs(short tr);
+extern	short	clamp_trs(short tr);
+extern	void	do_trsinc(short inc);
+extern	void	view_trees(void);
+extern  void    slid_trees(void);
+extern	void	redo_trees(void);
+extern	void	del_tree(short sobj);
+extern	void	cut_tree(short sobj, short dup);
+extern	void	paste_tree(short dobj, short dx, short dy, short dup);
+extern	void	new_tree(short sobj, short dobj, short dx, short dy);
+extern	void	dup_tree(short sobj, short dobj, short dx, short dy);
+extern  short	mov_tree(short sobj, short dobj, short dx, short dy);
+extern	void	open_tree(short obj);
+extern	void	clos_tree(void);
+extern	void	name_tree(short obj);
+extern	void	type_tree(short obj);
+extern  void	select_tree(long tree, short obj);
+extern	void	dselct_tree(long tree, short obj);
 
 #endif

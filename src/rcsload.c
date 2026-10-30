@@ -5,21 +5,10 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
+#include <gem.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
-#include <portab.h>
-#include <machine.h>
-#if GEMDOS
-#if TURBO_C
-#include <tos.h>
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <dosbind.h>
-#include <obdefs.h>
-#include <gembind.h>
-#endif
 #include "rcsdefs.h"
 #include "rcs.h"
 #include "rcsdata.h"
@@ -64,10 +53,10 @@
 /*In the written form, both mask & data are inverted and have their bytes */
 /*swapped. */
 
-VOID just_name(BYTE *pname)
+void just_name(char *pname)
 {
 	/* pull the filename off the end of the path */
-	BYTE		*ptmp;
+	char		*ptmp;
 
 	ptmp = &icn_file[0];
 	while(*ptmp)
@@ -85,24 +74,24 @@ VOID just_name(BYTE *pname)
 	} /* while */
 } /* just_name */
 
-BYTE dig_to_char(WORD number)
+char dig_to_char(short number)
 {
-	BYTE		b_val, result;
+	char		b_val, result;
 
-	b_val = (BYTE) number;
+	b_val = (char) number;
 	result = b_val + 48;
 	if ( (result > 57) && (result < 65) )
 		result += 7;
 	return(result);
 } /* dig_to_char */
 
-WORD writ_icon(LONG praster, WORD icon_w, WORD icon_h, WORD data_size, BOOLEAN data_field)
+short writ_icon(long praster, short icon_w, short icon_h, short data_size, short data_field)
 {
-	WORD	count;
-	WORD	ii, jj;
-	WORD	number, factor, digit;
-	BYTE	chr, new_name[13];
-	BYTE	*ptr;
+	short	count;
+	short	ii, jj;
+	short	number, factor, digit;
+	char	chr, new_name[13];
+	char	*ptr;
 	FILE	*f_handle;
 
 	if (data_field)
@@ -114,7 +103,7 @@ WORD writ_icon(LONG praster, WORD icon_w, WORD icon_h, WORD data_size, BOOLEAN d
 			fseek( f_handle, 0, SEEK_END);  /* go to end of file */
 	}
 	if (f_handle == NULL)
-		return(FALSE);
+		return(false);
 	else
 	{
 		new_name[0] = '\0';
@@ -188,7 +177,7 @@ WORD writ_icon(LONG praster, WORD icon_w, WORD icon_h, WORD data_size, BOOLEAN d
 			*ptr++ = ZERO;	/* '0' */
 			*ptr++ = SMX;	/* 'x' */
 
-			number = LWGET(praster + 2 * ii);
+			number = (*(short *)(praster + 2 * ii));
 			/* now turn it into ASCII	*/
 			factor = 12;
 			for (jj = 1; jj <= 4; jj++)
@@ -225,31 +214,29 @@ WORD writ_icon(LONG praster, WORD icon_w, WORD icon_h, WORD data_size, BOOLEAN d
 
 		fputs((char *)c_obndx, f_handle);
 		fclose(f_handle);
-		return(TRUE);
+		return(true);
 	}
 } /* writ _icon */
 
-VOID get_icnfile(BYTE *full_path, WORD label)
+void get_icnfile(char *full_path, short label)
 {
-	WORD		butn, ii;
-	BYTE		tmp_name[13];
+	short		butn, ii;
+	char		tmp_name[13];
 
 	if ( !sav_icnpath[0] )
 		get_path(full_path, "*.ICN"); 
 	else
 		strcpy(full_path, sav_icnpath);
 	tmp_name[0] = '\0';
-#if GEMDOS
 	if (Sversion() >= 0x0140)
 	{
-		LONG	fs_label;
+		long	fs_label;
 
 		fs_label = string_addr(label);
-		fsel_exinput(ADDR(full_path), ADDR(&tmp_name[0]), &butn, (BYTE FAR *)fs_label);
+		fsel_exinput(full_path, &tmp_name[0], &butn, (char  *)fs_label);
 	}
 	else
-#endif
-		fsel_input(ADDR(full_path), ADDR(&tmp_name[0]), &butn);
+		fsel_input(full_path, &tmp_name[0], &butn);
 	if (butn)
 	{
 		if ( strcmp( sav_icnpath, full_path ) == 0)
@@ -261,11 +248,7 @@ VOID get_icnfile(BYTE *full_path, WORD label)
 			while( full_path[ii] != '\\' )
 				ii--;		
 			full_path[ii] = '\0';
-#if GEMDOS
-			Dsetpath( ADDR(full_path));
-#else
-			dos_chdir( ADDR(full_path));
-#endif
+			Dsetpath( ((long)(full_path)));
 			strcat( full_path, "\\" );
 		}
 		else
@@ -283,20 +266,20 @@ VOID get_icnfile(BYTE *full_path, WORD label)
 		full_path[0] = '\0';
 } /* get_icnfile */
 
-WORD char_to_dig(BYTE chr)
+short char_to_dig(char chr)
 {
-	WORD		result;
+	short		result;
 
 	result = chr - 48;
 	if (result > 9)
 		result -= 7;
-	return( (WORD) result );
+	return( (short) result );
 } /* char_to_dig */
 
-VOID get_number(BYTE *ptr, WORD *result)
+void get_number(char *ptr, short *result)
 {
-	WORD		ii, factor, digit;
-	BYTE		chr;
+	short		ii, factor, digit;
+	char		chr;
 
 	factor = 12;
 	*result = 0x0;
@@ -311,31 +294,31 @@ VOID get_number(BYTE *ptr, WORD *result)
 	} /* for */
 } /* get_number */
 
-LONG read_icon(BYTE *buffer, WORD *icon_w, WORD *icon_h, WORD *data_size, BYTE *icon_name, BOOLEAN mask, WORD *icn_size)
+long read_icon(char *buffer, short *icon_w, short *icon_h, short *data_size, char *icon_name, short mask, short *icn_size)
 {
-	LONG	praster;
-	WORD	count, ii, jj,  bytes_read, new_style;
+	long	praster;
+	short	count, ii, jj,  bytes_read, new_style;
 	FILE	*f_handle;
-	WORD	number, factor, digit;
-	BYTE	chr, *ptr;
+	short	number, factor, digit;
+	char	chr, *ptr;
 
-	f_handle = fopen(ADDR(&icon_name[0] ), "rb");
+	f_handle = fopen(&icon_name[0], "rb");
 	if (f_handle == NULL)
 	{
 		*icon_w = -1;
-		return(FALSE);
+		return(false);
 	} /* if */
 	else
 	{
 		if ( !mask  || *icn_size == -1 )
-			bytes_read = dmcopy(f_handle,0x0L,(LONG)ADDR(buffer),MAPSIZE);
+			bytes_read = dmcopy(f_handle,0x0L,(long)((long)(buffer)),MAPSIZE);
 		else
-			bytes_read = dmcopy(f_handle, (LONG) *icn_size, (LONG)ADDR(buffer),MAPSIZE);
+			bytes_read = dmcopy(f_handle, (long) *icn_size, (long)((long)(buffer)),MAPSIZE);
 		if (bytes_read <= 0)
 		{
 			*icon_w = -1;
 			*icn_size = -1;	
-			return(FALSE);      
+			return(false);      
 		} /* if */
 		else
 		{
@@ -344,13 +327,13 @@ LONG read_icon(BYTE *buffer, WORD *icon_w, WORD *icon_h, WORD *data_size, BYTE *
 			/* is this an new-style icon?	*/
 			if (*ptr == '/')
 			{
-				new_style = TRUE;
+				new_style = true;
 				/* skip the comment	*/
 				while (*ptr != '#')
 				ptr++;
 			} /* if */
 			else
-				new_style = FALSE;
+				new_style = false;
 			/* get ICON_W */
 			while (*ptr != '0')
 				ptr++;
@@ -389,7 +372,7 @@ LONG read_icon(BYTE *buffer, WORD *icon_w, WORD *icon_h, WORD *data_size, BYTE *
 					factor -= 4;
 				} /* for */
 
-				LWSET(praster + ii * sizeof(UWORD), number);
+				(*(short *)(praster + ii * sizeof(unsigned short)) = (number));
 				ptr += 2;	/* skip ", " */
 				count++;
 				if ( (count % 4) == 0 )
@@ -400,40 +383,40 @@ LONG read_icon(BYTE *buffer, WORD *icon_w, WORD *icon_h, WORD *data_size, BYTE *
 				ii = (*data_size * 2) / *icon_h;
 				gsx_trans(praster, ii, praster, ii, *icon_h);
 			}
-			*icn_size = (WORD)(ptr - buffer);
+			*icn_size = (short)(ptr - buffer);
 			fclose(f_handle);
 			return (praster);
 		}
 	}
 } /* read_icon */
 
-WORD bb_get(LONG taddr, WORD *icon_w, WORD *icon_h)
+short bb_get(long taddr, short *icon_w, short *icon_h)
 {
-	LONG	where;
-	WORD	icon_size, file_size;
+	long	where;
+	short	icon_size, file_size;
 
 	get_icnfile(&icn_file[0], STLDICN);
 	file_size = -1;
 	if (icn_file[0])
 	{
-		where = read_icon((BYTE *) &c_obndx[0], icon_w, icon_h, 
-			&icon_size, &icn_file[0], TRUE ,&file_size );
+		where = read_icon((char *) &c_obndx[0], icon_w, icon_h, 
+			&icon_size, &icn_file[0], true ,&file_size );
 		if (where)
 		{
-			LLSET(BI_PDATA(taddr), where);
-			LWSET(BI_HL(taddr), *icon_h);
-			LWSET(BI_WB(taddr), 2 * icon_size / *icon_h);
+			(*(long *)(BI_PDATA(taddr)) = (where));
+			(*(short *)(BI_HL(taddr)) = (*icon_h));
+			(*(short *)(BI_WB(taddr)) = (2 * icon_size / *icon_h));
 			icn_state = FILE_STATE;
-			return (TRUE);
+			return (true);
 		}
 	}
-	return(FALSE);
+	return(false);
 }
 
-WORD ib_get(LONG taddr, WORD *icon_w, WORD *icon_h, WORD maskp, WORD *file_size)
+short ib_get(long taddr, short *icon_w, short *icon_h, short maskp, short *file_size)
 {
-	LONG	where;
-	WORD	icon_size;
+	long	where;
+	short	icon_size;
 /*	BYTE	mask_file[80];	*/
 
 	if(*file_size == -1 && !maskp)  /* Need to get file name */
@@ -446,12 +429,12 @@ WORD ib_get(LONG taddr, WORD *icon_w, WORD *icon_h, WORD maskp, WORD *file_size)
 		*file_size = 0;
 	}
 	if (!icn_file[0])
-		return(FALSE);
+		return(false);
 	else
 	{
 		where = 0x0L;
 		if (icn_file[0])
-			where = read_icon((BYTE *) &c_obndx[0], icon_w, icon_h, 
+			where = read_icon((char *) &c_obndx[0], icon_w, icon_h, 
 				&icon_size, &icn_file[0], maskp, file_size);
 /*		else
 			if(mask_file[0] && maskp && *file_size == -1)
@@ -461,24 +444,24 @@ WORD ib_get(LONG taddr, WORD *icon_w, WORD *icon_h, WORD maskp, WORD *file_size)
 */		if (where)
 		{
 			if (!maskp)
-				LLSET(IB_PDATA(taddr), where);
+				(*(long *)(IB_PDATA(taddr)) = (where));
 			else
-				LLSET(IB_PMASK(taddr), where);
-			LWSET(IB_HICON(taddr), *icon_h);
-			LWSET(IB_WICON(taddr), *icon_w);
+				(*(long *)(IB_PMASK(taddr)) = (where));
+			(*(short *)(IB_HICON(taddr)) = (*icon_h));
+			(*(short *)(IB_WICON(taddr)) = (*icon_w));
 			icn_state = FILE_STATE;
-			return (TRUE);
+			return (true);
 		}
 		else
-			return (FALSE);
+			return (false);
 	}
 }
 
-VOID load_part(WORD obj)
+void load_part(short obj)
 {
-	LONG	tree, taddr, traddr ;
+	long	tree, taddr, traddr ;
 	GRECT	p;
-	WORD	type, sizeit,  icn_fsize, icn_w, icn_h;
+	short	type, sizeit,  icn_fsize, icn_w, icn_h;
 
 	if (iconedit_flag)
 		traddr = save_tree;
@@ -486,53 +469,53 @@ VOID load_part(WORD obj)
 		traddr = ad_view;
 	obj_redraw(traddr, obj);
 	taddr = GET_SPEC(traddr, obj);
-	type = LLOBT(GET_TYPE(traddr, obj));
+	type = ((GET_TYPE(traddr, obj)) & 0xff);
 	if (type == G_IMAGE)
 	{
 		if (bb_get(taddr, &p.g_w, &p.g_h))
-			newsize_obj(traddr, obj, p.g_w, p.g_h, FALSE);
-		if ( LHIBT(GET_TYPE(traddr, obj) ))
+			newsize_obj(traddr, obj, p.g_w, p.g_h, false);
+		if ( (((GET_TYPE(traddr, obj)) >> 8) & 0xff))
 		{
 			tree = traddr;
-			LWSET(OB_TYPE(obj), (G_IMAGE & 0x00ff) );
+			(*(short *)(OB_TYPE(obj)) = ((G_IMAGE & 0x00ff)));
 		}
 	}
 	else
 	{
-		sizeit = FALSE;
+		sizeit = false;
 
 		icn_fsize = -1;  /* display fsel */
-		if (ib_get(taddr, &p.g_w, &p.g_h, FALSE, &icn_fsize))
-			sizeit = TRUE;
+		if (ib_get(taddr, &p.g_w, &p.g_h, false, &icn_fsize))
+			sizeit = true;
 		else if(!icn_file[0])	/*cancel button in file sel*/
 			return;
 		icn_w = p.g_w;
 		icn_h = p.g_h;
-		if (ib_get(taddr, &p.g_w, &p.g_h, TRUE, &icn_fsize))
-			sizeit = TRUE;				  
+		if (ib_get(taddr, &p.g_w, &p.g_h, true, &icn_fsize))
+			sizeit = true;				  
 		if (icn_fsize <= 0 )	      
 		{
 			icn_fsize = -1; /* display fsel to get mask */
-			if (ib_get(taddr, &p.g_w, &p.g_h, TRUE, &icn_fsize))
-				sizeit = TRUE;			       
+			if (ib_get(taddr, &p.g_w, &p.g_h, true, &icn_fsize))
+				sizeit = true;			       
 		}     
 		if (icn_w != p.g_w || icn_h != p.g_h)
 		{
 			hndl_alert(1,string_addr(STSIZEP));
-			sizeit = FALSE;
+			sizeit = false;
 			p.g_w = -1;
 		}
-		rcs_edited = TRUE;
+		rcs_edited = true;
 		if (sizeit)
 		{
 			icon_tfix(taddr);
 			icon_wh(taddr, &p.g_w, &p.g_h);
-			newsize_obj(traddr, obj, p.g_w, p.g_h, FALSE);
+			newsize_obj(traddr, obj, p.g_w, p.g_h, false);
 		}
-		if ( LHIBT(GET_TYPE(traddr, obj) ))
+		if ( (((GET_TYPE(traddr, obj)) >> 8) & 0xff))
 		{
 			tree = traddr;
-			LWSET(OB_TYPE(obj), (G_ICON & 0x00ff) );
+			(*(short *)(OB_TYPE(obj)) = ((G_ICON & 0x00ff)));
 		}
 	}
 	obj_redraw(traddr, obj); 

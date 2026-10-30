@@ -278,4 +278,3 @@
 #define BEGHTSZ 10  	/* OBJECT in TREE #35 */
 #define CLIPBOX 21  	/* OBJECT in TREE #24 */
 #define CLIPSHOW 22  	/* OBJECT in TREE #24 */
-

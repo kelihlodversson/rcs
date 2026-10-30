@@ -291,4 +291,3 @@
 #define STSASICN 20		/* FREE STRING */
 #define CLIPMPTY 0		/* FREE IMAGE */
 #define CLIPFULL 1		/* FREE IMAGE */
-

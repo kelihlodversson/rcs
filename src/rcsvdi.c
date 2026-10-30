@@ -5,80 +5,70 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
+#include <gem.h>
+#include <string.h>
+#include <stdbool.h>
 #include <stddef.h>
-#include <portab.h>
-#include <machine.h>
-#include <rclib.h>
-#if GEMDOS
-#if TURBO_C
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <obdefs.h>
-#include <gembind.h>
-#include <vdibind.h>
-#endif
 #include "rcslib.h"
 #include "rcsvdi.h"
 
 #define ORGADDR 0x0L
 
-GLOBAL WORD	gl_width;
-GLOBAL WORD	gl_height;
+ short	gl_width;
+ short	gl_height;
 
-GLOBAL WORD	gl_nrows;
-GLOBAL WORD	gl_ncols;
+ short	gl_nrows;
+ short	gl_ncols;
 
-GLOBAL WORD	gl_wchar;
-GLOBAL WORD	gl_hchar;
+ short	gl_wchar;
+ short	gl_hchar;
 
-GLOBAL WORD	gl_wschar;
-GLOBAL WORD	gl_hschar;
+ short	gl_wschar;
+ short	gl_hschar;
 
-GLOBAL WORD	gl_wptschar;
-GLOBAL WORD	gl_hptschar;
+ short	gl_wptschar;
+ short	gl_hptschar;
 
-GLOBAL WORD	gl_wsptschar;
-GLOBAL WORD	gl_hsptschar;
+ short	gl_wsptschar;
+ short	gl_hsptschar;
 
-GLOBAL WORD	gl_wbox;
-GLOBAL WORD	gl_hbox;
+ short	gl_wbox;
+ short	gl_hbox;
 
-GLOBAL WORD	gl_xclip;
-GLOBAL WORD	gl_yclip;
-GLOBAL WORD	gl_wclip;
-GLOBAL WORD	gl_hclip;
+ short	gl_xclip;
+ short	gl_yclip;
+ short	gl_wclip;
+ short	gl_hclip;
 
-GLOBAL WORD 	gl_nplanes;
-GLOBAL WORD 	gl_handle;
+ short 	gl_nplanes;
+ short 	gl_handle;
 
-GLOBAL MFDB		gl_src;
-GLOBAL MFDB		gl_dst;
-GLOBAL MFDB		gl_tmp;
+ MFDB		gl_src;
+ MFDB		gl_dst;
+ MFDB		gl_tmp;
 
-GLOBAL WS		gl_ws;
+ WS		gl_ws;
 
-GLOBAL WORD		intin[128];
-GLOBAL WORD		ptsin[128];
-GLOBAL WORD		intout[128];
-GLOBAL WORD		ptsout[128];
+ short		intin[128];
+ short		ptsin[128];
+ short		intout[128];
+ short		ptsout[128];
 
-GLOBAL LONG		ad_intin;
+ long		ad_intin;
 
-GLOBAL WORD		gl_mode;
-GLOBAL WORD		gl_tcolor;
-GLOBAL WORD		gl_lcolor;
-GLOBAL WORD		gl_fis;
-GLOBAL WORD		gl_patt;
+ short		gl_mode;
+ short		gl_tcolor;
+ short		gl_lcolor;
+ short		gl_fis;
+ short		gl_patt;
 
-GLOBAL GRECT		gl_rscreen;
-GLOBAL GRECT		gl_rfull;
-GLOBAL GRECT		gl_rzero;
-GLOBAL GRECT		gl_rcenter;
-GLOBAL GRECT		gl_rmenu;
+ GRECT		gl_rscreen;
+ GRECT		gl_rfull;
+ GRECT		gl_rzero;
+ GRECT		gl_rcenter;
+ GRECT		gl_rmenu;
 
-LOCAL VOID gsx_fix(MFDB *pfd, LONG theaddr, WORD wb, WORD h)
+static void gsx_fix(MFDB *pfd, long theaddr, short wb, short h)
 {
 	if (theaddr == ORGADDR)
 	{
@@ -94,11 +84,11 @@ LOCAL VOID gsx_fix(MFDB *pfd, LONG theaddr, WORD wb, WORD h)
 		pfd->fd_h = h;
 		pfd->fd_nplanes = 1;
 	}
-	pfd->fd_stand = FALSE;
-	pfd->fd_addr = (VOID *)theaddr;
+	pfd->fd_stand = false;
+	pfd->fd_addr = (void *)theaddr;
 }
 
-LOCAL VOID bb_fill(WORD mode, WORD fis, WORD patt, WORD hx, WORD hy, WORD hw, WORD hh)
+static void bb_fill(short mode, short fis, short patt, short hx, short hy, short hw, short hh)
 {
 	gsx_fix(&gl_dst, 0x0L, 0, 0);
 	ptsin[0] = hx;
@@ -106,7 +96,7 @@ LOCAL VOID bb_fill(WORD mode, WORD fis, WORD patt, WORD hx, WORD hy, WORD hw, WO
 	ptsin[2] = hx + hw - 1;
 	ptsin[3] = hy + hh - 1;
 
-	gsx_attr(TRUE, mode, gl_tcolor);
+	gsx_attr(true, mode, gl_tcolor);
 	if (fis != gl_fis)
 	{
 		vsf_interior(gl_handle, fis);
@@ -120,9 +110,9 @@ LOCAL VOID bb_fill(WORD mode, WORD fis, WORD patt, WORD hx, WORD hy, WORD hw, WO
 	vr_recfl(gl_handle, &ptsin[0]);
 }
 
-VOID gr_rect(WORD icolor, WORD ipattern, GRECT *pt)
+void gr_rect(short icolor, short ipattern, GRECT *pt)
 {
-	WORD		fis;
+	short		fis;
 
 	fis = FIS_PATTERN;
 	if (ipattern == IP_HOLLOW)
@@ -135,7 +125,7 @@ VOID gr_rect(WORD icolor, WORD ipattern, GRECT *pt)
 		pt->g_x, pt->g_y, pt->g_w, pt->g_h);
 } 
 
-VOID gsx_sclip(GRECT *pt)
+void gsx_sclip(GRECT *pt)
 {
 	rc_get(pt, &gl_xclip, &gl_yclip, &gl_wclip, &gl_hclip);
 
@@ -145,13 +135,13 @@ VOID gsx_sclip(GRECT *pt)
 		ptsin[1] = gl_yclip;
 		ptsin[2] = gl_xclip + gl_wclip - 1;
 		ptsin[3] = gl_yclip + gl_hclip - 1;
-		vs_clip(gl_handle, TRUE, &ptsin[0]);
+		vs_clip(gl_handle, true, &ptsin[0]);
 	}
 	else
-		vs_clip(gl_handle, FALSE, &ptsin[0]);
+		vs_clip(gl_handle, false, &ptsin[0]);
 } /* gsx_setclip */
 
-VOID gsx_attr(WORD text, WORD mode, WORD color)
+void gsx_attr(short text, short mode, short color)
 {
 	if (mode != gl_mode)
 	{
@@ -176,7 +166,7 @@ VOID gsx_attr(WORD text, WORD mode, WORD color)
 	}
 }
 
-VOID gsx_bxpts(GRECT *pt)
+void gsx_bxpts(GRECT *pt)
 {
 	ptsin[0] = pt->g_x;
 	ptsin[1] = pt->g_y;
@@ -190,12 +180,12 @@ VOID gsx_bxpts(GRECT *pt)
 	ptsin[9] = pt->g_y;
 }
 
-LOCAL VOID gsx_xline(WORD ptscount, WORD *ppoints)
+static void gsx_xline(short ptscount, short *ppoints)
 {
-	static	WORD	hztltbl[2] = { 0x5555, 0xaaaa };
-	static  WORD	verttbl[4] = { 0x5555, 0xaaaa, 0xaaaa, 0x5555 };
-	WORD		*linexy,i;
-	WORD		st;
+	static	short	hztltbl[2] = { 0x5555, 0xaaaa };
+	static  short	verttbl[4] = { 0x5555, 0xaaaa, 0xaaaa, 0x5555 };
+	short		*linexy,i;
+	short		st;
 
 	for ( i = 1; i < ptscount; i++ )
 	{
@@ -215,49 +205,49 @@ LOCAL VOID gsx_xline(WORD ptscount, WORD *ppoints)
 	vsl_udsty( gl_handle, 0xffff );
 }	
 
-VOID gsx_xbox(GRECT *pt)
+void gsx_xbox(GRECT *pt)
 {
 	gsx_bxpts(pt);
 	gsx_xline( 5, &ptsin[0] );
 }
 
-VOID gsx_untrans(LONG saddr, WORD swb, LONG daddr, WORD dwb, WORD h)
+void gsx_untrans(long saddr, short swb, long daddr, short dwb, short h)
 {
 	gsx_fix(&gl_src, saddr, swb, h);
-	gl_src.fd_stand = FALSE;
+	gl_src.fd_stand = false;
 	gl_src.fd_nplanes = 1;
 
 	gsx_fix(&gl_dst, daddr, dwb, h);
 	vr_trnfm(gl_handle, &gl_src, &gl_dst);
 }
 
-VOID gsx_trans(LONG saddr, WORD swb, LONG daddr, WORD dwb, WORD h)
+void gsx_trans(long saddr, short swb, long daddr, short dwb, short h)
 {
 	gsx_fix(&gl_src, saddr, swb, h);
-	gl_src.fd_stand = TRUE;
+	gl_src.fd_stand = true;
 	gl_src.fd_nplanes = 1;
 
 	gsx_fix(&gl_dst, daddr, dwb, h);
 	vr_trnfm(gl_handle, &gl_src, &gl_dst);
 }
 
-VOID gsx_outline(GRECT *pt)
+void gsx_outline(GRECT *pt)
 {
-	vs_clip(gl_handle, FALSE, &ptsin[0]);
-	gsx_attr(FALSE, MD_XOR, BLACK);
+	vs_clip(gl_handle, false, &ptsin[0]);
+	gsx_attr(false, MD_XOR, BLACK);
 	gsx_bxpts(pt);
 	v_pline(gl_handle, 5, &ptsin[0]);
 }
 
-VOID gsx_invert(GRECT *pt)
+void gsx_invert(GRECT *pt)
 {
 	vsf_color(gl_handle, BLACK);
-	vs_clip(gl_handle, FALSE, &ptsin[0]); 
+	vs_clip(gl_handle, false, &ptsin[0]); 
 	bb_fill(MD_XOR, FIS_SOLID, IP_SOLID,
 		pt->g_x, pt->g_y, pt->g_w, pt->g_h);
 }
 
-WORD ch_width(WORD fn)
+short ch_width(short fn)
 {
 	if (fn == IBM)
 		return(gl_wchar);
@@ -267,7 +257,7 @@ WORD ch_width(WORD fn)
 		return(0);
 }
 
-WORD ch_height(WORD fn)
+short ch_height(short fn)
 {
 	if (fn == IBM)
 		return(gl_hchar);
@@ -277,9 +267,9 @@ WORD ch_height(WORD fn)
 		return(0);
 }
 
-WORD gsx_start(VOID)
+short gsx_start(void)
 {
-	WORD		char_height, nc, attrib[10];
+	short		char_height, nc, attrib[10];
 
 	gl_xclip = 0;
 	gl_yclip = 0;
@@ -317,32 +307,32 @@ WORD gsx_start(VOID)
 	rc_set(&gl_rcenter, (gl_width-gl_wbox)/2, (gl_height-(2*gl_hbox))/2, 
 			gl_wbox, gl_hbox);
 	rc_set(&gl_rmenu, 0, 0, gl_width, gl_hbox);
-	ad_intin = (LONG)ADDR(&intin[0]);
-	return (TRUE);
+	ad_intin = (long)((long)(&intin[0]));
+	return (true);
 }
 
-VOID gsx_vopen(VOID)
+void gsx_vopen(void)
 {
-	WORD	i;
+	short	i;
 
 	for(i=0; i<10; i++)
 		intin[i] = 1;
 	intin[10] = 2;			/* device coordinate space */
 
-	v_opnvwk( &intin[0], &gl_handle, (WORD *)&gl_ws );
+	v_opnvwk( &intin[0], &gl_handle, (short *)&gl_ws );
 }
 
-LOCAL VOID bb_set(REG WORD sx, REG WORD sy, REG WORD sw, REG WORD sh,
-	REG WORD *pts1, REG WORD *pts2, MFDB *pfd, MFDB *psrc, MFDB *pdst)
+static void bb_set(register short sx, register short sy, register short sw, register short sh,
+	register short *pts1, register short *pts2, MFDB *pfd, MFDB *psrc, MFDB *pdst)
 {
-	WORD		oldsx;
+	short		oldsx;
 
 	/* get on word boundary	*/
 	oldsx = sx;
 	sx = (sx / 16) * 16;
 	sw = ( ((oldsx - sx) + (sw + 15)) / 16 ) * 16;
 
-	gl_tmp.fd_stand = TRUE;
+	gl_tmp.fd_stand = true;
 	gl_tmp.fd_wdwidth = sw / 16;
 	gl_tmp.fd_w = sw;
 	gl_tmp.fd_h = sh;
@@ -362,13 +352,13 @@ LOCAL VOID bb_set(REG WORD sx, REG WORD sy, REG WORD sw, REG WORD sh,
 	graf_mouse(M_ON, NULL);
 }
 
-VOID bb_save(GRECT *ps)
+void bb_save(GRECT *ps)
 {	
 	bb_set(ps->g_x, ps->g_y, ps->g_w, ps->g_h, &ptsin[0], &ptsin[4], 
 		&gl_src, &gl_src, &gl_tmp);
 }
 
-VOID bb_restore(GRECT *pr)
+void bb_restore(GRECT *pr)
 {
 	bb_set(pr->g_x, pr->g_y, pr->g_w, pr->g_h, &ptsin[4], &ptsin[0], 
 		&gl_dst, &gl_tmp, &gl_dst);

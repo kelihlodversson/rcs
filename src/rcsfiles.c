@@ -4,20 +4,9 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
+#include <gem.h>
+#include <stdbool.h>
 #include <string.h>
-#include <portab.h>
-#include <machine.h>
-#if GEMDOS
-#if TURBO_C
-#include <tos.h>
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <obdefs.h>
-#include <dosbind.h>
-#include <gembind.h>
-#endif
 #include "rcsdefs.h"
 #include "rcs.h"
 #include "rcsdata.h"
@@ -28,23 +17,15 @@
 #include "rcsread.h"
 #include "rcsfiles.h"
 
-VOID get_path(BYTE *tmp_path, BYTE *spec)
+void get_path(char *tmp_path, char *spec)
 {
-	WORD	cur_drv;
+	short	cur_drv;
 
-#if GEMDOS
 	cur_drv = Dgetdrv();
-#else
-	cur_drv = dos_gdrv();
-#endif
 	tmp_path[0] = cur_drv + 'A';
 	tmp_path[1] = ':';
 	tmp_path[2] = '\\';
-#if GEMDOS
-	Dgetpath((char *)ADDR(&tmp_path[3]), cur_drv+1);
-#else
-	dos_gdir(cur_drv+1, ADDR(&tmp_path[3]));
-#endif
+	Dgetpath((char *)((long)(&tmp_path[3])), cur_drv+1);
 	if (strlen(tmp_path) > 3)
 		strcat(tmp_path, "\\");
 	else
@@ -52,12 +33,12 @@ VOID get_path(BYTE *tmp_path, BYTE *spec)
 	strcat(tmp_path, spec);
 }
 
-VOID r_to_xfile(BYTE *where, BYTE *ext)
+void r_to_xfile(char *where, char *ext)
 {
-	WORD	ii, jj;
+	short	ii, jj;
 
 	strcpy(where, rcs_rfile);
-   	ii = (jj = (WORD)strlen(where)) - 1 ; 
+   	ii = (jj = (short)strlen(where)) - 1 ; 
 	while ((ii && where[ii] != '.') && where[ii] != '\\')
 		ii--;
 	if (where[ii] != '.')
@@ -65,10 +46,10 @@ VOID r_to_xfile(BYTE *where, BYTE *ext)
 	strcpy(&where[++ii], ext);
 }
 
-WORD get_file(WORD label)
+short get_file(short label)
 {
-	WORD	butn, ii;
-	BYTE	tmp_path[64], tmp_name[13];
+	short	butn, ii;
+	char	tmp_path[64], tmp_name[13];
 		
 	if ( !sav_rcspath[0] )
 		get_defpath(tmp_path, "*.RSC");
@@ -76,36 +57,30 @@ WORD get_file(WORD label)
 		strcpy(tmp_path, sav_rcspath);
 	tmp_name[0] = '\0';
 
-#if GEMDOS
 	if (Sversion() >= 0x0140)
 	{
-		LONG	fs_label;
+		long	fs_label;
 
 		fs_label = string_addr(label);
-		fsel_exinput(ADDR(&tmp_path[0]), ADDR(&tmp_name[0]), &butn, (BYTE FAR *)fs_label);
+		fsel_exinput(&tmp_path[0], &tmp_name[0], &butn, (char  *)fs_label);
 	}
 	else
-#endif
-		fsel_input(ADDR(&tmp_path[0]), ADDR(&tmp_name[0]), &butn);
+		fsel_input(&tmp_path[0], &tmp_name[0], &butn);
 	graf_mouse(rcs_mform, 0x0L);
 	if (butn)
 	{
 		if (!tmp_name[0])
 			if (hndl_alert(1, string_addr(NOFNAME)) == 1)
-				return(FALSE);
+				return(false);
 		if (strcmp(sav_rcspath, tmp_path))
 		{
-#if GEMDOS
-			Dsetpath((const char *)ADDR(tmp_path));
-#else
-			dos_chdir(ADDR(tmp_path));
-#endif
+			Dsetpath((const char *)((long)(tmp_path)));
 			strcpy(sav_rcspath, tmp_path);
 		}
 		strcpy(rcs_rfile, &tmp_path[0]);
 	 	for (ii = 0; rcs_rfile[ii] && rcs_rfile[ii] != '*'; ii++)
 	 		;
-	  	rcs_rfile[ii - 1] = NULL;	/* knock off slash */
+	  	rcs_rfile[ii - 1] = '\0';	/* knock off slash */
 		strcat(rcs_rfile, "\\");
 		strcpy(&rsc_path[1], rcs_rfile);
 		rsc_path[0] = strlen(rcs_rfile);
@@ -113,26 +88,26 @@ WORD get_file(WORD label)
 		/* Force 'rsc' extension on resource file.*/
 			r_to_xfile(rcs_rfile, "RSC"); 
 		r_to_xfile(rcs_dfile, "DFN");
-		return (TRUE);
+		return (true);
 	} /* if butn */
 	else
-		return (FALSE);
+		return (false);
 } /* get_file */
 
-WORD rvrt_files(VOID)
+short rvrt_files(void)
 {
-	if (!open_files(TRUE))
-		return(FALSE);
+	if (!open_files(true))
+		return(false);
 	else if (!read_files())
-		return(FALSE);
+		return(false);
 	else
 	{
 		redo_trees();
-		return(TRUE);
+		return(true);
 	}	
 }
 
-WORD ok_rvrt_files(VOID)   /* kluge routine to allow calls between sibling overlays */
+short ok_rvrt_files(void)   /* kluge routine to allow calls between sibling overlays */
 {
 	if (rvrt_files() )
 	{
@@ -141,15 +116,15 @@ WORD ok_rvrt_files(VOID)   /* kluge routine to allow calls between sibling overl
 	}
 	else
 		view_trees();
-	return( cont_rcsinit(FALSE)); /* return to rcs_init in overlay */		      
+	return( cont_rcsinit(false)); /* return to rcs_init in overlay */		      
 }
 
-VOID rsc_title(VOID)
+void rsc_title(void)
 {
    	set_title(&rcs_rfile[0]);
 }
 
-LOCAL VOID clr_rsc(VOID)
+static void clr_rsc(void)
 {
 	ini_buff();
 	rcs_ndxno = 0;
@@ -159,12 +134,12 @@ LOCAL VOID clr_rsc(VOID)
 	redo_trees();
 }
 
-WORD abandon_button(VOID)
+short abandon_button(void)
 {		
 	return(  hndl_alert(1,string_addr(ABNDCHGS)) );
 }
 
-LOCAL VOID cls_rsc(VOID)
+static void cls_rsc(void)
 {
 	mouse_form(HGLASS);
 	if (write_files())
@@ -172,39 +147,39 @@ LOCAL VOID cls_rsc(VOID)
 	mouse_form(ARROW);
 }
 
-WORD new_rsc(VOID)
+short new_rsc(void)
 {
-	WORD	abtn;
+	short	abtn;
 	if ( rcs_edited && !rcs_xpert )
 	{
 	 	if ( (abtn = abandon_button()) == 1 ) 
    		{
 			clr_rsc();				    
-			return( TRUE );
+			return( true );
 		}
 		else if (abtn == 2) /* Save Changes */			   
 		{
 			if ( rcs_state == NOFILE_STATE)
 				if (!get_file(STSASRES))
-					return(FALSE);
+					return(false);
 			cls_rsc();
 			clr_rsc();
-			return(TRUE);
+			return(true);
 		}
 		else /* cancel */
-			return (FALSE) ;
+			return (false) ;
 	}
 	else			      
 	{
 		clr_rsc();
-		return( FALSE );
+		return( false );
 	}
 }
 
-LOCAL WORD opn_rsc(VOID)
+static short opn_rsc(void)
 {
 	mouse_form(HGLASS);
-	if (open_files(FALSE))
+	if (open_files(false))
 	{
 		if (read_files())
 		{  
@@ -215,17 +190,17 @@ LOCAL WORD opn_rsc(VOID)
 	else 
 	{
 		mouse_form(ARROW);
-		return(FALSE);	   
+		return(false);	   
 	}
 	rcs_trpan = 0;
 	redo_trees();
 	mouse_form(ARROW);
-	return(TRUE);
+	return(true);
 }
 
-WORD open_rsc(VOID)
+short open_rsc(void)
 {
-	WORD	abtn;
+	short	abtn;
 	if (rcs_edited && !rcs_xpert)
 	{
 		if ((abtn = abandon_button()) == 1)
@@ -234,46 +209,46 @@ WORD open_rsc(VOID)
 		{	  
 			if (rcs_state == NOFILE_STATE)
 				if( ! get_file(STSASRES) )
-					return(FALSE);
+					return(false);
 			cls_rsc();
 			return(opn_rsc());
 		}
 		else
-			return(FALSE);
+			return(false);
 	}
 	else			     
 		 return (opn_rsc());
 }
 
-WORD clos_rsc(VOID)
+short clos_rsc(void)
 {
-	WORD	abtn;
+	short	abtn;
 	if (rcs_edited && !rcs_xpert)
 	{
 		if ((abtn = abandon_button()) == 1)
 		{
 			clr_rsc();
-			return(TRUE);
+			return(true);
 		}
 		else if (abtn == 2)
 		{	  
 			if ( rcs_state == NOFILE_STATE)
 				if (!get_file(STSASRES))
-					return(FALSE);
+					return(false);
 			cls_rsc();
-			return(TRUE);
+			return(true);
 		}
 		else
-			return(FALSE);
+			return(false);
 	}
 	else			     
 	{
 		clr_rsc();
-		return(TRUE);
+		return(true);
 	}
 }
 
-VOID save_rsc(VOID)
+void save_rsc(void)
 {
 	mouse_form(HGLASS);
 	write_files();
@@ -281,10 +256,10 @@ VOID save_rsc(VOID)
 	mouse_form(ARROW);
 }
 
-WORD svas_rsc(VOID)
+short svas_rsc(void)
 {
 	if (!get_file(STSASRES))
-		return(FALSE);
+		return(false);
 	else
 	{
 		mouse_form(HGLASS);
@@ -293,13 +268,13 @@ WORD svas_rsc(VOID)
 		mouse_form(ARROW);
 		new_state(FILE_STATE);
 		rsc_title();	      
-		return(TRUE);
+		return(true);
 	}
 }
 
-WORD rvrt_rsc(VOID)
+short rvrt_rsc(void)
 {
-	WORD	abtn;
+	short	abtn;
 	if (rcs_edited && !rcs_xpert)
 	{
 		if ((abtn = abandon_button()) == 1)
@@ -310,36 +285,36 @@ WORD rvrt_rsc(VOID)
 			else	 
 				rvrt_files();
 			mouse_form(ARROW);
-			return(TRUE);
+			return(true);
 		}
 		else if (abtn == 2)	     
 		{
 			if( rcs_state == NOFILE_STATE)
 				if( ! get_file(STSASRES) )
-					return(FALSE);
+					return(false);
 			cls_rsc();
-			return(TRUE);
+			return(true);
 		}
 		else
-			return(FALSE);
+			return(false);
 	}
 	else
 	{
 		mouse_form(HGLASS);
 		rvrt_files();
 		mouse_form(ARROW);   
-		return(FALSE);
+		return(false);
 	}	
 }
 
-VOID merge_rsc(VOID)
+void merge_rsc(void)
 {
-	BYTE	sv_rfile[80], sv_dfile[80];
+	char	sv_rfile[80], sv_dfile[80];
 
 	strcpy(&sv_rfile[0], rcs_rfile);
 	strcpy(&sv_dfile[0], rcs_dfile);
 	mouse_form(HGLASS);
-	if (open_files(FALSE))
+	if (open_files(false))
 		if (merge_files())
 			redo_trees();
 	if (rcs_state == FILE_STATE)
@@ -350,24 +325,24 @@ VOID merge_rsc(VOID)
 	mouse_form(ARROW);
 }
 	
-WORD quit_rsc(VOID)
+short quit_rsc(void)
 {
-	WORD	abtn;
+	short	abtn;
 	if ( rcs_edited && !rcs_xpert )
 	{
 	 	if ( (abtn = abandon_button()) == 1 ) 
-    			return(TRUE);
+    			return(true);
 		else if (abtn == 2) /* Save Changes */			   
 		{
 			if( rcs_state == NOFILE_STATE)
 				if( ! get_file(STSASRES) )
-					return(FALSE);
+					return(false);
 			cls_rsc();
-			return(TRUE);
+			return(true);
 		}
 		else /* cancel */
-			return (FALSE);
+			return (false);
 	}
 	else
-		return(TRUE);
+		return(true);
 }
