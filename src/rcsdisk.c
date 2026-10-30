@@ -315,7 +315,7 @@ short rsc_fwrite_object(FILE *f, long obj)
 static short fwrite_record(FILE *f, long rec, short size, short nlongs,
 	short firstword, short nwords)
 {
-	unsigned char	b[DISK_TEDINFO_SIZE];
+	unsigned char	b[DISK_ICONBLK_SIZE];	/* the largest record */
 	short	i;
 
 	for (i = 0; i < nlongs; i++)
