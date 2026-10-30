@@ -32,6 +32,8 @@ jobs:
             build/m68k/RCS.PRG
             build/m68k/RCS.RSC
             build/m68k/RCSLOW.RSC
+            build/m68k/RCS.DFN
+            build/m68k/RCSLOW.DFN
 
   arm:
     name: Build for ARM
@@ -54,3 +56,5 @@ jobs:
             build/arm/RCS.PRG
             build/arm/RCS.RSC
             build/arm/RCSLOW.RSC
+            build/arm/RCS.DFN
+            build/arm/RCSLOW.DFN
