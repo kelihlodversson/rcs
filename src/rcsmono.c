@@ -19,20 +19,21 @@ short is_mono(const MFDB *m)
 	return m->fd_addr != NULL && m->fd_nplanes == 1 && m->fd_stand;
 }
 
-static unsigned char *row(const MFDB *m, short y)
+/* the words of an image are the words of the host, the top bit the left pixel */
+static unsigned short *row(const MFDB *m, short y)
 {
-	return (unsigned char *)m->fd_addr + (long)y * m->fd_wdwidth * 2;
+	return (unsigned short *)m->fd_addr + (long)y * m->fd_wdwidth;
 }
 
 static short getbit(const MFDB *m, short x, short y)
 {
-	return (row(m, y)[x >> 3] >> (7 - (x & 7))) & 1;
+	return (row(m, y)[x >> 4] >> (15 - (x & 15))) & 1;
 }
 
 static void putbit(const MFDB *m, short x, short y, short v)
 {
-	unsigned char	*p = row(m, y) + (x >> 3);
-	unsigned char	bit = 0x80 >> (x & 7);
+	unsigned short	*p = row(m, y) + (x >> 4);
+	unsigned short	bit = 0x8000 >> (x & 15);
 
 	if (v)
 		*p |= bit;

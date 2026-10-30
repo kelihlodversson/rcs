@@ -388,7 +388,7 @@ static void wr_imdata(long where, short w, short h)
 		imaddr = (long)((long)(wr_obndx));
 		c_imdata(imaddr, size);
 		(*(long *)(where) = ((long) rcs_wraddr & 0xffff));
-		fwrite((void *)imaddr, 1, size, rcs_rhndl);
+		rsc_fwrite_words(rcs_rhndl, imaddr, size);
 		rcs_wraddr += size;
 	}
 }

@@ -7,9 +7,9 @@
 
 /* The images the editor works on (the data and the mask of an icon, an
  * image, their copies for undo and the clipboard) are one-plane images in
- * the standard format, the one of the data of an ICONBLK or a BITBLK: a row
- * is a whole number of words, the top bit of a byte is the left pixel, and
- * a set bit is a pixel that is drawn.  They do not depend on how the screen
+ * the format of the data of an ICONBLK or a BITBLK in memory: a row is a
+ * whole number of words, the words are those of the host, the top bit of a
+ * word is the left pixel, and a set bit is a pixel that is drawn.  They do not depend on how the screen
  * keeps its pixels (planes, 16 or 32 bits), which is not known to the
  * editor.  An MFDB of such an image has one plane and fd_stand set. */
 

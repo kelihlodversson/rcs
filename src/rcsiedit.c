@@ -447,16 +447,43 @@ void keep_img(long srcpt, short srcw, short srch, long despt)
 /* icon_size dialog.  "scale" can be scale, keep or clear.  The new size*/
 /* information is already set in gl_wimage and gl_himage in icon_size().*/
 /************************************************************************/
+/* the bytes of each word in the other order, if the host is little-endian: the
+   same to go from the words of the host to big-endian bytes, and back */
+static short is_be_host(void)
+{
+	unsigned short one = 1;
+
+	return *(unsigned char *)&one == 0;
+}
+
+static void swap_words(long addr, long words)
+{
+	unsigned char	*p = (unsigned char *)addr, t;
+
+	for (; words > 0; words--, p += 2)
+		if (!is_be_host())
+		{
+			t = p[0];
+			p[0] = p[1];
+			p[1] = t;
+		}
+}
+
 void resize(long src_pt, short src_w, short src_h, long des_pt)
 {
 	short k;    
 
 	for(k=0; k<256; k++)
 		dtemp[k] = 0;
+	/* the scaling takes the pixels as the bits of bytes, left to right, which
+	   is how the words are in memory on a big-endian host only */
+	swap_words(src_pt, (long)(src_w >> 4) * src_h);
 	if (scale == KEEPSZ)
 		keep_img(src_pt, src_w, src_h, des_pt);
 	else if(scale == SCALESZ)
 		scale_img(src_pt, src_w, src_h, des_pt);
 	else
 		memmove((void *)(des_pt), (void *)(((long)(dtemp))), 2 * (gl_datasize));
+	swap_words(src_pt, (long)(src_w >> 4) * src_h);
+	swap_words(des_pt, gl_datasize);
 }

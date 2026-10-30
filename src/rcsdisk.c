@@ -169,6 +169,65 @@ static short fix_table(long hdr, short field, unsigned short count,
 	return true;
 }
 
+/* The words of the image data (of the ICONBLKs and BITBLKs) are big-endian
+ * in the file, and the AES and the VDI of a little-endian host take them as
+ * the words of the host (see aes/rsload_portable.c in pTOS), so they are
+ * turned into those when the file is read, and back when it is written.
+ * Data that two records share is done once. */
+static void words_to_native(long addr, long words)
+{
+	while (words-- > 0)
+	{
+		*(unsigned short *)addr = rd_be16((void *)addr);
+		addr += 2;
+	}
+}
+
+static short seen_before(unsigned long *seen, short n, unsigned long off)
+{
+	short	i;
+
+	for (i = 0; i < n; i++)
+		if (seen[i] == off)
+			return true;
+	return false;
+}
+
+static void image_data(long hdr, unsigned long off, long words, unsigned long *seen, short *nseen)
+{
+	if (off == 0xffffffffUL || words <= 0 || off + 2UL * words > H(34))
+		return;
+	if (seen_before(seen, *nseen, off))
+		return;
+	if (*nseen < 1024)
+		seen[(*nseen)++] = off;
+	words_to_native(hdr + off, words);
+}
+
+static void images_to_native(long hdr)
+{
+	unsigned long	seen[1024];
+	short	nseen = 0, i;
+	long	rec;
+
+	for (i = 0; i < (short)H(26); i++)
+	{
+		rec = hdr + H(6) + (long)i * sizeof(ICONBLK);
+		image_data(hdr, *(unsigned long *)rec,
+			(((long)*(unsigned short *)(rec + 22) + 15) / 16) * *(short *)(rec + 24),
+			seen, &nseen);
+		image_data(hdr, *(unsigned long *)(rec + 4),
+			(((long)*(unsigned short *)(rec + 22) + 15) / 16) * *(short *)(rec + 24),
+			seen, &nseen);
+	}
+	for (i = 0; i < (short)H(28); i++)
+	{
+		rec = hdr + H(8) + (long)i * sizeof(BITBLK);
+		image_data(hdr, *(unsigned long *)rec,
+			(long)*(short *)(rec + 4) * *(short *)(rec + 6) / 2, seen, &nseen);
+	}
+}
+
 /* A reference to a record, an offset from the header, that was at old_tab
  * when the table was the one of the file, is now at new_tab with records of
  * memsize bytes. */
@@ -274,6 +333,8 @@ short rsc_to_native(long hdr, long ref)
 		}
 	}
 
+	images_to_native(hdr);
+
 	if (rcs_free & 1)
 		rcs_free++;
 	if (rcs_free - hdr > 0xffffL)
@@ -338,6 +399,19 @@ short rsc_fwrite_iconblk(FILE *f, long ib)
 short rsc_fwrite_bitblk(FILE *f, long bb)
 {
 	return fwrite_record(f, bb, DISK_BITBLK_SIZE, 1, 4, 5);
+}
+
+short rsc_fwrite_words(FILE *f, long first, long bytes)
+{
+	unsigned char	b[2];
+
+	for (; bytes > 1; bytes -= 2, first += 2)
+	{
+		wr_be16(b, *(unsigned short *)first);
+		if (!put(f, b, 2))
+			return false;
+	}
+	return true;
 }
 
 short rsc_fwrite_longs(FILE *f, long first, short count)

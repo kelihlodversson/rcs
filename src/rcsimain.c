@@ -266,7 +266,7 @@ void fattify(GRECT *area)
 	GRECT	trans_area, *pt;
 	short	k, x, y, pass, passes, row_w, colours[2], pxy[8];
 	GRECT	src_area, dst_area, clip;
-	unsigned char	*dst_row;
+	unsigned short	*dst_row;
 	static short	pixels[MAX_ICON_W * MAX_ICON_H];
 
 	if (!area)
@@ -321,11 +321,14 @@ void fattify(GRECT *area)
 		colours[1] = WHITE;
 		for (y = 0; y < pt->g_h; y++)
 		{
-			dst_row = (unsigned char *)fat_mfdb.fd_addr + (long)(y << 3) * row_w;
-			for (x = 0; x < row_w; x++)
-				dst_row[x] = (x < pt->g_w && pixels[y * pt->g_w + x] == colours[0]) ? 0xff : 0;
+			/* two pixels to a word: 8 bits for each */
+			dst_row = (unsigned short *)((char *)fat_mfdb.fd_addr + (long)(y << 3) * row_w);
+			for (x = 0; x < row_w; x += 2)
+				dst_row[x >> 1] =
+					((x < pt->g_w && pixels[y * pt->g_w + x] == colours[0]) ? 0xff00 : 0) |
+					((x + 1 < pt->g_w && pixels[y * pt->g_w + x + 1] == colours[0]) ? 0x00ff : 0);
 			for (k = 1; k < 8; k++)
-				memmove(dst_row + (long)k * row_w, dst_row, row_w);
+				memmove((char *)dst_row + (long)k * row_w, dst_row, row_w);
 		}
 		grect_to_array(&src_area, pxy);
 		grect_to_array(&dst_area, &pxy[4]);

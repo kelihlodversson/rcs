@@ -43,5 +43,7 @@ extern	short	rsc_fwrite_tedinfo(FILE *f, long ted);
 extern	short	rsc_fwrite_iconblk(FILE *f, long ib);
 extern	short	rsc_fwrite_bitblk(FILE *f, long bb);
 extern	short	rsc_fwrite_longs(FILE *f, long first, short count);
+/* image data: words of the host, written as big-endian words */
+extern	short	rsc_fwrite_words(FILE *f, long first, long bytes);
 
 #endif
