@@ -67,12 +67,22 @@ by standard C, the `LWGET`/`LLSET`/`ADDR` family of memory macros by plain
 expressions, and `TRUE`/`FALSE` by `<stdbool.h>`. The old object names
 (`NORMAL`, `SELECTED`, ...) come from gemlib with `-D__GEMLIB_OLDNAMES`.
 
-Both targets compile and link `RCS.PRG`, but it has never been run, and the
+Both targets compile and link `RCS.PRG`. It starts and loads, merges and writes
+`RCS.RSC` on m68k (Hatari, pTOS) and on ARM (QEMU `virt`, pTOS); the files it
+writes are byte for byte the same on both, and the same as the original. The
 port is not finished:
 
-- the code still treats addresses as `long` and reads resource trees through
-  fixed byte offsets, which assumes 32-bit addresses and the in-memory layout of
-  the resource structures; that has not been checked on ARM;
+- the files are read and written the same way on every architecture
+  (`rcsdisk.c`): resource files are big-endian with records of 34 (ICONBLK) and
+  14 (BITBLK) bytes, the `.DFN` files little-endian, the `.INF` file
+  big-endian, and in memory the records are the host's own (native byte order
+  and padding, aligned). The image data and the strings are kept as the bytes
+  of the file, which is what the VDI expects. What has not been tried on ARM is
+  the editing itself (icon editor, dragging, the dialogs), and the `.H` file
+  the output writes comes out wrong after the first 8 KB on ARM (the text of
+  the first block is repeated), which looks like the stdio of libcmini there;
+- the code still treats addresses as `long`, which assumes 32-bit addresses
+  (m68k, ARM and x32);
 - the flags that only ViewMAX (the DOS build) knew (`ESCCANCEL`, `BITBUTTON`,
   `SCROLLER`, `USECOLOURCAT`, `HIGHLIGHTED`, `UNHIGHLIGHTED`) are left out of
   the object flags editor, as they mean something else under TOS;
