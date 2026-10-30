@@ -19,6 +19,7 @@
 #include "rcsobjs.h"
 #include "rcsvdi.h"
 #include "rcsiinit.h"
+#include "rcsmono.h"
 
 extern	  GRECT		dispc_area, orign_area;
 extern	  long		drawaddr;
@@ -337,10 +338,15 @@ void icn_init(short size_changed)
 	undo_mfdb.fd_wdwidth =	hold_mfdb.fd_wdwidth = save_mfdb.fd_wdwidth =
 		clip_mfdb.fd_wdwidth = (hold_mfdb.fd_w + 0x0f) >> 4;
 	undo_mfdb.fd_h = hold_mfdb.fd_h = clip_mfdb.fd_h = save_mfdb.fd_h = gl_himage;
+	/* the images are one-plane images (rcsmono.h); only disp_mfdb, which
+	   holds a piece of the screen when a selection is moved, has the
+	   planes of the screen */
 	undo_mfdb.fd_nplanes = hold_mfdb.fd_nplanes = fat_mfdb.fd_nplanes =
-		disp_mfdb.fd_nplanes = clip_mfdb.fd_nplanes = save_mfdb.fd_nplanes = gl_nplanes;
-	undo_mfdb.fd_stand = hold_mfdb.fd_stand = 
-		clip_mfdb.fd_stand = save_mfdb.fd_stand = 0;/*dev specific form*/
+		clip_mfdb.fd_nplanes = save_mfdb.fd_nplanes = 1;
+	disp_mfdb.fd_nplanes = gl_nplanes;
+	disp_mfdb.fd_stand = 0;
+	undo_mfdb.fd_stand = hold_mfdb.fd_stand = fat_mfdb.fd_stand =
+		clip_mfdb.fd_stand = save_mfdb.fd_stand = 1;
 
 	/* clear hold area */
 	/* both mfdb must be in device specific form */
@@ -357,9 +363,9 @@ void icn_init(short size_changed)
 			sav2_mfdb.fd_wdwidth = undo_mfdb.fd_wdwidth;
 		hld2_mfdb.fd_h = clp2_mfdb.fd_h = und2_mfdb.fd_h =
 			sav2_mfdb.fd_h = undo_mfdb.fd_h;
-		hld2_mfdb.fd_stand = und2_mfdb.fd_stand = clp2_mfdb.fd_stand = sav2_mfdb.fd_stand = 0;
+		hld2_mfdb.fd_stand = und2_mfdb.fd_stand = clp2_mfdb.fd_stand = sav2_mfdb.fd_stand = 1;
 		und2_mfdb.fd_nplanes = hld2_mfdb.fd_nplanes = clp2_mfdb.fd_nplanes =
-			sav2_mfdb.fd_nplanes =gl_nplanes;
+			sav2_mfdb.fd_nplanes = 1;
 		rast_op(0,&hold_area, &scrn_mfdb, &hold_area, &sav2_mfdb);
 		rast_op(0,&hold_area, &scrn_mfdb, &hold_area, &clp2_mfdb);
 		rast_op(0,&hold_area, &scrn_mfdb, &hold_area, &hld2_mfdb);  
@@ -392,8 +398,6 @@ void icn_init(short size_changed)
 
 static short iconinit(void)
 {		
-	unsigned short	loword, hiword;
-	short	llword, hlword;
 	long	tree;
 
 	wind_update( true );
@@ -413,6 +417,9 @@ static short iconinit(void)
 	rc_copy(&view, &fat_area);
 	if (!toolp)	 
 		fat_area.g_x += 0x0060;	/*width of tool box 2 =2 * ICON_W*/
+	/* learn how the screen reports the colours, on the pixels of the
+	   picture that is drawn over them next */
+	calibrate_colours(fat_area.g_x, fat_area.g_y);
 	(*(short *)(OB_TYPE(GRIDWIND)) = (G_USERDEF));
 	grid_wind.ub_code = dr_code;/*grid_wind is the APPLBK/USERBLK strct*/
 	(*(long *)(OB_SPEC(GRIDWIND)) = (((long)(&grid_wind))));
@@ -462,23 +469,11 @@ static short iconinit(void)
 							if ( sav2_mfdb.fd_addr == NULL )
 								return( 1 );
 						}
-						wind_get(0, WF_SCREEN, &hiword, &loword, &hlword, &llword);
-						fat_buf = false;
-						if (llword || hlword)	/*check if internal buffer is there*/
-						{
-							fat_mfdb.fd_addr = (void *)(((long)hiword << 16) + loword);
-							ibuff_size= (long)(hlword);
-							ibuff_size <<= 16;
-							ibuff_size += llword;
-						}
-						else /*fat_mfdb.fww * 8 * 2 = fat_mfdb.fwp,no. of bytes per fat row*/
-						{
-							fat_mfdb.fd_addr = malloc( ibuff_size );
-							if ( fat_mfdb.fd_addr == NULL )
-								return( 1 );	/* not enough memory */
-							else
-								fat_buf = true;
-						}
+						/* the magnified image: 8 x 8 pixels for each one */
+						fat_mfdb.fd_addr = malloc( (long) MAX_ICON_W * MAX_ICON_H * 8 );
+						if ( fat_mfdb.fd_addr == NULL )
+							return( 1 );	/* not enough memory */
+						fat_buf = true;
 						icn_init(false);
 						colour = fgcolor;	/*default colour*/
 						flash_area.g_w = flash_area.g_h = selec_area.g_w = selec_area.g_h = 0;

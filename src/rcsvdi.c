@@ -269,19 +269,27 @@ short ch_height(short fn)
 
 short gsx_start(void)
 {
-	short		char_height, nc, attrib[10];
+	short		char_height, nc, attrib[10], ext[57];
 
 	gl_xclip = 0;
 	gl_yclip = 0;
 	gl_width = gl_wclip = gl_ws.ws_xres + 1;
 	gl_height = gl_hclip = gl_ws.ws_yres + 1;
 
-	nc = gl_ws.ws_ncolors;
-	gl_nplanes = 0;
-	while (nc != 1)
+	/* the number of planes, or bits per pixel, of the screen: the number of
+	   colours says nothing about it when there are more than the workstation
+	   can count (32767 means 16 or 32 bits) */
+	vq_extnd(gl_handle, 1, ext);
+	gl_nplanes = ext[4];
+	if (gl_nplanes < 1)
 	{
-		nc >>= 1;
-		gl_nplanes++;
+		nc = gl_ws.ws_ncolors;
+		gl_nplanes = 0;
+		while (nc > 1)
+		{
+			nc >>= 1;
+			gl_nplanes++;
+		}
 	}
 	vqt_attributes( gl_handle, &attrib[0] );
 	gl_ws.ws_chmaxh = attrib[7];

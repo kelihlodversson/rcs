@@ -11,7 +11,6 @@
 extern	void	del_img(short mouse, short which);
 extern	void	clear_clipb(void);
 extern	void	draw_outline(GRECT *area);
-extern	void	copy_clor(long spt, short color);
 extern	void	draw_clipb(short mouse, GRECT *dirty);
 extern	void	copy_img(short mouse);
 extern	void	cut_img(void);

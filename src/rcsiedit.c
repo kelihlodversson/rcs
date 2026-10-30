@@ -102,49 +102,6 @@ void draw_outline(GRECT *area)
 	graf_mouse(M_ON, 0x0L);
 }    
 
-void copy_clor(long spt, short color)
-{
-	unsigned short plane;
-	short i;
-	long s, d;
-
-	rast_op(0, &hold_area, &disp_mfdb, &hold_area, &disp_mfdb);
-	plane = color_map[color];
-	s = spt;
-	d = (long)disp_mfdb.fd_addr;
-	if( color == old_fc)
-	{
-		for(i=0; i<gl_nplanes; i++)
-		{
-			if (plane & 1)
-				memmove((void *)(d), (void *)(s), 2 * (gl_datasize));
-			s += gl_datasize << 1;
-			d += gl_datasize << 1;
-			plane = plane >> 1;
-		}
-    }
-	else	/*if image's old color is not black, we need the following*/
-	{
-		plane = color_map[old_fc];
-		for(i=0; i<gl_nplanes; i++)
-		{
-			if (plane & 1)
-				break;
-			s += gl_datasize << 1;
-			plane = plane >> 1;
-		}
-		plane = color_map[color];
-		for (i=0; i<gl_nplanes; i++)
-		{
-			if (plane & 1)
-				memmove((void *)(d), (void *)(s), 2 * (gl_datasize));
-			d += gl_datasize << 1;
-			plane = plane >> 1;
-		}
-	}
-	memmove((void *)(clip_mfdb.fd_addr), (void *)(disp_mfdb.fd_addr), 2 * (gl_datasize * gl_nplanes));
-}
-
 void draw_clipb(short mouse, GRECT *dirty)
 {
 	GRECT  temp_area;
@@ -172,13 +129,8 @@ void draw_clipb(short mouse, GRECT *dirty)
 			}
 			else
 			{
-				disp_mfdb.fd_nplanes = clip_mfdb.fd_nplanes;
-				disp_mfdb.fd_h = clip_mfdb.fd_h;
-				disp_mfdb.fd_wdwidth = clip_mfdb.fd_wdwidth;
-				disp_mfdb.fd_w = clip_mfdb.fd_w;
-				disp_mfdb.fd_stand = clip_mfdb.fd_stand;
-				copy_clor((long)clip_mfdb.fd_addr, fgcolor);
-				rast_op(3, &clip_area, &disp_mfdb, &orign_area, &scrn_mfdb);
+				/* the image in the clip board, in the colour of the image */
+				rast_op(3, &clip_area, &clip_mfdb, &orign_area, &scrn_mfdb);
 			}
 			rc_copy(&orign_area, &temp_area);
 			temp_area.g_x -= 1;
