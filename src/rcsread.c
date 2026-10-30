@@ -7,6 +7,7 @@
 #include <gem.h>
 #include "rcsdisk.h"
 #include <string.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <stdbool.h>
 #include "rcsdefs.h"
@@ -355,6 +356,10 @@ static short fix_ptr(short type, short index)
 	return( fix_long( get_addr(type, index) ) );
 }
 
+/* are the G_CICONs of the objects being fixed those of the file in the
+   store of rcscicon.c?  (Not in a file that is merged.) */
+static short cicon_store_ok;
+
 static void fix_objects(void)
 {
 	short		ii;
@@ -382,7 +387,8 @@ static void fix_objects(void)
 			case G_CICON:
 				/* the spec is the number of its CICONBLK; RCS shows and
 				   edits the mono icon, and keeps the rest for saving */
-				ciconblk = cicon_iconblk(*(unsigned long *)(ROB_SPEC));
+				ciconblk = cicon_store_ok ?
+					cicon_iconblk(*(unsigned long *)(ROB_SPEC)) : 0;
 				if (ciconblk)
 				{
 					*(unsigned long *)(ROB_SPEC) = ciconblk;
@@ -466,10 +472,25 @@ static void fix_frimg(void)
 		fix_ptr(R_FRIMG, ii);
 }
 
+/* The root of a tree has no sibling: its ob_next is -1.  Some resources have
+ * the root itself (0) there, which would make a walk of the tree loop for
+ * ever. */
+static void fix_roots(void)
+{
+	short		ii;
+	long		ptreebase;
+
+	ptreebase = get_sub(0, RT_TRINDEX, (short)sizeof(long));
+
+	for (ii = NUM_TREE-1; ii >= 0; ii--)
+		*(short *)(*(long *)(ptreebase + ((short)(ii*4)))) = -1;
+}
+
 static void fix_all(void)
 {
 	fix_trindex();
 	fix_objects();
+	fix_roots();
 	fix_tedinfo();
 	fix_iconblk();
 	fix_bitblk();
@@ -591,7 +612,8 @@ short read_files(void)
 	{
 		long	disksize = rd_be16((void *)RSH_RSSIZE(head));
 		unsigned char	ext[12];
-		unsigned long	cicon_table = 0;
+		unsigned long	cicon_table = 0, cicon_total = 0;
+		unsigned char	*full = 0;
 
 		if (!dmcopy(rcs_rhndl, DISK_RSHDR_SIZE,
 				head + DISK_RSHDR_SIZE, disksize - DISK_RSHDR_SIZE))
@@ -606,9 +628,27 @@ short read_files(void)
 			cicon_reset();
 			if ((rd_be16((void *)RSH_VRSN(head)) & RCS_NEW_FORMAT) &&
 					dmcopy(rcs_rhndl, disksize, (long)ext, 12))
+			{
 				cicon_table = rd_be32(ext + 4);
+				cicon_total = rd_be32(ext);
+				/* the colour icons may be anywhere in the file, which can
+				   be larger than the 16 bits of rsh_rssize */
+				if (cicon_total >= (unsigned long)disksize + 12 &&
+						cicon_total <= 0x1000000UL &&
+						(full = malloc(cicon_total)) != 0 &&
+						!dmcopy(rcs_rhndl, 0x0L, (long)full, (long)cicon_total))
+				{
+					free(full);
+					full = 0;
+				}
+			}
 			fclose(rcs_rhndl);
-			cicon_scan(head, disksize, cicon_table);
+			if (full)
+			{
+				cicon_scan((long)full, (long)cicon_total, cicon_table);
+				free(full);
+			}
+			cicon_store_ok = true;
 			rcs_free = head + (unsigned short)disksize;
 			if (rcs_free & 0x1) 
 	    		rcs_free++;
@@ -740,6 +780,7 @@ short merge_files(void)
 			{
 				fclose(rcs_rhndl);
 				rs_hdr = merge;
+				cicon_store_ok = false;
 				fix_all();
 
 				old_ntree = (*(unsigned short *)(RSH_NTREE(head)));

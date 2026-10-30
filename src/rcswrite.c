@@ -259,7 +259,8 @@ static void c_string(long addr)
 static struct cicon_kept	*wr_cic[MAXCICON];
 static long	wr_cic_ib[MAXCICON];
 static short	wr_ncic;
-static unsigned long	wr_cic_table;
+static unsigned long	wr_cic_table, wr_cic_total;
+static unsigned short	wr_cic_rssize;
 
 static struct cicon_kept *wr_kept(long tree, short which)
 {
@@ -1022,9 +1023,15 @@ static void wr_cicons(void)
 
 	if (!wr_ncic)
 		return;
+	/* The 16 bits of rsh_rssize stop at the extension, and what comes
+	 * after it has 32-bit offsets: the table of CICONBLKs and the CICONBLKs
+	 * are not limited by them. */
 	wr_sync();
-	wr_cic_table = rcs_wraddr;
-	off = (unsigned long)rcs_wraddr + 4UL * (wr_ncic + 1);
+	wr_cic_rssize = rcs_wraddr;
+	memset(b, 0, 12);
+	fwrite(b, 1, 12, rcs_rhndl);		/* the extension is written last */
+	wr_cic_table = (unsigned long)rcs_wraddr + 12UL;
+	off = wr_cic_table + 4UL * (wr_ncic + 1);
 	for (i = 0; i < wr_ncic; i++)
 	{
 		wr_be32(b, off);
@@ -1033,7 +1040,6 @@ static void wr_cicons(void)
 	}
 	wr_be32(b, 0xffffffffUL);
 	fwrite(b, 1, 4, rcs_rhndl);
-	rcs_wraddr += 4 * (wr_ncic + 1);
 	for (i = 0; i < wr_ncic; i++)
 	{
 		ib = (ICONBLK *)wr_cic_ib[i];
@@ -1058,8 +1064,8 @@ static void wr_cicons(void)
 		strncpy((char *)b, ib->ib_ptext ? ib->ib_ptext : "", 12);
 		fwrite(b, 1, 12, rcs_rhndl);
 		fwrite(wr_cic[i]->versions, 1, wr_cic[i]->vlen, rcs_rhndl);
-		rcs_wraddr += 38 + 4 * wr_cic[i]->words + 12 + (unsigned short)wr_cic[i]->vlen;
 	}
+	wr_cic_total = off;
 }
 
 short write_files(void)
@@ -1067,9 +1073,8 @@ short write_files(void)
 	long	mem_needs;
 	
 	do_tally();			 
-	/* the colour versions of icons can take what a 16-bit file size leaves */
 	wr_ncic = 0;
-	cicon_prepare(0xFC00L - ((rcs_free - head) - cicon_loaded_bytes()));
+	cicon_prepare(0x1000000L - 1024);
 	if (rcs_cflag)
 		mem_needs = 3 * rcs_tally.nbytes;
 	else
@@ -1186,10 +1191,10 @@ short write_files(void)
 		/* the extension: length of the file, the table of colour icons */
 		unsigned char	ext[12];
 
-		wr_be32(ext, (unsigned long)rcs_wraddr + 12UL);
+		wr_be32(ext, wr_cic_total);
 		wr_be32(ext + 4, wr_cic_table);
 		wr_be32(ext + 8, 0UL);
-		fseek(rcs_rhndl, 0, SEEK_END);
+		fseek(rcs_rhndl, wr_cic_rssize, SEEK_SET);
 		fwrite(ext, 1, 12, rcs_rhndl);
 	}
 	fclose(rcs_rhndl);

@@ -91,8 +91,8 @@ port is not finished:
   their colour versions are kept as they are in the file and written back
   (`rcscicon.c`). They cannot be seen or edited, they are dropped if the
   mono icon is resized, and a copy of the icon (cut, paste, duplicate) has
-  none. The file size is kept in 16 bits, so they are kept only as long as
-  they fit;
+  none. They are written after the extension, with 32-bit offsets, so they
+  are not limited by the 16 bits of the file size in the header;
 - the code still treats addresses as `long`, which assumes 32-bit addresses
   (m68k, ARM and x32);
 - the flags that only ViewMAX (the DOS build) knew (`ESCCANCEL`, `BITBUTTON`,
