@@ -374,6 +374,12 @@ void set_switch(void)
 			if (flags & rcs_bit2obj[j].flagmask ||
 				state & rcs_bit2obj[j].statemask)
 				chek_obj(tree, rcs_bit2obj[j].objno);
+		switch (flags & OF_FL3DMASK)
+		{
+			case OF_FL3DIND:	chek_obj(tree, D3INDPOP); break;
+			case OF_FL3DACT:	chek_obj(tree, SYCOLPOP); break;
+			case OF_FL3DBAK:	chek_obj(tree, D3BAKPOP); break;
+		}
 	}
 }
 

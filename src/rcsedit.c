@@ -739,8 +739,36 @@ void do_posn(long tree, short obj, short item)
 void do_swtch(long tree, short obj, short item)
 {
 	long	where;
-	short	i, mask;
+	short	i, mask, kind, *flags, d;
+	OBJECT	*o;
 
+	/* indicator, activator and background are the values of two bits */
+	if (item == D3INDPOP || item == SYCOLPOP || item == D3BAKPOP)
+	{
+		kind = item == D3INDPOP ? OF_FL3DIND :
+			item == D3BAKPOP ? OF_FL3DBAK : OF_FL3DACT;
+		flags = (short *)OB_FLAGS(obj);
+		d = (*flags & OF_FL3DIND) != 0;		/* is it 3D indicator or activator? */
+		if ((*flags & OF_FL3DMASK) == kind)
+			*flags &= ~OF_FL3DMASK;
+		else
+			*flags = (*flags & ~OF_FL3DMASK) | kind;
+		/* The AES draws indicators and activators ADJ3D pixels larger on
+		 * every side than their box: shrink the box when it becomes one, and
+		 * grow it back when it stops being one, so the object keeps its look */
+		d = ((*flags & OF_FL3DIND) != 0) - d;
+		o = (OBJECT *)tree + obj;
+		if (obj != ROOT && d &&
+			(d < 0 || (o->ob_width > 4 * ADJ3D && o->ob_height > 4 * ADJ3D)))
+		{
+			o->ob_x += d * ADJ3D;
+			o->ob_y += d * ADJ3D;
+			o->ob_width -= d * 2 * ADJ3D;
+			o->ob_height -= d * 2 * ADJ3D;
+		}
+		rcs_edited = true;
+		return;
+	}
 	if (item != HDDNPOP || obj != ROOT)
 	{
 		for (i = 0; rcs_bit2obj[i].objno && rcs_bit2obj[i].objno != item; i++)
