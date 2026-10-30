@@ -231,7 +231,7 @@ void icon_wh(long taddr, short *w, short *h)
 	ICONBLK	here;
 	GRECT	p;
 
-	memcpy((void *)(((long)(&here))), (void *)(taddr), sizeof(ICONBLK));
+	memmove((void *)(((long)(&here))), (void *)(taddr), sizeof(ICONBLK));
 	rc_copy((GRECT *) &here.ib_xchar, &p);
 	rc_union((GRECT *) &here.ib_xicon, &p);
 	rc_union((GRECT *) &here.ib_xtext, &p);
@@ -475,12 +475,12 @@ void objc_xywh(long tree, short obj, GRECT *p)
 
 void ob_setxywh(long tree, short obj, GRECT *pt)
 {
-	memcpy((void *)(OB_X(obj)), (void *)(((long)(pt))), 2 * (sizeof(GRECT)/2));
+	memmove((void *)(OB_X(obj)), (void *)(((long)(pt))), 2 * (sizeof(GRECT)/2));
 }
 
 void ob_relxywh(long tree, short obj, GRECT *pt)
 {
-	memcpy((void *)(((long)(pt))), (void *)(OB_X(obj)), 2 * (sizeof(GRECT)/2));
+	memmove((void *)(((long)(pt))), (void *)(OB_X(obj)), 2 * (sizeof(GRECT)/2));
 }
 
 short min(short a, short b)
@@ -529,14 +529,14 @@ void LWINC(long x)
 	(*(short *)(x) = (1 + (*(short *)(x))));
 }
 
-short dmcopy(FILE *stream, long msrc, long mdest, short mln)	/* disk to memory copy */
+short dmcopy(FILE *stream, long msrc, long mdest, long mln)	/* disk to memory copy */
 {
 	if (fseek(stream, msrc, SEEK_SET))
 		return( 0 );
-	else if ( fread( (void *)mdest, 1, mln, stream) < mln)
+	else if ( fread( (void *)mdest, 1, mln, stream) < (size_t)mln)
 		return( 0 );
 	else
-		return(mln);
+		return(mln != 0);
 } /* dmcopy */
 
 static long obj_addr(long tree, short obj, short offset)

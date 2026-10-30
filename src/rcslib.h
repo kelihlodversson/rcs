@@ -56,7 +56,7 @@ extern  void	strup(char *p1);
 extern	void	LLSTRCPY(long src, long dest);
 extern	short	LLSTRCMP(long l1, long l2);
 extern	void	LWINC(long x);
-extern  short	dmcopy(FILE *stream, long msrc, long mdest, short mln);
+extern  short	dmcopy(FILE *stream, long msrc, long mdest, long mln);
 extern	short	GET_NEXT(long tree, short x);
 extern	short	GET_HEAD(long TREE, short x);
 extern	short	GET_TAIL(long tree, short x);

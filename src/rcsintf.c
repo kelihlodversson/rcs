@@ -5,6 +5,7 @@
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
 #include <gem.h>
+#include "rcsdisk.h"
 #include <stdbool.h>
 #include <string.h>
 #include <mint/osbind.h>
@@ -747,11 +748,11 @@ void info_dial(short obj)
 			clr_tally();
 			map_all((fkt_parm)tally_obj);
 			tally_free();
-			rcs_tally.nbytes += (*(short *)(RSH_NTREE(head))) * sizeof(long);
+			rcs_tally.nbytes += (*(unsigned short *)(RSH_NTREE(head))) * sizeof(long);
 			rcs_tally.nbytes += sizeof(RSHDR);
 			mouse_form(ARROW);
-			temp = (*(short *)(RSH_NTREE(head)));
-			sprintf(ntree, "%hd", temp);
+			temp = (*(unsigned short *)(RSH_NTREE(head)));
+			sprintf(ntree, "%d", temp);
 			SET_SPEC(tree, INFOTREE, (long)((long)(ntree)));
 		}
 		else
@@ -789,17 +790,17 @@ void info_dial(short obj)
 
 	SET_SPEC(tree, INFONAME, name);
 	SET_X(tree, INFONAME, (short)(gl_wchar * (25 - strlen((char *)(name)) / 2)));
-	sprintf(nobj, "%hd", rcs_tally.nobj);
+	sprintf(nobj, "%d", rcs_tally.nobj);
 	SET_SPEC(tree, INFOOBJ, (long)((long)(nobj)));
-	sprintf(nib, "%hd", rcs_tally.nib);
+	sprintf(nib, "%d", rcs_tally.nib);
 	SET_SPEC(tree, INFOIB, (long)((long)(nib)));
-	sprintf(nbb, "%hd", rcs_tally.nbb);
+	sprintf(nbb, "%d", rcs_tally.nbb);
 	SET_SPEC(tree, INFOBB, (long)((long)(nbb)));
-	sprintf(nti, "%hd", rcs_tally.nti);
+	sprintf(nti, "%d", rcs_tally.nti);
 	SET_SPEC(tree, INFOTI, (long)((long)(nti)));
-	sprintf(nimg, "%hd", rcs_tally.nimg);
+	sprintf(nimg, "%d", rcs_tally.nimg);
 	SET_SPEC(tree, INFOIMG, (long)((long)(nimg)));
-	sprintf(nstr, "%hd", rcs_tally.nstr);
+	sprintf(nstr, "%d", rcs_tally.nstr);
 	SET_SPEC(tree, INFOSTR, (long)((long)(nstr)));
 	sprintf(ntot, "%ld", rcs_tally.nbytes);
 	SET_SPEC(tree, INFOTOT, (long)((long)(ntot)));
@@ -835,9 +836,11 @@ static void set_opstate(short index)
 	deflt_options[index].state = true;
 }
 
+static unsigned char inf_buf[4 * NOPTS];
+
 void read_inf(short flag)
 {
-	short total_opt;
+	short total_opt, idx;
 
 	r_infhndl = fopen(&rcs_infile[0], "rb");
 	if (r_infhndl == NULL)
@@ -855,8 +858,14 @@ void read_inf(short flag)
 	}
 	else
 	{
-		total_opt = (short)sizeof(DEFLTS) * NOPTS;
-		dmcopy(r_infhndl, 0x0L, (long)((long)(&deflt_options)), total_opt);
+		/* the file keeps the options as big-endian words */
+		total_opt = 4 * NOPTS;
+		dmcopy(r_infhndl, 0x0L, (long)((long)(inf_buf)), total_opt);
+		for (idx = 0; idx < NOPTS; idx++)
+		{
+			deflt_options[idx].option = rd_be16(&inf_buf[4 * idx]);
+			deflt_options[idx].state = rd_be16(&inf_buf[4 * idx + 2]);
+		}
 		rcs_fsrtflag = get_opstate( find_opt( FSRTITEM ));
 		rcs_cflag = get_opstate( find_opt( SRCITEM));
 		rcs_hflag = get_opstate( find_opt( CITEM));
@@ -920,7 +929,12 @@ void wrte_inf(void)
 			set_opstate(find_opt(SAFELOCK));
 		if (rcs_xpert)
 			set_opstate(find_opt(SAFEXPRT));
-		fwrite( deflt_options, sizeof(DEFLTS), NOPTS, r_infhndl );
+		for ( idx = 0; idx < NOPTS; idx++ )
+		{
+			wr_be16(&inf_buf[4 * idx], deflt_options[idx].option);
+			wr_be16(&inf_buf[4 * idx + 2], deflt_options[idx].state);
+		}
+		fwrite( inf_buf, 1, 4 * NOPTS, r_infhndl );
 		fwrite( rsc_path, 1, 1, r_infhndl );
 		if (rsc_path[0])
 			fwrite( &rsc_path[1], 1, (size_t)(rsc_path[0]+1), r_infhndl );

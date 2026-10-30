@@ -105,7 +105,7 @@ void icon_get(long taddr, char *text, char *chr)
 	update_if(IB_PTEXT(taddr), text);
 	if (chr[0] == '@')
 		chr[0] = '\0';
-	(*(short *)(IB_CHAR(taddr)) = ((*(short *)((IB_CHAR(taddr)) & 0xff00)) | (unsigned short) chr[0]));
+	(*(short *)(IB_CHAR(taddr)) = ((*(short *)(IB_CHAR(taddr)) & 0xff00) | (unsigned short) chr[0]));
 } 
 
 short icon_cwhich(short xy, short wh, short iwh)

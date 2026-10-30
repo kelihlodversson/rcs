@@ -117,7 +117,7 @@ void copy_clor(long spt, short color)
 		for(i=0; i<gl_nplanes; i++)
 		{
 			if (plane & 1)
-				memcpy((void *)(d), (void *)(s), 2 * (gl_datasize));
+				memmove((void *)(d), (void *)(s), 2 * (gl_datasize));
 			s += gl_datasize << 1;
 			d += gl_datasize << 1;
 			plane = plane >> 1;
@@ -137,12 +137,12 @@ void copy_clor(long spt, short color)
 		for (i=0; i<gl_nplanes; i++)
 		{
 			if (plane & 1)
-				memcpy((void *)(d), (void *)(s), 2 * (gl_datasize));
+				memmove((void *)(d), (void *)(s), 2 * (gl_datasize));
 			d += gl_datasize << 1;
 			plane = plane >> 1;
 		}
 	}
-	memcpy((void *)(clip_mfdb.fd_addr), (void *)(disp_mfdb.fd_addr), 2 * (gl_datasize * gl_nplanes));
+	memmove((void *)(clip_mfdb.fd_addr), (void *)(disp_mfdb.fd_addr), 2 * (gl_datasize * gl_nplanes));
 }
 
 void draw_clipb(short mouse, GRECT *dirty)
@@ -424,7 +424,7 @@ void scale_img(long srcpt, short srcw, short srch, long despt)
 	db_per_row = gl_wimage >> 3;	/*bytes per row in destination*/
 	sb_per_row = srcw >> 3;	/*bytes per row in source*/
 	f = l = 0;
-	memcpy((void *)(((long)(stemp))), (void *)(srcpt), sb_per_row * srch);
+	memmove((void *)(((long)(stemp))), (void *)(srcpt), sb_per_row * srch);
 	last_k = -1;
 	last_q = q = (char *) dtemp;
 
@@ -449,7 +449,7 @@ void scale_img(long srcpt, short srcw, short srch, long despt)
 			{
 				q = ((char*) dtemp) + db_per_row * l++;
 				if (k == last_k)/*no nedd to go through the scaling,just copy*/
-					memcpy((void *)(((long)(q))), (void *)(((long)(last_q))), db_per_row);
+					memmove((void *)(((long)(q))), (void *)(((long)(last_q))), db_per_row);
 				else
 				{
 					last_q = q;
@@ -461,7 +461,7 @@ void scale_img(long srcpt, short srcw, short srch, long despt)
 		}	/*end of else clause*/
 	}		/*end of for k-loop*/
 
-	memcpy((void *)(despt), (void *)(((long)(dtemp))), db_per_row * gl_himage);
+	memmove((void *)(despt), (void *)(((long)(dtemp))), db_per_row * gl_himage);
 }	/*end of scale_img*/
 
 /************************************************************************/
@@ -477,14 +477,14 @@ void keep_img(long srcpt, short srcw, short srch, long despt)
 	sw_per_row = srcw >> 4;	/*words per row in source image*/
 	dw_per_row = gl_wimage >> 4;	/*words per row in destination image*/
 
-	memcpy((void *)(((long)(stemp))), (void *)(srcpt), 2 * (sw_per_row * srch));
+	memmove((void *)(((long)(stemp))), (void *)(srcpt), 2 * (sw_per_row * srch));
 	for (j=0; j<min(srch, gl_himage); j++)
 	{
 		p = (short *) stemp + sw_per_row * j;
 		q = (short *) dtemp + dw_per_row * j;
-		memcpy((void *)(((long)(q))), (void *)(((long)(p))), 2 * (min(dw_per_row, sw_per_row)));
+		memmove((void *)(((long)(q))), (void *)(((long)(p))), 2 * (min(dw_per_row, sw_per_row)));
 	}
-	memcpy((void *)(despt), (void *)(((long)(dtemp))), 2 * (dw_per_row * gl_himage));
+	memmove((void *)(despt), (void *)(((long)(dtemp))), 2 * (dw_per_row * gl_himage));
 }
 
 /************************************************************************/
@@ -506,5 +506,5 @@ void resize(long src_pt, short src_w, short src_h, long des_pt)
 	else if(scale == SCALESZ)
 		scale_img(src_pt, src_w, src_h, des_pt);
 	else
-		memcpy((void *)(des_pt), (void *)(((long)(dtemp))), 2 * (gl_datasize));
+		memmove((void *)(des_pt), (void *)(((long)(dtemp))), 2 * (gl_datasize));
 }
