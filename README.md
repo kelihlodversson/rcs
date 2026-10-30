@@ -70,8 +70,8 @@ Both targets compile and link `RCS.PRG`, but it has never been run, and the
 port is not finished:
 
 - the code still treats addresses as `long` and reads resource trees through
-  fixed byte offsets, which is only right for the 32-bit big-endian layout of
-  an RSC file in memory: it needs a look for ARM;
+  fixed byte offsets, which assumes 32-bit addresses and the in-memory layout of
+  the resource structures; that has not been checked on ARM;
 - the flags that only ViewMAX (the DOS build) knew (`ESCCANCEL`, `BITBUTTON`,
   `SCROLLER`, `USECOLOURCAT`, `HIGHLIGHTED`, `UNHIGHLIGHTED`) are left out of
   the object flags editor, as they mean something else under TOS;
