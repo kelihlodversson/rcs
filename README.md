@@ -87,6 +87,12 @@ port is not finished:
   directory corrupts a file after the first 8 KB: the second cluster is a copy
   of the first. It is QEMU, not RCS: on a real FAT16 disk image the files are
   right, so test with a disk image.)
+- colour icons (`G_CICON`) are shown and edited as their monochrome icon, and
+  their colour versions are kept as they are in the file and written back
+  (`rcscicon.c`). They cannot be seen or edited, they are dropped if the
+  mono icon is resized, and a copy of the icon (cut, paste, duplicate) has
+  none. They are written after the extension, with 32-bit offsets, so they
+  are not limited by the 16 bits of the file size in the header;
 - the code still treats addresses as `long`, which assumes 32-bit addresses
   (m68k, ARM and x32);
 - the flags that only ViewMAX (the DOS build) knew (`ESCCANCEL`, `BITBUTTON`,
