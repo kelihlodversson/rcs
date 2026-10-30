@@ -62,9 +62,9 @@ is the origin of this source: the headers read "Copyright 1999 by Caldera Thin
 Clients, Inc. This software is licensed under the GNU Public License. Please see
 LICENSE.TXT for further information."
 
-The headers name no version. The `LICENSE` file here is the GNU General Public
-License, version 2, as shipped with FreeGEM, which is the version of the 1999
-release. That license lets a recipient choose "any later version" only when the
-program says so, and these files do not: this repository stays with version 2.
+The headers name no version, and section 9 of version 2 then lets a recipient
+choose any version of the license ever published. This repository stays with the
+original version 2: the `LICENSE` file here is the GNU General Public License,
+version 2, as shipped with FreeGEM, which is the version of the 1999 release.
 I could not find the original Caldera archive, so the `LICENSE.TXT` it came
 with has not been compared with this one.
