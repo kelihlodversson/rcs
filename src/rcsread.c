@@ -302,6 +302,53 @@ static void fix_trindex(void)
 		fix_long(ptreebase + ((short)(ii*4)));
 }
 
+/* Trees that the definition file does not name: guess what they are from
+ * the objects.  A menu has titles under the bar under its root; something
+ * with an exit or default button or an editable field is a dialog; any other
+ * tree that starts with a box is taken for a part of a dialog (a panel). */
+static short guess_exits;
+
+static short count_exits(long tree, short obj)
+{
+	if (GET_FLAGS(tree, obj) & (EXIT | DEFAULT | TOUCHEXIT | EDITABLE))
+		guess_exits++;
+	return (true);
+}
+
+static short guess_tree_kind(long tree)
+{
+	short	bar, titles, first, type;
+
+	/* root, the bar, the box of the titles, the first title */
+	bar = GET_HEAD(tree, ROOT);
+	if (bar != NIL)
+	{
+		titles = GET_HEAD(tree, bar);
+		first = titles != NIL ? GET_HEAD(tree, titles) : NIL;
+		if (first != NIL && (GET_TYPE(tree, first) & 0xff) == G_TITLE)
+			return (MENU);
+	}
+	guess_exits = 0;
+	map_tree(tree, ROOT, NIL, (fkt_parm)count_exits);
+	if (guess_exits)
+		return (DIAL);
+	type = GET_TYPE(tree, ROOT) & 0xff;
+	if (type == G_BOX || type == G_IBOX || type == G_BOXTEXT)
+		return (PANL);
+	return (UNKN);
+}
+
+static short index_guessed_tree(short tree_no)
+{
+	char	name[12];
+	short	kind;
+
+	kind = guess_tree_kind(tree_addr(tree_no));
+	unique_name(name, kind == MENU ? "MENU%d" : kind == DIAL ? "DIALOG%d" :
+		kind == PANL ? "PANEL%d" : "TREE%d", tree_no + 1);
+	return (new_index((char *) tree_addr(tree_no), kind, name));
+}
+
 static short fix_ptr(short type, short index)
 {
 	return( fix_long( get_addr(type, index) ) );
@@ -504,7 +551,6 @@ short read_files(void)
 {
 	short	ii;
 	short	ntree, nobj;
-	char	name[9];
 
 	if ( ad_clip ) 
 		clr_clip();
@@ -599,10 +645,7 @@ short read_files(void)
 			/* make sure all trees are indexed */
 			for (ii = 0; ii < (*(unsigned short *)(RSH_NTREE(head))); ii++)
 				if (find_tree(ii) == NIL)
-				{
-					unique_name(name, "TREE%d", ii + 1);
-					new_index((char *) tree_addr(ii), UNKN, name);
-				}
+					index_guessed_tree(ii);
 
 			return (*(unsigned short *)(RSH_RSSIZE(head)));
 		}
@@ -751,11 +794,8 @@ short merge_files(void)
 				{
 					map_tree(tree_addr(i), ROOT, NIL, (fkt_parm)trans_obj); 
 					if (find_tree(i) == NIL)
-					{
-						unique_name(&rcs_index[i].name[0], "TREE%d", i + 1);
-						if (new_index((char *) tree_addr(i), UNKN, &rcs_index[i].name[0]) == NIL)
+						if (index_guessed_tree(i) == NIL)
 							break;
-					}
 				}
 
 				comp_alerts(merge);
