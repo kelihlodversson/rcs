@@ -5,6 +5,7 @@
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
 #include <gem.h>
+#include "rcsmono.h"
 #include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
@@ -265,6 +266,24 @@ void rast_op(short mode, GRECT *s_area, MFDB *s_mfdb, GRECT *d_area, MFDB *d_mfd
 {
 	short	pxy[8];
 
+	/* the images of the icon editor are one-plane images in memory (see
+	   rcsmono.h): between them, and to and from the screen, they are done
+	   by the editor, whatever the screen looks like */
+	if (is_mono(d_mfdb))
+	{
+		if (mode == 0 || mode == 15)
+			mono_rop(mode, s_area, NULL, d_area, d_mfdb);
+		else if (is_mono(s_mfdb))
+			mono_rop(mode, s_area, s_mfdb, d_area, d_mfdb);
+		else
+			scrn_to_mono(s_area, d_mfdb, d_area, edit_colour());
+		return;
+	}
+	if (is_mono(s_mfdb))
+	{
+		mono_to_scrn(s_area, s_mfdb, d_area, edit_colour());
+		return;
+	}
 	grect_to_array(s_area, pxy);
 	grect_to_array(d_area, &pxy[4]);
 	vro_cpyfm( gl_handle, mode, pxy, s_mfdb, d_mfdb);

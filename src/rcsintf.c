@@ -5,6 +5,7 @@
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
 #include <gem.h>
+#include <stdlib.h>
 #include "rcsdisk.h"
 #include <stdbool.h>
 #include <string.h>
@@ -525,7 +526,6 @@ short pane_find(long *tree, short *obj, short mx, short my)
 short hndl_pop(short obj, short itool)
 {
 	short	i, event, mx, my, sel_obj, disab, outline, foo;
-	unsigned short	buf_seg, buf_off;
 	long	tree;
 	GRECT	poparea, bltarea;
 
@@ -553,14 +553,13 @@ short hndl_pop(short obj, short itool)
 	bltarea.g_y--;
 	bltarea.g_w += 2;
 	bltarea.g_h += 2;
+	/* where the screen under the popup is kept: bb_save() puts it on word
+	   boundaries, and a pixel is gl_nplanes bits */
 	gl_tmp.fd_nplanes = gl_nplanes;
-	wind_get(0, 17, &buf_off, &buf_seg, &foo, &foo);
-	if (!buf_off && !buf_seg)
-		gl_tmp.fd_addr = (void *)0xffffffffl;
-	else
-	{
-		gl_tmp.fd_addr = (void *)(((long)buf_off << 16) | ((short)(buf_seg)));
-	}
+	gl_tmp.fd_addr = malloc(((long)(bltarea.g_w + 31) / 16) * 2 *
+		(long)bltarea.g_h * gl_nplanes);
+	if (gl_tmp.fd_addr == NULL)
+		return (NIL);
 	wind_update(BEG_MCTRL);		/* protection vs. buffer collisions! */
 
 	bb_save(&bltarea);
@@ -611,6 +610,7 @@ short hndl_pop(short obj, short itool)
 	}
 
 	bb_restore(&bltarea);
+	free(gl_tmp.fd_addr);
 	wind_update(END_MCTRL);
 	return (sel_obj);
 } 

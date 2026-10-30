@@ -102,49 +102,6 @@ void draw_outline(GRECT *area)
 	graf_mouse(M_ON, 0x0L);
 }    
 
-void copy_clor(long spt, short color)
-{
-	unsigned short plane;
-	short i;
-	long s, d;
-
-	rast_op(0, &hold_area, &disp_mfdb, &hold_area, &disp_mfdb);
-	plane = color_map[color];
-	s = spt;
-	d = (long)disp_mfdb.fd_addr;
-	if( color == old_fc)
-	{
-		for(i=0; i<gl_nplanes; i++)
-		{
-			if (plane & 1)
-				memmove((void *)(d), (void *)(s), 2 * (gl_datasize));
-			s += gl_datasize << 1;
-			d += gl_datasize << 1;
-			plane = plane >> 1;
-		}
-    }
-	else	/*if image's old color is not black, we need the following*/
-	{
-		plane = color_map[old_fc];
-		for(i=0; i<gl_nplanes; i++)
-		{
-			if (plane & 1)
-				break;
-			s += gl_datasize << 1;
-			plane = plane >> 1;
-		}
-		plane = color_map[color];
-		for (i=0; i<gl_nplanes; i++)
-		{
-			if (plane & 1)
-				memmove((void *)(d), (void *)(s), 2 * (gl_datasize));
-			d += gl_datasize << 1;
-			plane = plane >> 1;
-		}
-	}
-	memmove((void *)(clip_mfdb.fd_addr), (void *)(disp_mfdb.fd_addr), 2 * (gl_datasize * gl_nplanes));
-}
-
 void draw_clipb(short mouse, GRECT *dirty)
 {
 	GRECT  temp_area;
@@ -172,13 +129,8 @@ void draw_clipb(short mouse, GRECT *dirty)
 			}
 			else
 			{
-				disp_mfdb.fd_nplanes = clip_mfdb.fd_nplanes;
-				disp_mfdb.fd_h = clip_mfdb.fd_h;
-				disp_mfdb.fd_wdwidth = clip_mfdb.fd_wdwidth;
-				disp_mfdb.fd_w = clip_mfdb.fd_w;
-				disp_mfdb.fd_stand = clip_mfdb.fd_stand;
-				copy_clor((long)clip_mfdb.fd_addr, fgcolor);
-				rast_op(3, &clip_area, &disp_mfdb, &orign_area, &scrn_mfdb);
+				/* the image in the clip board, in the colour of the image */
+				rast_op(3, &clip_area, &clip_mfdb, &orign_area, &scrn_mfdb);
 			}
 			rc_copy(&orign_area, &temp_area);
 			temp_area.g_x -= 1;
@@ -495,16 +447,43 @@ void keep_img(long srcpt, short srcw, short srch, long despt)
 /* icon_size dialog.  "scale" can be scale, keep or clear.  The new size*/
 /* information is already set in gl_wimage and gl_himage in icon_size().*/
 /************************************************************************/
+/* the bytes of each word in the other order, if the host is little-endian: the
+   same to go from the words of the host to big-endian bytes, and back */
+static short is_be_host(void)
+{
+	unsigned short one = 1;
+
+	return *(unsigned char *)&one == 0;
+}
+
+static void swap_words(long addr, long words)
+{
+	unsigned char	*p = (unsigned char *)addr, t;
+
+	for (; words > 0; words--, p += 2)
+		if (!is_be_host())
+		{
+			t = p[0];
+			p[0] = p[1];
+			p[1] = t;
+		}
+}
+
 void resize(long src_pt, short src_w, short src_h, long des_pt)
 {
 	short k;    
 
 	for(k=0; k<256; k++)
 		dtemp[k] = 0;
+	/* the scaling takes the pixels as the bits of bytes, left to right, which
+	   is how the words are in memory on a big-endian host only */
+	swap_words(src_pt, (long)(src_w >> 4) * src_h);
 	if (scale == KEEPSZ)
 		keep_img(src_pt, src_w, src_h, des_pt);
 	else if(scale == SCALESZ)
 		scale_img(src_pt, src_w, src_h, des_pt);
 	else
 		memmove((void *)(des_pt), (void *)(((long)(dtemp))), 2 * (gl_datasize));
+	swap_words(src_pt, (long)(src_w >> 4) * src_h);
+	swap_words(des_pt, gl_datasize);
 }

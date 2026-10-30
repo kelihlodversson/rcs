@@ -178,7 +178,7 @@ short writ_icon(long praster, short icon_w, short icon_h, short data_size, short
 			*ptr++ = ZERO;	/* '0' */
 			*ptr++ = SMX;	/* 'x' */
 
-			number = rd_be16((void *)(praster + 2 * ii));
+			number = (*(short *)(praster + 2 * ii));
 			/* now turn it into ASCII	*/
 			factor = 12;
 			for (jj = 1; jj <= 4; jj++)
@@ -373,7 +373,7 @@ long read_icon(char *buffer, short *icon_w, short *icon_h, short *data_size, cha
 					factor -= 4;
 				} /* for */
 
-				wr_be16((void *)(praster + ii * sizeof(unsigned short)), number);
+				(*(short *)(praster + ii * sizeof(unsigned short)) = (number));
 				ptr += 2;	/* skip ", " */
 				count++;
 				if ( (count % 4) == 0 )

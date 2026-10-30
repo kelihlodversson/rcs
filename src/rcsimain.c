@@ -4,6 +4,9 @@
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
 #include <gem.h>
+#include "rcsmono.h"
+
+extern	short	gl_xclip, gl_yclip, gl_wclip, gl_hclip;
 #include <stdbool.h>
 #include <string.h>
 #include "rcs.h"
@@ -130,25 +133,10 @@ void set_scroll(void)
 
 void copy_colplanes(long longaddr, short color, short isdata)
 {
-	unsigned short	plane;
-	long	buffer;
-	short	i;
-
-	hold_mfdb.fd_stand = 0;
-	vr_trnfm(gl_handle, &hold_mfdb, &hold_mfdb);
-	plane = color_map[color];
-	buffer = (long)(isdata? hold_mfdb.fd_addr : hld2_mfdb.fd_addr);
-	rast_op(0, &hold_area, &scrn_mfdb, &hold_area,
-		(isdata? &hold_mfdb : &hld2_mfdb));
-	for (i=0; i<gl_nplanes; i++)	    
-	{
-		if (plane & 1)	
-			memmove((void *)(buffer), (void *)((*(long *)(BI_PDATA(longaddr)))), 2 * (gl_datasize));
-		buffer += gl_datasize * 2;
-		plane = plane >> 1;
-	}
-	hold_mfdb.fd_stand = 1;
-	vr_trnfm(gl_handle, &hold_mfdb, &hold_mfdb);
+	/* the data of the image, as the editor's copy of it (color is not
+	   needed, the buffers are one-plane images) */
+	memmove((isdata? hold_mfdb.fd_addr : hld2_mfdb.fd_addr),
+		(void *)((*(long *)(BI_PDATA(longaddr)))), 2 * (gl_datasize));
 }
 
 void dr_image(void)
@@ -176,7 +164,6 @@ void save_fat(short undo)
 {							   
 	long	taddr, buffer;			  
 	short    i;
-	unsigned short   plane;
 
 	i =  2 ;
 	/* copy hold_mfdb.fd_addr data to data/mask and icon. */
@@ -192,22 +179,7 @@ void save_fat(short undo)
 			buffer = (long)(undo? undo_mfdb.fd_addr : hold_mfdb.fd_addr);
 			taddr = GET_SPEC(ad_pbx, DATAWIND);
 		}
-		hold_mfdb.fd_stand = 0;
-		vr_trnfm(gl_handle, &hold_mfdb, &hold_mfdb);
-		if (!gl_isicon && gl_nplanes > 1) 
-		{
-			plane = color_map[fgcolor];
-			while ( !(plane & 1) )	
-			{
-				plane = plane >> 1;
-				buffer += gl_datasize * 2;
-			}
-			memmove((void *)((*(long *)(BI_PDATA(taddr)))), (void *)(buffer), 2 * (gl_datasize));
-		}
-		else
-			memmove((void *)((*(long *)(BI_PDATA(taddr)))), (void *)(buffer), 2 * (gl_datasize));
-		hold_mfdb.fd_stand = 1;
-		vr_trnfm(gl_handle, &hold_mfdb, &hold_mfdb);
+		memmove((void *)((*(long *)(BI_PDATA(taddr)))), (void *)(buffer), 2 * (gl_datasize));
 		if (is_mask)
 		{
 			if (undo)
@@ -292,20 +264,28 @@ static void MAGNIFY(long src_mp, long dst_mp, short npix)
 void fattify(GRECT *area)
 {
 	GRECT	trans_area, *pt;
-	short	i,j, k, rows_fit, no_loop, leftover, rows_in_loop, row_w;
-	GRECT	src_area, dst_area;
+	short	k, x, y, pass, passes, row_w, colours[2], pxy[8];
+	GRECT	src_area, dst_area, clip;
+	unsigned short	*dst_row;
+	static short	pixels[MAX_ICON_W * MAX_ICON_H];
 
 	if (!area)
 		pt = &scroll_fat;
 	else
 		pt = area;
 	row_w = (pt->g_w + 0x0f) & (~0x0f);
+
+	/* the magnified image is a one-plane image like the others: each pixel
+	   is a byte, 8 pixels wide, and a row is there 8 times */
 	fat_mfdb.fd_w = row_w << 3;
 	fat_mfdb.fd_wdwidth = fat_mfdb.fd_w >> 4; 
+	fat_mfdb.fd_h = pt->g_h << 3;
+	fat_mfdb.fd_nplanes = 1;
+	fat_mfdb.fd_stand = true;
 
 	src_area.g_x = src_area.g_y = 0;
 	src_area.g_w = dst_area.g_w = pt->g_w << 3;
-	dst_area.g_h = pt->g_h << 3; 	/*set for the clip area*/
+	src_area.g_h = dst_area.g_h = pt->g_h << 3;
 
 	dst_area.g_x = fat_area.g_x;
 	dst_area.g_y = fat_area.g_y;
@@ -315,58 +295,46 @@ void fattify(GRECT *area)
 		dst_area.g_y += (area->g_y - scroll_fat.g_y) << 3;
 	}
 
-	disp_mfdb.fd_w = row_w;
-	disp_mfdb.fd_wdwidth = disp_mfdb.fd_w >> 4;
-	disp_mfdb.fd_h = pt->g_h;
 	trans_area.g_w = pt->g_w;
 	trans_area.g_h = pt->g_h;
 	trans_area.g_x = pt->g_x + (gl_isicon? icn_img.g_x : dat_img.g_x);
 	trans_area.g_y = pt->g_y + (gl_isicon? icn_img.g_y : dat_img.g_y);
 
-	rast_op(0, &hold_area, &disp_mfdb, &hold_area, &disp_mfdb);
-	rast_op(3, &trans_area, &scrn_mfdb, &hold_area, &disp_mfdb);
-	disp_mfdb.fd_stand = 0;
-	vr_trnfm(gl_handle, &disp_mfdb, &disp_mfdb);
-     
-	/*figue out how many fat rows can fit into the buffer*/
-	rows_fit = (short)(ibuff_size /(long)(fat_mfdb.fd_w * gl_nplanes));
-	/*fat_mfdb.fwp = row_w* 8 * 8 /8, byte size per fat row per color plane*/
-	if (rows_fit >= pt->g_h)
-		rows_fit = pt->g_h; /*this is not redundant*/
-	no_loop = pt->g_h / rows_fit;
-	leftover = pt->g_h % rows_fit;
-	if (leftover)
-		no_loop++; 	/*need to go through the loop one more time*/
-	for (i = 0; i < no_loop ; i++)
+	/* the colour index of each pixel of the small image on the screen; the
+	   clip rectangle is for drawing, so look at all of the screen */
+	clip.g_x = gl_xclip;
+	clip.g_y = gl_yclip;
+	clip.g_w = gl_wclip;
+	clip.g_h = gl_hclip;
+	gsx_sclip(&full);
+	for (y = 0; y < pt->g_h; y++)
+		for (x = 0; x < pt->g_w; x++)
+			pixels[y * pt->g_w + x] = pixel_colour(trans_area.g_x + x, trans_area.g_y + y);
+	gsx_sclip(&clip);
+
+	/* an icon has two colours, the one of its data and the one of its mask;
+	   an image has one; the rest is white */
+	passes = gl_isicon ? 2 : 1;
+	for (pass = 0; pass < passes; pass++)
 	{
-		if (i == no_loop -1 && leftover)
-			rows_in_loop = leftover;
-		else
-			rows_in_loop = rows_fit;
-		for (k=0; k < rows_in_loop; k++)
+		colours[0] = pass ? bgcolor : fgcolor;
+		colours[1] = WHITE;
+		for (y = 0; y < pt->g_h; y++)
 		{
-			for (j = 0 ; j < gl_nplanes ; j++)
-			{
-				src_mp = (long)disp_mfdb.fd_addr;
-				src_mp += (long)((disp_mfdb.fd_wdwidth << 1) * 
-					(disp_mfdb.fd_h * j + (rows_fit * i + k)));
-				dst_mp = (long)fat_mfdb.fd_addr + (long)(fat_mfdb.fd_w *
-					(rows_in_loop * j + k));
-				MAGNIFY(src_mp, dst_mp, pt->g_w);
-				/*copy 8 times for magnifying the height*/
-				B_MOVE(dst_mp, row_w, dst_mp+(long)(row_w));
-				B_MOVE(dst_mp, row_w << 1, dst_mp + (long)(row_w << 1));
-				B_MOVE(dst_mp, row_w << 2, dst_mp + (long)(row_w << 2));
-			}
+			/* two pixels to a word: 8 bits for each */
+			dst_row = (unsigned short *)((char *)fat_mfdb.fd_addr + (long)(y << 3) * row_w);
+			for (x = 0; x < row_w; x += 2)
+				dst_row[x >> 1] =
+					((x < pt->g_w && pixels[y * pt->g_w + x] == colours[0]) ? 0xff00 : 0) |
+					((x + 1 < pt->g_w && pixels[y * pt->g_w + x + 1] == colours[0]) ? 0x00ff : 0);
+			for (k = 1; k < 8; k++)
+				memmove((char *)dst_row + (long)k * row_w, dst_row, row_w);
 		}
-		src_area.g_h = dst_area.g_h = fat_mfdb.fd_h = rows_in_loop << 3;
-		fat_mfdb.fd_stand = 1;
-		vr_trnfm(gl_handle, &fat_mfdb, &fat_mfdb);
-		rast_op(3, &src_area, &fat_mfdb, &dst_area, &scrn_mfdb);
-		dst_area.g_y += (rows_fit << 3);
+		grect_to_array(&src_area, pxy);
+		grect_to_array(&dst_area, &pxy[4]);
+		vrt_cpyfm(gl_handle, pass ? MD_TRANS : MD_REPLACE, pxy, &fat_mfdb,
+			&scrn_mfdb, colours);
 	}
-	disp_mfdb.fd_stand = 1;
-	vr_trnfm(gl_handle, &disp_mfdb, &disp_mfdb);
 	if (grid)
 		draw_gridbx();
 	gsx_sclip(&full);  
