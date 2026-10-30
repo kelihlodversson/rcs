@@ -112,7 +112,7 @@ unsigned short	color_map[16] = { 0x0000, 0x000f, 0x0001, 0x0002, 0x0004,
   long	ad_rmsg;
 
 	OBJECT	rcs_work[VIEWSIZE+1];	/* Space for workbench objects	*/
-	ICONBLK	rcs_icons[VIEWSIZE];	/* Space for workbench iconblks */
+	ICONBLK	rcs_icons[VIEWSIZE+1];	/* Space for workbench iconblks (the first is not used, like the objects) */
 	short	rcs_typ2icn[NUM_TYP] = {
 	UNKNICON, PANLICON, MENUICON, DIALICON, ALRTICON, FREEICON};
 /* Variables used in write_file */
