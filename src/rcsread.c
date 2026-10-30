@@ -41,21 +41,79 @@
 #define APP_LO1RESV (rs_global + 16)
 #define APP_LO2RESV (rs_global + 20)
 
+/* The .DEF (or .RSD) files of the original RCS and of EmuTOS: a big-endian
+ * count of the entries in the first two bytes (which belong to the first
+ * record) and then records of 16 bytes: four that are not used, the tree, the
+ * object, an indicator, the type and the name (8 bytes, not always ended).
+ * The types are those of tools/erd.c in EmuTOS.  For the types of a tree or a
+ * free string, the number is in the field of the object. */
+static short def_kind(short type)
+{
+	switch (type)
+	{
+		case 0:	return OBJKIND;
+		case 1:
+		case 3:	return DIAL;
+		case 2:	return MENU;
+		case 4:	return ALRT;
+		case 5:	return FRSTR;
+		case 6:	return FRIMG;
+		default:	return -1;
+	}
+}
+
+static short read_def(short merge, unsigned short n)
+{
+	unsigned short	i, idx, old_ndxno, val;
+	unsigned char	r[16];
+	short	kind, j;
+
+	old_ndxno = merge ? rcs_ndxno : 0;
+	if ( n > NDXSIZE - old_ndxno || fseek( rcs_dhndl, 0, SEEK_SET) )
+		return( rcs_ndxno = 0 );
+	idx = old_ndxno;
+	for ( i = 0; i < n; i++ )
+	{
+		if ( fread( r, 1, 16, rcs_dhndl ) != 16 )
+			return( rcs_ndxno = 0 );
+		kind = def_kind( r[7] );
+		if ( kind < 0 )
+			continue;
+		val = ( kind == OBJKIND ) ? ( (r[4] << 8) | r[5] ) : r[5];
+		rcs_index[idx].val = (char *) (long) val;
+		rcs_index[idx].kind = kind;
+		for ( j = 0; j < 8 && r[8 + j]; j++ )
+			rcs_index[idx].name[j] = r[8 + j];
+		rcs_index[idx].name[j] = '\0';
+		idx++;
+	}
+	return( rcs_ndxno = idx );
+}
+
+/* the "*.dfn" files keep the structure of the IBM PC: little-endian, and
+ * what has the extension .DEF is the format above; a file is taken for the
+ * one its size fits */
 static short read_68k(short merge)
-/* the "*.def" files keep the structure of the IBM PC: little-endian */
 {
 	unsigned short	idx, old_ndxno;
 	unsigned char	b[2];
+	long	size;
 
 	if ( merge )
 		old_ndxno = rcs_ndxno;
 	else
 		old_ndxno = 0;
 
+	if ( fseek( rcs_dhndl, 0, SEEK_END) )
+		return( rcs_ndxno = 0 );
+	size = ftell( rcs_dhndl );
 	if ( fseek( rcs_dhndl, 0, SEEK_SET) )
 		return( rcs_ndxno = 0 );
 	else if (fread( b, 1, 2, rcs_dhndl ) != 2)
 		return( rcs_ndxno = 0);
+	else if ( !(size >= 2 && (size - 2) % 14 == 0 && rd_le16( b ) == (size - 2) / 14) &&
+		size >= 32 && size % 16 == 0 && rd_be16( b ) == size / 16 - 1 )
+		return( read_def( merge, rd_be16( b ) ) );
 	else
 	{
 		/* a count that does not fit is not a file of this format */
@@ -83,6 +141,24 @@ static short read_68k(short merge)
 	}
 }
 
+/* the definition file in the other format that goes with the resource: .DEF
+   (EmuTOS, the original RCS) or .RSD */
+static FILE *open_def_file(void)
+{
+	static char	*ext[] = { "DEF", "RSD", NULL };
+	char	name[80];	/* as long as rcs_dfile */
+	short	i;
+	FILE	*f;
+
+	for (i = 0; ext[i]; i++)
+	{
+		r_to_xfile(name, ext[i]);
+		if ((f = fopen(name, "rb")) != NULL)
+			return f;
+	}
+	return NULL;
+}
+
 short open_files(short def)
 {
 	short	ii;
@@ -101,6 +177,8 @@ short open_files(short def)
 	for (;;)
 	{
 		rcs_dhndl = fopen(rcs_dfile, "rb");
+		if (rcs_dhndl == NULL)
+			rcs_dhndl = open_def_file();
 		if (rcs_dhndl != NULL)
 			return (true);
 		else

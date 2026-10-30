@@ -74,8 +74,9 @@ port is not finished:
 
 - the files are read and written the same way on every architecture
   (`rcsdisk.c`): resource files are big-endian with records of 34 (ICONBLK) and
-  14 (BITBLK) bytes, the `.DFN` files little-endian, the `.INF` file
-  big-endian, and in memory the records are the host's own (native byte order
+  14 (BITBLK) bytes, the `.DFN` files little-endian (the `.DEF`/`.RSD` files of
+  EmuTOS and the original RCS are read too, when there is no `.DFN`), the `.INF`
+  file big-endian, and in memory the records are the host's own (native byte order
   and padding, aligned). The words of the image data are converted to the words
   of the host when a file is read and written back big-endian, because that is
   what the AES and VDI expect; the strings stay as they are. The editor's images
