@@ -4,21 +4,12 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
+#include <gem.h>
+#include <stdbool.h>
 #include <string.h>
+#include <errno.h>
+#include <mint/osbind.h>
 #include <stdio.h>
-#include <portab.h>
-#include <machine.h>
-#if GEMDOS
-#if TURBO_C
-#include <tos.h>
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <dosbind.h>
-#include <obdefs.h>
-#include <gembind.h>
-#endif
 #include "rcsdefs.h"
 #include "rcs.h"
 #include "rcslib.h"
@@ -31,153 +22,122 @@
 
 typedef	struct	outobj
 {
-	WORD	next;
-	WORD	head;
-	WORD	tail;
-	BYTE	*type;
-	BYTE	*flags;
-	BYTE	*state;
-	LONG	spec;
-	UWORD	x;
-	UWORD	y;
-	UWORD	w;
-	UWORD	h;
+	short	next;
+	short	head;
+	short	tail;
+	char	*type;
+	char	*flags;
+	char	*state;
+	long	spec;
+	unsigned short	x;
+	unsigned short	y;
+	unsigned short	w;
+	unsigned short	h;
 } OUTOBJ;
 
 typedef struct 	h_out
 {
-	BYTE	*p0;
-	WORD	p1;
-	WORD	p2;
+	char	*p0;
+	short	p1;
+	short	p2;
 } HOUT;
 
-LOCAL VOID do_tally(VOID)
+static void do_tally(void)
 {
 	clr_tally();
 	map_all((fkt_parm)tally_obj);
 	tally_free();
-	rcs_tally.nbytes += LWGET(RSH_NTREE(head)) * sizeof(LONG);
+	rcs_tally.nbytes += (*(short *)(RSH_NTREE(head))) * sizeof(long);
 	rcs_tally.nbytes += sizeof(RSHDR);
 }
 
-LOCAL LONG get_dspace(WORD drv)
+static long get_dspace(short drv)
 {
-	LONG	dsk_avail;
-#if GEMDOS
-	DISKINFO dsk_free_buf;
+	long	dsk_avail;
+	_DISKINFO dsk_free_buf;
 
 	Dfree(&dsk_free_buf, drv);
 	dsk_avail = dsk_free_buf.b_free *
 		dsk_free_buf.b_secsiz *
 		dsk_free_buf.b_clsiz;
-#else
-	LONG	dsk_tot;
-
-	dos_space( drv, &dsk_tot, &dsk_avail);
-#endif
 	return ( dsk_avail );
 }
 
-LOCAL WORD dspace(WORD drv, UWORD nbytes)
+static short dspace(short drv, unsigned short nbytes)
 {
-	LONG	dsk_avail;
-#if GEMDOS
-	DISKINFO dsk_free_buf;
+	long	dsk_avail;
+	_DISKINFO dsk_free_buf;
 
 	Dfree(&dsk_free_buf, drv);
 	dsk_avail = dsk_free_buf.b_free *
 		dsk_free_buf.b_secsiz *
 		dsk_free_buf.b_clsiz;
-#else
-	LONG	dsk_tot;
-
-	dos_space( drv, &dsk_tot, &dsk_avail);
-#endif
-	if ( nbytes < (UWORD) dsk_avail )
-		return (FALSE);
+	if ( nbytes < (unsigned short) dsk_avail )
+		return (false);
 	else
-		return (TRUE);
+		return (true);
 }
 
-#if MC68K
 /* the following two routines were written to simulate the */
 /* ibm pc file structure for "*.def" files. */
 
-UWORD swap_bytes(UWORD x)
+unsigned short swap_bytes(unsigned short x)
 {
-	return ( ((UWORD) LLOBT(x) << 8 ) | (UWORD) LHIBT(x) );
+	return ( ((unsigned short) ((x) & 0xff) << 8 ) | (unsigned short) (((x) >> 8) & 0xff) );
 }
 
-LOCAL VOID wr_68kdef(VOID)
+static void wr_68kdef(void)
 {
-	UWORD	idx, wr_ndxno,wr_val, wr_kind;
+	unsigned short	idx, wr_ndxno,wr_val, wr_kind;
 	
 	wr_ndxno = swap_bytes(rcs_ndxno);
 	fwrite( &wr_ndxno, 1, 2, rcs_dhndl );
 	for ( idx = 0; idx < rcs_ndxno; idx++ )
 	{
-		wr_val = swap_bytes( (UWORD) rcs_index[idx].val );
+		wr_val = swap_bytes( (unsigned short) rcs_index[idx].val );
 		fwrite( &wr_val, 1, 2, rcs_dhndl );
 		wr_kind = swap_bytes( rcs_index[idx].kind );
 		fwrite( &wr_kind, 1, 2, rcs_dhndl );
 		fwrite( &rcs_index[idx].name[0], 1, 10, rcs_dhndl );
 	}
 }
-#else
-LOCAL VOID wr_i8086def(VOID)
+
+static short c_imgno(long addr)
 {
-	UWORD	idx, wr_ndxno,wr_val, wr_kind;
-
-	wr_ndxno = rcs_ndxno;
-	fwrite(&wr_ndxno, 1, 2, rcs_fdhndl);
-	for ( idx = 0; idx < rcs_ndxno; idx++ )
-	{
-		wr_val =  (UWORD) rcs_index[idx].val;
-
-		fwrite(&wr_val, 1, 2, rcs_fdhndl);
-		wr_kind = rcs_index[idx].kind;
-		fwrite(&wr_kind,                1,  2, rcs_fdhndl);
-		fwrite(&rcs_index[idx].name[0], 1, 10, rcs_fdhndl);
-	}
-}
-#endif
-
-LOCAL WORD c_imgno(LONG addr)
-{
-	WORD	imgno;
+	short	imgno;
 
 	if (addr == NIL)
 		return (NIL);
 	else
 	{
 		for (imgno = 0; imgno < c_nimage; imgno++)
-			if ( (WORD) addr == c_obndx[imgno + c_nstring])
+			if ( (short) addr == c_obndx[imgno + c_nstring])
 				return (imgno);
 		return (NIL);
   	}
 }
 
-LOCAL WORD c_strno(LONG addr)
+static short c_strno(long addr)
 {
-	WORD	strno;
+	short	strno;
 
 	if (addr == NIL)
 		return (NIL);
 	else
 	{
 		for (strno = 0; strno < c_nstring; strno++)
-			if ( (WORD) addr == c_obndx[strno])
+			if ( (short) addr == c_obndx[strno])
 				return (strno);
 		return (NIL);
 	}
 }
 
-LOCAL VOID c_wrlin(VOID)
+static void c_wrlin(void)
 {
 	fputs( hline, rcs_hhndl );
 }
 
-LOCAL VOID c_comma(WORD yesno)
+static void c_comma(short yesno)
 {
 	if (yesno)
 	{
@@ -186,7 +146,7 @@ LOCAL VOID c_comma(WORD yesno)
 	}
 }
 
-LOCAL VOID c_tail(WORD used)
+static void c_tail(short used)
 {
 	if (rcs_cflag)
 	{
@@ -198,7 +158,7 @@ LOCAL VOID c_tail(WORD used)
 	}
 }
 
-LOCAL VOID wr_sync(VOID)
+static void wr_sync(void)
 {
 	if (rcs_wraddr & 0x1)
 	{
@@ -207,34 +167,34 @@ LOCAL VOID wr_sync(VOID)
 	}
 }
 
-LOCAL VOID wr_header(VOID)
+static void wr_header(void)
 {
 	fseek(rcs_rhndl, 0, SEEK_SET);
 	fwrite((void *)head, sizeof(RSHDR), 1, rcs_rhndl);
 }
 
-LOCAL VOID c_defline(BYTE *name, WORD val)
+static void c_defline(char *name, short val)
 {
 	sprintf(hline, "#define %s %hd\n", name, val);
 	c_wrlin();
 }
 
-LOCAL VOID c_baseline(WORD num, BYTE *field, WORD val)
+static void c_baseline(short num, char *field, short val)
 {
-	BYTE	name[9];
+	char	name[9];
 
 	sprintf(name, "T%hd%s", num, field);
 	c_defline(name, val);
 }
 
-LOCAL VOID c_bases(VOID)
+static void c_bases(void)
 {
-	WORD	i;
+	short	i;
 
 	if (rcs_cflag)
 	{
 		clr_tally();
-		for (i = 0; i < LWGET(RSH_NTREE(head)); i++)
+		for (i = 0; i < (*(short *)(RSH_NTREE(head))); i++)
 		{
 			c_baseline(i, "OBJ", rcs_tally.nobj);
 /*			c_baseline(i, "IB", rcs_tally.nib);	*/
@@ -250,7 +210,7 @@ LOCAL VOID c_bases(VOID)
 	}
 }
 
-LOCAL VOID c_strhead(VOID)
+static void c_strhead(void)
 {
 	if (rcs_cflag)
 	{
@@ -260,10 +220,10 @@ LOCAL VOID c_strhead(VOID)
 	}
 }
 
-LOCAL VOID c_string(LONG addr)
+static void c_string(long addr)
 {
-	WORD	hsub;
-	BYTE	hchar;
+	short	hsub;
+	char	hchar;
 
 	if (rcs_cflag)
 	{
@@ -273,7 +233,7 @@ LOCAL VOID c_string(LONG addr)
 		hsub = 1;
 
 		do {
-			hchar = LBGET(addr++);
+			hchar = (*(char *)(addr++));
 			if (hchar == '"')
 				hline[hsub++] = '\\';
 			else if (hchar == '\\')
@@ -295,28 +255,28 @@ LOCAL VOID c_string(LONG addr)
 	}
 }
 
-LOCAL VOID wr_str(LONG where)
+static void wr_str(long where)
 {
-	LONG	staddr;
-	WORD	stlen;
+	long	staddr;
+	short	stlen;
 
-	staddr = LLGET(where);
+	staddr = (*(long *)(where));
 	if ( staddr != -1L)
 	{
 		c_string(staddr);
-		LLSET(where, (LONG) rcs_wraddr & 0xffff);
-		stlen = 1 + (WORD)LSTRLEN(staddr);
+		(*(long *)(where) = ((long) rcs_wraddr & 0xffff));
+		stlen = 1 + (short)strlen((char *)(staddr));
 		fwrite((void *)staddr, 1, stlen, rcs_rhndl);
 		rcs_wraddr += stlen;
 	}
 }
 
-LOCAL VOID wr_string(LONG tree, WORD which)
+static void wr_string(long tree, short which)
 {
-	LONG	iconblk, tedinfo;
-	WORD	type;
+	long	iconblk, tedinfo;
+	short	type;
 
-	type = LLOBT(GET_TYPE(tree, which));
+	type = ((GET_TYPE(tree, which)) & 0xff);
 	if (type == G_BUTTON || type == G_STRING || type == G_TITLE)
 		wr_str(OB_SPEC(which));
 	else if (type == G_ICON)
@@ -337,12 +297,12 @@ LOCAL VOID wr_string(LONG tree, WORD which)
 	}
 }
 
-LOCAL VOID map_frstr(VOID)
+static void map_frstr(void)
 {
-	WORD	ifree, nfree;
+	short	ifree, nfree;
 
 	c_frstr = c_nstring;
-	nfree = LWGET(RSH_NSTRING(head));
+	nfree = (*(short *)(RSH_NSTRING(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; ifree++)
@@ -350,7 +310,7 @@ LOCAL VOID map_frstr(VOID)
 	}
 }
 
-LOCAL VOID c_frshead(VOID)
+static void c_frshead(void)
 {
 	if (rcs_cflag)
 	{
@@ -360,7 +320,7 @@ LOCAL VOID c_frshead(VOID)
 	}
 }
 
-LOCAL VOID c_freestr(WORD which)
+static void c_freestr(short which)
 {
 	if (rcs_cflag)
 	{
@@ -372,25 +332,25 @@ LOCAL VOID c_freestr(WORD which)
 	}
 }
 
-LOCAL VOID wr_freestr(VOID)
+static void wr_freestr(void)
 {
-	WORD	ifree, nfree;
+	short	ifree, nfree;
 
-	nfree = LWGET(RSH_NSTRING(head));
+	nfree = (*(short *)(RSH_NSTRING(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; c_freestr(ifree++))
 			;
-		nfree *= (WORD)sizeof(LONG);
+		nfree *= (short)sizeof(long);
 		fwrite((void *)str_ptr(0), 1, nfree, rcs_rhndl);
-		LWSET(RSH_FRSTR(head), rcs_wraddr);
+		(*(short *)(RSH_FRSTR(head)) = (rcs_wraddr));
 		rcs_wraddr += nfree;
 	}
 }
 
-LOCAL VOID c_imdata(LONG addr, WORD size)
+static void c_imdata(long addr, short size)
 {
-	WORD	iwd, vwd;
+	short	iwd, vwd;
 
 	if (rcs_cflag)
 	{
@@ -409,47 +369,47 @@ LOCAL VOID c_imdata(LONG addr, WORD size)
 				strcpy(hline, "\n");
 				c_wrlin();
 			}
-			vwd = LWGET(addr + iwd);
+			vwd = (*(short *)(addr + iwd));
 			sprintf(hline, "0x%hX", vwd);
 			c_wrlin();
 		}
 
-		c_tail(TRUE);
+		c_tail(true);
 		c_obndx[c_nstring + c_nimage++] = rcs_wraddr;
 	}
 }
 
-LOCAL VOID wr_imdata(LONG where, WORD w, WORD h)
+static void wr_imdata(long where, short w, short h)
 {
-	WORD	size;
-	LONG	imaddr;
+	short	size;
+	long	imaddr;
 
-	imaddr = LLGET(where);
+	imaddr = (*(long *)(where));
 	if ( imaddr != -1L)
 	{
 		size = w * h;
-		gsx_untrans(imaddr, w, (LONG)ADDR(wr_obndx), w, h);
-		imaddr = (LONG)ADDR(wr_obndx);
+		gsx_untrans(imaddr, w, (long)((long)(wr_obndx)), w, h);
+		imaddr = (long)((long)(wr_obndx));
 		c_imdata(imaddr, size);
-		LLSET(where, (LONG) rcs_wraddr & 0xffff);
+		(*(long *)(where) = ((long) rcs_wraddr & 0xffff));
 		fwrite((void *)imaddr, 1, size, rcs_rhndl);
 		rcs_wraddr += size;
 	}
 }
 
-LOCAL VOID wr_image(LONG tree, WORD which)
+static void wr_image(long tree, short which)
 {
-	LONG	iconblk, bitblk;
-	WORD	type, w, h;
+	long	iconblk, bitblk;
+	short	type, w, h;
 
-	type = LLOBT(GET_TYPE(tree, which));
+	type = ((GET_TYPE(tree, which)) & 0xff);
 	if (type == G_IMAGE)
 	{
 		bitblk = GET_SPEC(tree, which);
 		if ( bitblk != -1L)
 		{
-			w = LWGET(BI_WB(bitblk));
-			h = LWGET(BI_HL(bitblk));
+			w = (*(short *)(BI_WB(bitblk)));
+			h = (*(short *)(BI_HL(bitblk)));
 			wr_imdata(BI_PDATA(bitblk), w, h);
 		}
 	}
@@ -458,36 +418,36 @@ LOCAL VOID wr_image(LONG tree, WORD which)
 		iconblk = GET_SPEC(tree, which);
 		if ( iconblk != -1L)
 		{
-			w = (LWGET(IB_WICON(iconblk)) + 7) / 8;
-			h = LWGET(IB_HICON(iconblk));
+			w = ((*(short *)(IB_WICON(iconblk))) + 7) / 8;
+			h = (*(short *)(IB_HICON(iconblk)));
 			wr_imdata(IB_PMASK(iconblk), w, h);
 			wr_imdata(IB_PDATA(iconblk), w, h);
 		}
 	}
 }
 
-LOCAL VOID map_frimg(VOID)
+static void map_frimg(void)
 {
-	WORD	ifree, nfree, w, h;
-	LONG	bitblk;
+	short	ifree, nfree, w, h;
+	long	bitblk;
 
-	nfree = LWGET(RSH_NIMAGES(head));
+	nfree = (*(short *)(RSH_NIMAGES(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; ifree++)
 		{
 			if ( (bitblk = img_addr(ifree)) == -1L)
 				break;
-			w = LWGET(BI_WB(bitblk));
-			h = LWGET(BI_HL(bitblk));
+			w = (*(short *)(BI_WB(bitblk)));
+			h = (*(short *)(BI_HL(bitblk)));
 			wr_imdata(bitblk, w, h);
 		}
 	}
 }
 
-LOCAL VOID c_foobar(VOID)
+static void c_foobar(void)
 {
-	WORD	img;
+	short	img;
 
 	if (rcs_cflag)
 	{
@@ -507,7 +467,7 @@ LOCAL VOID c_foobar(VOID)
 	}
 }
 
-LOCAL VOID c_iconhead(VOID)
+static void c_iconhead(void)
 {
 	if (rcs_cflag)
 	{
@@ -517,19 +477,19 @@ LOCAL VOID c_iconhead(VOID)
 	}
 }
 
-LOCAL VOID c_iconblk(LONG addr)
+static void c_iconblk(long addr)
 {
 	ICONBLK	here;
 
 	if (rcs_cflag)
 	{
-		LBCOPY(ADDR(&here), addr, sizeof(ICONBLK) );
-		here.ib_pdata = (WORD FAR *) c_imgno((LONG)here.ib_pdata);
-		here.ib_pmask = (WORD FAR *) c_imgno((LONG)here.ib_pmask);
-		here.ib_ptext = (BYTE FAR *) c_strno((LONG)here.ib_ptext);
+		memcpy((void *)(((long)(&here))), (void *)(addr), sizeof(ICONBLK));
+		here.ib_pdata = (short  *) c_imgno((long)here.ib_pdata);
+		here.ib_pmask = (short  *) c_imgno((long)here.ib_pmask);
+		here.ib_ptext = (char  *) c_strno((long)here.ib_ptext);
 		c_comma(c_nib);
 		sprintf(hline, "%ldL, %ldL, %ldL, %hd,%hd,%hd, %hd,%hd,%hd,%hd, %hd,%hd,%hd,%hd",
-			(LONG)here.ib_pmask, (LONG)here.ib_pdata, (LONG)here.ib_ptext,
+			(long)here.ib_pmask, (long)here.ib_pdata, (long)here.ib_ptext,
 			here.ib_char, here.ib_xchar, here.ib_ychar,
 			here.ib_xicon, here.ib_yicon, here.ib_wicon, here.ib_hicon,
 			here.ib_xtext, here.ib_ytext, here.ib_wtext, here.ib_htext );
@@ -538,25 +498,25 @@ LOCAL VOID c_iconblk(LONG addr)
 	}
 }
 
-LOCAL VOID wr_iconblk(LONG tree, WORD which)
+static void wr_iconblk(long tree, short which)
 {
-	LONG	iconblk;
+	long	iconblk;
 
-	if (LLOBT(GET_TYPE(tree, which)) == G_ICON)
+	if (((GET_TYPE(tree, which)) & 0xff) == G_ICON)
 	{
 		iconblk = GET_SPEC(tree, which);
 		if ( iconblk != -1L)
 		{
-			SET_SPEC(tree, which, (LONG) rcs_wraddr & 0xffff);
+			SET_SPEC(tree, which, (long) rcs_wraddr & 0xffff);
 			fwrite((void *)iconblk, sizeof(ICONBLK), 1, rcs_rhndl);
-			rcs_wraddr += (WORD)sizeof(ICONBLK);
+			rcs_wraddr += (short)sizeof(ICONBLK);
 			LWINC(RSH_NIB(head));
 			c_iconblk(iconblk);
 		}
 	}
 }
 
-LOCAL VOID c_bithead(VOID)
+static void c_bithead(void)
 {
 	if (rcs_cflag)
 	{
@@ -566,63 +526,63 @@ LOCAL VOID c_bithead(VOID)
 	}
 }
 
-LOCAL VOID c_bitblk(LONG addr)
+static void c_bitblk(long addr)
 {
 	BITBLK	here;
 
 	if (rcs_cflag)
 	{
-		LBCOPY((LONG)ADDR(&here), addr, sizeof(BITBLK) );
-		here.bi_pdata = (WORD *) c_imgno((LONG)here.bi_pdata);
+		memcpy((void *)((long)((long)(&here))), (void *)(addr), sizeof(BITBLK));
+		here.bi_pdata = (short *) c_imgno((long)here.bi_pdata);
 		c_comma(c_nbb);
 		sprintf(hline, "%ldL, %hd, %hd, %hd, %hd, %hd",
-			(LONG)here.bi_pdata, here.bi_wb, here.bi_hl,
+			(long)here.bi_pdata, here.bi_wb, here.bi_hl,
 			here.bi_x, here.bi_y, here.bi_color );
 		c_wrlin();
 		c_nbb++;
 	}
 }
 
-LOCAL VOID wr_bitblk(LONG tree, WORD which)
+static void wr_bitblk(long tree, short which)
 {
-	LONG	bitblk;
+	long	bitblk;
 
-	if (LLOBT(GET_TYPE(tree, which)) == G_IMAGE)
+	if (((GET_TYPE(tree, which)) & 0xff) == G_IMAGE)
 	{
 		bitblk = GET_SPEC(tree, which);
 		if ( bitblk != -1L)
 		{
-			SET_SPEC(tree, which, (LONG) rcs_wraddr & 0xffff);
+			SET_SPEC(tree, which, (long) rcs_wraddr & 0xffff);
 			fwrite((void *)bitblk, sizeof(BITBLK), 1, rcs_rhndl);
-			rcs_wraddr += (WORD)sizeof(BITBLK);
+			rcs_wraddr += (short)sizeof(BITBLK);
 			LWINC(RSH_NBB(head));
 			c_bitblk(bitblk);
 		}
 	}
 }
 
-LOCAL VOID map_frbit(VOID)
+static void map_frbit(void)
 {
-	WORD	ifree, nfree;
-	LONG	bitblk;
+	short	ifree, nfree;
+	long	bitblk;
 
-	nfree = LWGET(RSH_NIMAGES(head));
+	nfree = (*(short *)(RSH_NIMAGES(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; ifree++)
 		{
 			if ( (bitblk = img_addr(ifree)) == -1L)
 				break;
-			LLSET(img_ptr(ifree), (LONG) rcs_wraddr & 0xffff);
+			(*(long *)(img_ptr(ifree)) = ((long) rcs_wraddr & 0xffff));
 			fwrite((void *)bitblk, sizeof(BITBLK), 1, rcs_rhndl);
-			rcs_wraddr += (WORD)sizeof(BITBLK);
+			rcs_wraddr += (short)sizeof(BITBLK);
 			LWINC(RSH_NBB(head));
 			c_bitblk(bitblk);
 		}
 	}
 } 
 
-LOCAL VOID c_frbhead(VOID)
+static void c_frbhead(void)
 {
 	if (rcs_cflag)
 	{
@@ -632,13 +592,13 @@ LOCAL VOID c_frbhead(VOID)
 	}
 }
 
-LOCAL VOID c_frb(LONG addr)
+static void c_frb(long addr)
 {
-	WORD	blkno;
+	short	blkno;
 
 	if (rcs_cflag)
 	{
-		blkno = (WORD) ((addr - LWGET(RSH_BITBLK(head))) / sizeof(BITBLK));
+		blkno = (short) ((addr - (*(short *)(RSH_BITBLK(head)))) / sizeof(BITBLK));
 		c_comma(c_nfrbit);
 		sprintf(hline, "%hdL", blkno);
 		c_wrlin();
@@ -646,23 +606,23 @@ LOCAL VOID c_frb(LONG addr)
 	}
 }
 
-LOCAL VOID wr_frbit(VOID)
+static void wr_frbit(void)
 {
-	WORD	ifree, nfree;
+	short	ifree, nfree;
 
-	nfree = LWGET(RSH_NIMAGES(head));
+	nfree = (*(short *)(RSH_NIMAGES(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; ifree++)
 			c_frb(img_addr(ifree));
-		nfree *= (WORD)sizeof(LONG);
+		nfree *= (short)sizeof(long);
 		fwrite((void *)img_ptr(0), 1, nfree, rcs_rhndl);
-		LWSET(RSH_FRIMG(head), rcs_wraddr);
+		(*(short *)(RSH_FRIMG(head)) = (rcs_wraddr));
 		rcs_wraddr += nfree;
 	}
 } 
 
-LOCAL VOID c_tedhead(VOID)
+static void c_tedhead(void)
 {
 	if (rcs_cflag)
 	{
@@ -672,48 +632,48 @@ LOCAL VOID c_tedhead(VOID)
 	}
 }
 
-LOCAL VOID c_tedinfo(LONG addr)
+static void c_tedinfo(long addr)
 {
 	TEDINFO	here;
 
 	if (rcs_cflag)
 	{
-		LBCOPY(ADDR(&here), addr, sizeof(TEDINFO));
-		here.te_ptext = (BYTE *) c_strno((LONG)here.te_ptext);
-		here.te_pvalid = (BYTE *) c_strno((LONG)here.te_pvalid);
-		here.te_ptmplt = (BYTE *) c_strno((LONG)here.te_ptmplt);
+		memcpy((void *)(((long)(&here))), (void *)(addr), sizeof(TEDINFO));
+		here.te_ptext = (char *) c_strno((long)here.te_ptext);
+		here.te_pvalid = (char *) c_strno((long)here.te_pvalid);
+		here.te_ptmplt = (char *) c_strno((long)here.te_ptmplt);
 		c_comma(c_nted);
 		sprintf(hline, "%ldL, %ldL, %ldL, %hd, %hd, %hd, 0x%hX, 0x%hX, %hd, %hd,%hd",
-			(LONG)here.te_ptext, (LONG)here.te_ptmplt, (LONG)here.te_pvalid,
-			here.te_font, here.te_junk1, here.te_just, here.te_color,
-			here.te_junk2, here.te_thickness, here.te_txtlen, here.te_tmplen );
+			(long)here.te_ptext, (long)here.te_ptmplt, (long)here.te_pvalid,
+			here.te_font, here.te_fontid, here.te_just, here.te_color,
+			here.te_fontsize, here.te_thickness, here.te_txtlen, here.te_tmplen );
 		c_wrlin();
 		c_nted++;
 	}
 }
 	
-LOCAL VOID wr_tedinfo(LONG tree, WORD which)
+static void wr_tedinfo(long tree, short which)
 {
-	LONG	tedinfo;
-	WORD	type;
+	long	tedinfo;
+	short	type;
 
-	type = LLOBT(GET_TYPE(tree, which));
+	type = ((GET_TYPE(tree, which)) & 0xff);
 	if ( type == G_TEXT || type == G_BOXTEXT || 
 		type == G_FTEXT || type == G_FBOXTEXT )
 	{
 		tedinfo = GET_SPEC(tree, which);
 		if ( tedinfo != -1L)
 		{
-			SET_SPEC(tree, which, (LONG) rcs_wraddr & 0xffff);
+			SET_SPEC(tree, which, (long) rcs_wraddr & 0xffff);
 			fwrite((void *)tedinfo, sizeof(TEDINFO), 1, rcs_rhndl);
-			rcs_wraddr += (WORD)sizeof(TEDINFO);
+			rcs_wraddr += (short)sizeof(TEDINFO);
 			LWINC(RSH_NTED(head));
 			c_tedinfo(tedinfo);
 		}
 	}
 }
 
-LOCAL VOID c_objhead(VOID)
+static void c_objhead(void)
 {
 	if (rcs_cflag)
 	{
@@ -723,36 +683,36 @@ LOCAL VOID c_objhead(VOID)
 	}
 }
 
-LOCAL VOID c_object(LONG tree)
+static void c_object(long tree)
 {
 	OUTOBJ	here;
-	BYTE	type[10], state[10], flags[10];
+	char	type[10], state[10], flags[10];
 
 	if (rcs_cflag)
 	{
-		LBCOPY(ADDR(&here.next), OB_NEXT(ROOT), 3 * sizeof(WORD) );
-		LBCOPY(ADDR(&here.spec), OB_SPEC(ROOT), sizeof(LONG) + 4 * sizeof(UWORD) );
+		memcpy((void *)(((long)(&here.next))), (void *)(OB_NEXT(ROOT)), 3 * sizeof(short));
+		memcpy((void *)(((long)(&here.spec))), (void *)(OB_SPEC(ROOT)), sizeof(long) + 4 * sizeof(unsigned short));
 
-		switch (LLOBT(GET_TYPE(tree, ROOT)))
+		switch (((GET_TYPE(tree, ROOT)) & 0xff))
 		{
 			case G_STRING:
 			case G_BUTTON:
 			case G_TITLE:
-				here.spec = (LONG) c_strno(here.spec);
+				here.spec = (long) c_strno(here.spec);
 				break;
 			case G_TEXT:
 			case G_FTEXT:
 			case G_BOXTEXT:
 			case G_FBOXTEXT:
-				here.spec = ( (WORD) here.spec - LWGET(RSH_TEDINFO(head)) )
+				here.spec = ( (short) here.spec - (*(short *)(RSH_TEDINFO(head))) )
 					/ sizeof(TEDINFO);
 				break;
 			case G_IMAGE:
-				here.spec = ( (WORD) here.spec - LWGET(RSH_BITBLK(head)) )
+				here.spec = ( (short) here.spec - (*(short *)(RSH_BITBLK(head))) )
 					/ sizeof(BITBLK);
 				break;
 			case G_ICON:
-				here.spec = ( (WORD) here.spec - LWGET(RSH_ICONBLK(head)) )
+				here.spec = ( (short) here.spec - (*(short *)(RSH_ICONBLK(head))) )
 					/ sizeof(ICONBLK);
 				break;
 			default:
@@ -760,7 +720,7 @@ LOCAL VOID c_object(LONG tree)
 		}
 
 		c_comma(c_nobs);
-		here.type = c_lookup(LLOBT(GET_TYPE(tree, ROOT)), c_types, N_TYPES, type);
+		here.type = c_lookup(((GET_TYPE(tree, ROOT)) & 0xff), c_types, N_TYPES, type);
 		here.flags = c_lookup(GET_FLAGS(tree, ROOT), c_flags, 
 			N_FLAGS, flags);
 		here.state = c_lookup(GET_STATE(tree, ROOT), c_states, 
@@ -774,18 +734,18 @@ LOCAL VOID c_object(LONG tree)
 	}
 }
 
-LOCAL VOID wr_obj(WORD itree, LONG tree, WORD iobj)
+static void wr_obj(short itree, long tree, short iobj)
 /* refers to position in the preorder 	*/
 /* trace stored in wr_obndx[]		*/
 {
-	WORD	entno, where, link, obtype;
-	LONG	object;
+	short	entno, where, link, obtype;
+	long	object;
 
 	where = wr_obndx[iobj];		/* the actual object #	*/
 
 	entno = find_obj(tree, where);
 	if (entno != NIL)
-		set_value(entno, (BYTE *) ( 
+		set_value(entno, (char *) ( 
 			((itree & 0xFF) << 8) | (iobj & 0xFF) ) );
 	if ( (link = GET_NEXT(tree, where)) != -1)
 		SET_NEXT(tree, where, fnd_ob(link));
@@ -795,33 +755,33 @@ LOCAL VOID wr_obj(WORD itree, LONG tree, WORD iobj)
 		SET_TAIL(tree, where, fnd_ob(link));
 	obtype = GET_TYPE(tree, where) & 0x00ff; /*low byte*/
 	if(obtype == G_ICON || obtype == G_IMAGE) /*0 hi byte*/
-		LWSET(OB_TYPE(where), obtype);
+		(*(short *)(OB_TYPE(where)) = (obtype));
 	unfix_chpos(OB_X(where), 0);
 	unfix_chpos(OB_WIDTH(where), 0);
 	unfix_chpos(OB_Y(where), 1);
 	unfix_chpos(OB_HEIGHT(where), 1);
-	object = tree + (UWORD) (where * sizeof(OBJECT));
+	object = tree + (unsigned short) (where * sizeof(OBJECT));
 	fwrite((void *)object, sizeof(OBJECT), 1, rcs_rhndl);
-	rcs_wraddr += (WORD)sizeof(OBJECT);
+	rcs_wraddr += (short)sizeof(OBJECT);
 	c_object(object);
 }
 
-LOCAL VOID wr_trees(VOID)
+static void wr_trees(void)
 {
-	LONG	tree;
-	WORD	ntree, itree, iobj, where, flags;
+	long	tree;
+	short	ntree, itree, iobj, where, flags;
 
-	ntree = LWGET(RSH_NTREE(head));
+	ntree = (*(short *)(RSH_NTREE(head)));
 
 	for (itree = 0; itree < ntree; itree++)
 	{
 		where = find_tree(itree);
-		set_value(where, (BYTE *) itree);
+		set_value(where, (char *) itree);
 		tree = tree_addr(itree);
-		LLSET(tree_ptr(itree), (LONG) rcs_wraddr & 0xffff);
+		(*(long *)(tree_ptr(itree)) = ((long) rcs_wraddr & 0xffff));
 		wr_obnum = 0;
 		map_tree(tree, 0, -1, (fkt_parm)indx_obs);
-		LWSET(RSH_NOBS(head), wr_obnum + LWGET(RSH_NOBS(head)));
+		(*(short *)(RSH_NOBS(head)) = (wr_obnum + (*(short *)(RSH_NOBS(head)))));
 		iobj = wr_obndx[wr_obnum - 1];
 		flags = GET_FLAGS(tree, iobj);
 		SET_FLAGS(tree, iobj, flags | LASTOB);
@@ -830,7 +790,7 @@ LOCAL VOID wr_trees(VOID)
 	}
 }
 
-LOCAL VOID c_treehead(VOID)
+static void c_treehead(void)
 {
 	if (rcs_cflag)
 	{
@@ -840,13 +800,13 @@ LOCAL VOID c_treehead(VOID)
 	}
 }
 
-LOCAL VOID c_tree(LONG addr)
+static void c_tree(long addr)
 {
-	WORD	objno;
+	short	objno;
 
 	if (rcs_cflag)
 	{
-		objno = (WORD) (addr - LWGET(RSH_OBJECT(head)) / sizeof(OBJECT));
+		objno = (short) (addr - (*(short *)(RSH_OBJECT(head))) / sizeof(OBJECT));
 		c_comma(c_ntree);
 		sprintf(hline, "%hdL", objno);
 		c_wrlin();
@@ -854,37 +814,37 @@ LOCAL VOID c_tree(LONG addr)
 	}
 }
 
-LOCAL VOID wr_trindex(VOID)
+static void wr_trindex(void)
 {
-	WORD	ntree, itree;
+	short	ntree, itree;
 
-	ntree = LWGET(RSH_NTREE(head));
-	fwrite((void *)tree_ptr(0), sizeof(LONG), ntree, rcs_rhndl);
+	ntree = (*(short *)(RSH_NTREE(head)));
+	fwrite((void *)tree_ptr(0), sizeof(long), ntree, rcs_rhndl);
 
 	for (itree = 0; itree < ntree; itree++)
 		c_tree(tree_addr(itree));
 
-	LWSET(RSH_TRINDEX(head), rcs_wraddr);	/* Don't move this line! */
-	rcs_wraddr += ntree * (WORD)sizeof(LONG);
+	(*(short *)(RSH_TRINDEX(head)) = (rcs_wraddr));	/* Don't move this line! */
+	rcs_wraddr += ntree * (short)sizeof(long);
 }
 
-LOCAL VOID c_defs(VOID)
+static void c_defs(void)
 {
-	BYTE	*rptr, *sptr;
+	char	*rptr, *sptr;
 
 	if (rcs_cflag)
 	{
 		strcpy(hline, "\n");
 		c_wrlin();
 		c_defline("NUM_STRINGS", c_nstring);
-		c_defline("NUM_FRSTR", LWGET(RSH_NSTRING(head)));
+		c_defline("NUM_FRSTR", (*(short *)(RSH_NSTRING(head))));
 		c_defline("NUM_IMAGES", c_nimage);
-		c_defline("NUM_BB", LWGET(RSH_NBB(head)));
-		c_defline("NUM_FRIMG", LWGET(RSH_NIMAGES(head)));
-		c_defline("NUM_IB", LWGET(RSH_NIB(head)));
-		c_defline("NUM_TI", LWGET(RSH_NTED(head)));
-		c_defline("NUM_OBS", LWGET(RSH_NOBS(head)));
-		c_defline("NUM_TREE", LWGET(RSH_NTREE(head)));
+		c_defline("NUM_BB", (*(short *)(RSH_NBB(head))));
+		c_defline("NUM_FRIMG", (*(short *)(RSH_NIMAGES(head))));
+		c_defline("NUM_IB", (*(short *)(RSH_NIB(head))));
+		c_defline("NUM_TI", (*(short *)(RSH_NTED(head))));
+		c_defline("NUM_OBS", (*(short *)(RSH_NOBS(head))));
+		c_defline("NUM_TREE", (*(short *)(RSH_NTREE(head))));
 		for (sptr = rptr = &rcs_rfile[0]; *sptr; sptr++)
 			if (*sptr == '\\' || *sptr == '\:')
 				rptr = sptr + 1;
@@ -896,9 +856,9 @@ LOCAL VOID c_defs(VOID)
 	}
 }
 
-LOCAL VOID wr_include(WORD deftype, WORD ndx, WORD ndef, BYTE *ptns[], WORD trflag)
+static void wr_include(short deftype, short ndx, short ndef, char *ptns[], short trflag)
 {
-	WORD	idx, ii;
+	short	idx, ii;
 	HOUT	h;
 
 	for ( idx = 0; idx < ndx; idx++ )
@@ -907,7 +867,7 @@ LOCAL VOID wr_include(WORD deftype, WORD ndx, WORD ndef, BYTE *ptns[], WORD trfl
 		{
 			if((trflag && get_kind(ii) < 4)	|| ( get_kind(ii) == deftype ))
 			{
-				if ( (WORD) get_value(ii) == idx)
+				if ( (short) get_value(ii) == idx)
 				{
 					strup(h.p0 = get_name(ii));
 					h.p1 = idx;	
@@ -920,9 +880,9 @@ LOCAL VOID wr_include(WORD deftype, WORD ndx, WORD ndef, BYTE *ptns[], WORD trfl
 	}
 }
 
-LOCAL VOID obj_include(WORD ntree, WORD nobs, BYTE *ptns[])
+static void obj_include(short ntree, short nobs, char *ptns[])
 {
-	WORD	itree,  iobs, ii;
+	short	itree,  iobs, ii;
 	HOUT	h;
 	
 	for ( itree = 0; itree < ntree; itree++ )
@@ -933,9 +893,9 @@ LOCAL VOID obj_include(WORD ntree, WORD nobs, BYTE *ptns[])
 	    	{
 				if ( get_kind(ii) == OBJKIND)
 				{
-					h.p1 = (WORD) get_value(ii);
-					h.p2 = (WORD) LHIBT(h.p1) & 0xff;
-					h.p1 = (WORD) LLOBT(h.p1) & 0xff;
+					h.p1 = (short) get_value(ii);
+					h.p2 = (short) (((h.p1) >> 8) & 0xff) & 0xff;
+					h.p1 = (short) ((h.p1) & 0xff) & 0xff;
 					if ( h.p2 == itree && h.p1 == iobs)
 					{
 						strup(h.p0 = get_name(ii));
@@ -949,11 +909,11 @@ LOCAL VOID obj_include(WORD ntree, WORD nobs, BYTE *ptns[])
 	}
 }
 
-LOCAL VOID wrsrt_inclfile(BYTE *ext, BYTE *ptns[])
+static void wrsrt_inclfile(char *ext, char *ptns[])
 {
 	r_to_xfile(rcs_hfile, ext);
 
-	FOREVER
+	for (;;)
 	{
 		rcs_hhndl = fopen(rcs_hfile, "w");
 		if (rcs_hhndl != NULL)
@@ -961,22 +921,22 @@ LOCAL VOID wrsrt_inclfile(BYTE *ext, BYTE *ptns[])
 		else if (!form_error(errno))
 			return;
 	}
-	wr_include( UNKN,  LWGET(RSH_NTREE(head)), 0, ptns,TRUE );
-	obj_include( LWGET(RSH_NTREE(head)), LWGET(RSH_NOBS(head)), ptns );
-	wr_include(ALRT, LWGET(RSH_NSTRING(head)), 1, ptns, FALSE);
-	wr_include(FRSTR,LWGET(RSH_NSTRING(head)), 3, ptns, FALSE);
-	wr_include(FRIMG,LWGET(RSH_NIMAGES(head)), 4, ptns, FALSE);
+	wr_include( UNKN,  (*(short *)(RSH_NTREE(head))), 0, ptns,true );
+	obj_include( (*(short *)(RSH_NTREE(head))), (*(short *)(RSH_NOBS(head))), ptns );
+	wr_include(ALRT, (*(short *)(RSH_NSTRING(head))), 1, ptns, false);
+	wr_include(FRSTR,(*(short *)(RSH_NSTRING(head))), 3, ptns, false);
+	wr_include(FRIMG,(*(short *)(RSH_NIMAGES(head))), 4, ptns, false);
 	fclose(rcs_hhndl);
 }
 
-LOCAL VOID write_inclfile(BYTE *ext, BYTE *ptns[])
+static void write_inclfile(char *ext, char *ptns[])
 {
-	WORD	ii;
+	short	ii;
 	HOUT	h;
 
 	r_to_xfile(rcs_hfile, ext);
 
-	FOREVER
+	for (;;)
 	{
 		rcs_hhndl = fopen(rcs_hfile, "w");
 		if (rcs_hhndl != NULL)
@@ -988,7 +948,7 @@ LOCAL VOID write_inclfile(BYTE *ext, BYTE *ptns[])
 	for (ii = 0; ii < rcs_ndxno; ii++)
 	{
 		strup(h.p0 = get_name(ii));
-		h.p1 = (WORD) get_value(ii);
+		h.p1 = (short) get_value(ii);
 		switch ( get_kind(ii) )
 		{
 			case UNKN:
@@ -1001,8 +961,8 @@ LOCAL VOID write_inclfile(BYTE *ext, BYTE *ptns[])
 				sprintf(hline, ptns[1], h.p0, h.p1);
 				break;
 			case OBJKIND:
-				h.p2 = (WORD) LHIBT(h.p1) & 0xff;
-				h.p1 = (WORD) LLOBT(h.p1) & 0xff;
+				h.p2 = (short) (((h.p1) >> 8) & 0xff) & 0xff;
+				h.p1 = (short) ((h.p1) & 0xff) & 0xff;
 				sprintf(hline, ptns[2], h.p0, h.p1, h.p2);
 				break;
 			case FRSTR:
@@ -1019,9 +979,9 @@ LOCAL VOID write_inclfile(BYTE *ext, BYTE *ptns[])
 	fclose(rcs_hhndl);
 }
 
-WORD write_files(VOID)
+short write_files(void)
 {
-	LONG	mem_needs;
+	long	mem_needs;
 	
 	do_tally();			 
 	if (rcs_cflag)
@@ -1032,22 +992,22 @@ WORD write_files(VOID)
 	if( mem_needs > get_dspace( rcs_rfile[0] - 'A' + 1 ) )
 	{
 		hndl_alert(1, string_addr(SNDSPACE));
-		return(FALSE);
+		return(false);
 	}
 
-	FOREVER
+	for (;;)
 	{
 		rcs_rhndl = fopen(rcs_rfile,"wb");
 		if (rcs_rhndl != NULL)
 			break;
 		if (!form_error(errno))
-			return (FALSE);
+			return (false);
 	}
 
 	if (rcs_cflag)
 	{
 		r_to_xfile(rcs_hfile, "RSH");
-		FOREVER
+		for (;;)
 		{
 			rcs_hhndl = fopen(rcs_hfile, "w");
 			if (rcs_hhndl != NULL)
@@ -1055,7 +1015,7 @@ WORD write_files(VOID)
 			if (!form_error(errno))
 			{
 				fclose(rcs_rhndl);
-				return (FALSE);
+				return (false);
 			}
 		}
 	}		       
@@ -1065,8 +1025,8 @@ WORD write_files(VOID)
 	ini_prog();
 	show_prog(STHDR);
 	wr_header();
-	rcs_wraddr = (WORD)sizeof(RSHDR);
-	LWSET(RSH_STRING(head), rcs_wraddr);
+	rcs_wraddr = (short)sizeof(RSHDR);
+	(*(short *)(RSH_STRING(head)) = (rcs_wraddr));
 	c_bases();
 
 	show_prog(STSTR);
@@ -1077,7 +1037,7 @@ WORD write_files(VOID)
 	wr_sync();
 
 	show_prog(STIMG);
-	LWSET(RSH_IMDATA(head), rcs_wraddr);
+	(*(short *)(RSH_IMDATA(head)) = (rcs_wraddr));
 	c_nimage = 0;
 	map_all((fkt_parm)wr_image);
 	c_frimg = c_nimage;
@@ -1089,8 +1049,8 @@ WORD write_files(VOID)
 	c_tail(c_nfrstr);
 
 	show_prog(STBB);
-	LWSET(RSH_BITBLK(head), rcs_wraddr);
-	LWSET(RSH_NBB(head), 0);
+	(*(short *)(RSH_BITBLK(head)) = (rcs_wraddr));
+	(*(short *)(RSH_NBB(head)) = (0));
 	c_bithead();
 	map_all((fkt_parm)wr_bitblk);
 	map_frbit();	
@@ -1102,22 +1062,22 @@ WORD write_files(VOID)
 	c_tail(c_nfrbit);
 
 	show_prog(STIB);
-	LWSET(RSH_ICONBLK(head), rcs_wraddr);
-	LWSET(RSH_NIB(head), 0);
+	(*(short *)(RSH_ICONBLK(head)) = (rcs_wraddr));
+	(*(short *)(RSH_NIB(head)) = (0));
 	c_iconhead();
 	map_all((fkt_parm)wr_iconblk);
 	c_tail(c_nib);
 
 	show_prog(STTI);
-	LWSET(RSH_TEDINFO(head), rcs_wraddr);
-	LWSET(RSH_NTED(head), 0);
+	(*(short *)(RSH_TEDINFO(head)) = (rcs_wraddr));
+	(*(short *)(RSH_NTED(head)) = (0));
 	c_tedhead();
 	map_all((fkt_parm)wr_tedinfo);
 	c_tail(c_nted);
 
 	show_prog(STOBJ);
-	LWSET(RSH_OBJECT(head), rcs_wraddr);
-	LWSET(RSH_NOBS(head), 0);
+	(*(short *)(RSH_OBJECT(head)) = (rcs_wraddr));
+	(*(short *)(RSH_NOBS(head)) = (0));
 	c_objhead();
 	wr_trees();
 	c_tail(c_nobs);
@@ -1128,7 +1088,7 @@ WORD write_files(VOID)
 	c_tail(c_ntree);
 
 	show_prog(STHDR);
-	LWSET(RSH_RSSIZE(head), rcs_wraddr);
+	(*(short *)(RSH_RSSIZE(head)) = (rcs_wraddr));
 	wr_header();		/* rewrite updated header	  */
 	fclose(rcs_rhndl);
 	c_foobar();
@@ -1136,21 +1096,17 @@ WORD write_files(VOID)
 	if (rcs_cflag)
 		fclose(rcs_hhndl);
 
-	FOREVER
+	for (;;)
 	{
 		rcs_dhndl = fopen(rcs_dfile, "wb");
 		if (rcs_dhndl != NULL)
 			break;
 		if (!form_error(errno))
-			return (FALSE);
+			return (false);
 	}
 
 	show_prog(STNAME);
-#if	MC68K
    	wr_68kdef();
-#else
-	wr_i8086def();
-#endif
 	fclose(rcs_dhndl);
 
 	if (rcs_hflag)
@@ -1174,5 +1130,5 @@ WORD write_files(VOID)
 		else
 			write_inclfile("F", fptns);
 
-	return (TRUE);
+	return (true);
 }

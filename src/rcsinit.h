@@ -8,11 +8,11 @@
 
 #define RCSINIT_H
 
-EXTERN	WORD	ini_rsrc(VOID);
-EXTERN	WORD	ini_windows(WORD view_parts);
-EXTERN	VOID	rd_inf(WORD flag);
-EXTERN	WORD	rcs_init(VOID);
-EXTERN	WORD	cont_rcsinit(WORD flag);
-EXTERN	VOID	rcs_exit(WORD term_type);
+extern	short	ini_rsrc(void);
+extern	short	ini_windows(short view_parts);
+extern	void	rd_inf(short flag);
+extern	short	rcs_init(void);
+extern	short	cont_rcsinit(short flag);
+extern	void	rcs_exit(short term_type);
 
 #endif

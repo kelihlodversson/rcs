@@ -8,8 +8,8 @@
 
 #define RCSREAD_H
 
-EXTERN	WORD	open_files(WORD def);
-EXTERN	WORD	read_files(VOID);
-EXTERN	WORD	merge_files(VOID);
+extern	short	open_files(short def);
+extern	short	read_files(void);
+extern	short	merge_files(void);
 
 #endif

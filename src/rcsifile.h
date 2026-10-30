@@ -8,12 +8,12 @@
 
 #define RCSIFILE_H
 
-EXTERN	VOID	clear_img(VOID);
-EXTERN	WORD	save_icn(VOID);
-EXTERN	WORD	svas_icn(VOID);
-EXTERN	WORD	new_img(VOID);					  
-EXTERN	VOID	do_open(VOID);
-EXTERN	WORD	icnopen(VOID);
-EXTERN	WORD	rvrt_icn(VOID);
+extern	void	clear_img(void);
+extern	short	save_icn(void);
+extern	short	svas_icn(void);
+extern	short	new_img(void);					  
+extern	void	do_open(void);
+extern	short	icnopen(void);
+extern	short	rvrt_icn(void);
 
 #endif

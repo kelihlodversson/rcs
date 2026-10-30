@@ -4,18 +4,9 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
-#include <portab.h>
-#include <machine.h>
-#include <rclib.h>
-#if GEMDOS
-#if TURBO_C
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <obdefs.h>
-#include <gembind.h>
-#endif
+#include <gem.h>
+#include <string.h>
+#include <stdbool.h>
 #include "rcsdefs.h"
 #include "rcs.h"
 #include "rcskeybd.h"
@@ -35,11 +26,11 @@
 #include "rcsasm.h"
 #include "rcsmain.h"
 
-EXTERN	BOOLEAN	paste_img;
-EXTERN	UWORD	mflags;
-EXTERN	WORD	scale;
+extern	short	paste_img;
+extern	unsigned short	mflags;
+extern	short	scale;
 
-LOCAL VOID set_filemenu(VOID)
+static void set_filemenu(void)
 {
 	if ( rcs_state == NOFILE_STATE )
 	{
@@ -54,10 +45,10 @@ LOCAL VOID set_filemenu(VOID)
 	}
 }
 
-VOID do_redraw(WORD w_handle, GRECT *dirty, LONG tree, GRECT *area)
+void do_redraw(short w_handle, GRECT *dirty, long tree, GRECT *area)
 {
 	GRECT		p, r;
-	WORD		i;
+	short		i;
 
 	graf_mouse(M_OFF, NULL);
 	wind_get(w_handle, WF_FIRSTXYWH, &p.g_x, &p.g_y, &p.g_w, &p.g_h);
@@ -74,7 +65,7 @@ VOID do_redraw(WORD w_handle, GRECT *dirty, LONG tree, GRECT *area)
 					if (!rc_equal(&p, &r) || rcs_state == MENU_STATE)
 						gr_rect(BLUE, IP_4PATT, &p);
 				}
-	    		objc_draw((OBJECT FAR *)tree, ROOT, MAX_DEPTH, p.g_x, p.g_y, p.g_w, p.g_h);
+	    		objc_draw((OBJECT  *)tree, ROOT, MAX_DEPTH, p.g_x, p.g_y, p.g_w, p.g_h);
 				if (tree == ad_view && tree_view() )
 					for (i = rcs_nsel; i; )
 					{
@@ -93,12 +84,12 @@ VOID do_redraw(WORD w_handle, GRECT *dirty, LONG tree, GRECT *area)
 	graf_mouse(M_ON, NULL);
 }
 
-VOID hndl_redraw(WORD w_handle, GRECT *c)
+void hndl_redraw(short w_handle, GRECT *c)
 {
 	if(iconedit_flag)
 	{
 		do_redraw(w_handle, c, ad_itool, &itool);
-		draw_clipb(TRUE, c);	/*draw the clipping*/
+		draw_clipb(true, c);	/*draw the clipping*/
 	}
 	else
 	{
@@ -110,7 +101,7 @@ VOID hndl_redraw(WORD w_handle, GRECT *c)
 	do_redraw(w_handle, c, ad_view, &view);
 }
 
-VOID obj_nowdraw(LONG tree, WORD obj)
+void obj_nowdraw(long tree, short obj)
 {
 	GRECT	p;
 
@@ -118,25 +109,25 @@ VOID obj_nowdraw(LONG tree, WORD obj)
 	hndl_redraw(rcs_view, &p);
 }
 
-LOCAL VOID cut_part(WORD sobj, WORD dup)
+static void cut_part(short sobj, short dup)
 {
-	LONG	tree;
+	long	tree;
 
 	if (file_view())
 		cut_tree(trpan_f(sobj), dup);
 	else
 		cut_obj(sobj, dup);
 	tree = ad_tools;
-	LLSET(OB_SPEC(CLIPBORD), image_addr(CLIPFULL));
+	(*(long *)(OB_SPEC(CLIPBORD)) = (image_addr(CLIPFULL)));
 	if( toolp) 
 		obj_nowdraw(ad_tools, CLIPBORD);
 	else
 		enab_obj( ad_menu, PASTITEM);
 	set_filemenu(); 		
-	rcs_edited = TRUE;
+	rcs_edited = true;
 }
 
-LOCAL VOID paste_part(WORD dobj, WORD dx, WORD dy, WORD dup)
+static void paste_part(short dobj, short dx, short dy, short dup)
 {
 	if (ad_clip)
 	{
@@ -145,51 +136,51 @@ LOCAL VOID paste_part(WORD dobj, WORD dx, WORD dy, WORD dup)
 		else
 			paste_obj(dobj, dx, dy, dup);
 		set_filemenu();		
-		rcs_edited = TRUE;
+		rcs_edited = true;
 	}
 }
 
-LOCAL VOID del_part(WORD sobj)
+static void del_part(short sobj)
 {
 	if (file_view())
 		del_tree(trpan_f(sobj));
 	else
 		del_ob(sobj);
 	set_filemenu();  	
-	rcs_edited = TRUE;
+	rcs_edited = true;
 }
 
-LOCAL VOID new_part(WORD sobj, WORD dobj, WORD dx, WORD dy)
+static void new_part(short sobj, short dobj, short dx, short dy)
 {
 	if (file_view())
 		new_tree(sobj, trpan_f(dobj), dx, dy);
 	else
 		new_obj(ad_pbx, sobj, dobj, dx, dy); 
-	rcs_edited = TRUE;
+	rcs_edited = true;
 	set_filemenu();
 }
 
-LOCAL VOID dup_part(WORD sobj, WORD dobj, WORD dx, WORD dy)
+static void dup_part(short sobj, short dobj, short dx, short dy)
 {
 	if (file_view())
 		dup_tree(trpan_f(sobj), trpan_f(dobj), dx, dy);
 	else
 		new_obj(ad_view, sobj, dobj, dx, dy);
-	rcs_edited = TRUE;
+	rcs_edited = true;
 	set_filemenu();
 }
 
-LOCAL VOID mov_part(WORD sobj, WORD dobj, WORD dx, WORD dy)
+static void mov_part(short sobj, short dobj, short dx, short dy)
 {
 	if (file_view())
 		mov_tree(trpan_f(sobj), trpan_f(dobj), dx, dy);
 	else
 		mov_obj(sobj, dobj, dx, dy);
-	rcs_edited = TRUE;
+	rcs_edited = true;
 	set_filemenu();
 }
 
-LOCAL VOID type_part(WORD sobj)
+static void type_part(short sobj)
 {
 	if (file_view())
 		type_tree(trpan_f(sobj));
@@ -197,10 +188,10 @@ LOCAL VOID type_part(WORD sobj)
 		type_obj(sobj);
 }
 
-LOCAL WORD hndl_mouse(WORD mx, WORD my)
+static short hndl_mouse(short mx, short my)
 {
 	hot_off();
-	rcs_hot = objc_find((OBJECT FAR *)ad_tools, ROOT, MAX_DEPTH, mx, my);
+	rcs_hot = objc_find((OBJECT  *)ad_tools, ROOT, MAX_DEPTH, mx, my);
 	if (rcs_hot == NIL)
 	{
 		wait_tools();
@@ -213,13 +204,13 @@ LOCAL WORD hndl_mouse(WORD mx, WORD my)
 		else
 			rcs_hot = NIL;
 	}
-	return (FALSE);
+	return (false);
 }
 
-LOCAL VOID drop_part(LONG tree, WORD sobj, GRECT *d, WORD mx, WORD my, WORD dup)
+static void drop_part(long tree, short sobj, GRECT *d, short mx, short my, short dup)
 {
-	WORD	dobj;
-	LONG	dtree;
+	short	dobj;
+	long	dtree;
 
 	if (pane_find(&dtree, &dobj, d->g_x, d->g_y))
 	{
@@ -234,7 +225,7 @@ LOCAL VOID drop_part(LONG tree, WORD sobj, GRECT *d, WORD mx, WORD my, WORD dup)
 			{
 				if (dtree == ad_tools)
 				{
-					dobj = objc_find((OBJECT FAR *)ad_tools, ROOT, NIL, d->g_x, d->g_y);
+					dobj = objc_find((OBJECT  *)ad_tools, ROOT, NIL, d->g_x, d->g_y);
 					if (dobj == CLIPBORD)
 						cut_part(sobj, dup);
 					else if (dobj == TRASHCAN)
@@ -258,7 +249,7 @@ LOCAL VOID drop_part(LONG tree, WORD sobj, GRECT *d, WORD mx, WORD my, WORD dup)
 	}
 }
 
-LOCAL VOID drag_part(LONG tree, WORD obj, GRECT *d, WORD mx, WORD my)
+static void drag_part(long tree, short obj, GRECT *d, short mx, short my)
 {
 	hot_off();	 
 	if (tree == ad_pbx)
@@ -287,7 +278,7 @@ LOCAL VOID drag_part(LONG tree, WORD obj, GRECT *d, WORD mx, WORD my)
 	wait_tools();
 }
 
-LOCAL WORD handle_hit(LONG tree, WORD obj, WORD x, WORD y)
+static short handle_hit(long tree, short obj, short x, short y)
 {
 	GRECT	d;
 
@@ -297,10 +288,10 @@ LOCAL WORD handle_hit(LONG tree, WORD obj, WORD x, WORD y)
 		return rc_inside(&d, x, y);
 	}
 	else
-		return (FALSE);
+		return (false);
 }
 
-LOCAL VOID hndl_down(WORD mx, WORD my, LONG tree, WORD obj, WORD dup)
+static void hndl_down(short mx, short my, long tree, short obj, short dup)
 {
 	GRECT	d;
 
@@ -310,7 +301,7 @@ LOCAL VOID hndl_down(WORD mx, WORD my, LONG tree, WORD obj, WORD dup)
 		{
 			size_obj(tree, obj);
 			set_filemenu();
-			rcs_edited = TRUE;
+			rcs_edited = true;
 			return;
 		}
 		if (rcs_state == MENU_STATE)	
@@ -328,7 +319,7 @@ LOCAL VOID hndl_down(WORD mx, WORD my, LONG tree, WORD obj, WORD dup)
 	drop_part(tree, obj, &d, mx, my, dup);
 }
 
-LOCAL WORD hndl_dblklik(LONG tree, WORD obj)
+static short hndl_dblklik(long tree, short obj)
 {
 	if (tree == ad_view) 
 	{
@@ -339,10 +330,10 @@ LOCAL WORD hndl_dblklik(LONG tree, WORD obj)
 		if (rcs_edited)
 			set_filemenu();
 	}
-	return(FALSE);
+	return(false);
 }
 
-VOID hndl_dsel(VOID)
+void hndl_dsel(void)
 {
 	if (rcs_nsel)
 	{
@@ -353,9 +344,9 @@ VOID hndl_dsel(VOID)
 	}
 }	     
 
-LOCAL VOID hndl_sel(LONG tree, WORD obj, WORD keystate)
+static void hndl_sel(long tree, short obj, short keystate)
 {
-	WORD	shift, alt, aobj;
+	short	shift, alt, aobj;
 
 	if (tree != ad_view)
 	{
@@ -382,32 +373,32 @@ LOCAL VOID hndl_sel(LONG tree, WORD obj, WORD keystate)
 	}
 }
 
-LOCAL VOID hndl_del(VOID)
+static void hndl_del(void)
 {
-	WORD	ii;
+	short	ii;
 	for ( ii = rcs_nsel; ii ;del_part(rcs_sel[--ii]))
 		;
 }
 	  
-LOCAL VOID hndl_cut(VOID)
+static void hndl_cut(void)
 {
 	if ( rcs_nsel )
-		cut_part(rcs_sel[0], FALSE);
+		cut_part(rcs_sel[0], false);
 }
 				
-LOCAL VOID hndl_copy(VOID)
+static void hndl_copy(void)
 {
 	if ( rcs_nsel ) 
 	{
-		cut_part(rcs_sel[0], TRUE);
+		cut_part(rcs_sel[0], true);
 		hndl_dsel();
 	}
 }
 
-LOCAL VOID hndl_paste(VOID)
+static void hndl_paste(void)
 {
 	GRECT	d;
-	WORD	mx, my, keystate, dup,button;
+	short	mx, my, keystate, dup,button;
 
 	if ( ad_clip )
 	{
@@ -419,28 +410,28 @@ LOCAL VOID hndl_paste(VOID)
 	}
 }
 
-LOCAL WORD hndl_sclck(WORD mx, WORD my, WORD keystate, LONG *tree, WORD *obj, WORD *shifted)
+static short hndl_sclck(short mx, short my, short keystate, long *tree, short *obj, short *shifted)
 {
-	WORD	ctrled;
+	short	ctrled;
 
 	*shifted = keystate & (K_LSHIFT | K_RSHIFT); 
 	ctrled = keystate & K_CTRL; 
 
 	if (!pane_find(tree, obj, mx, my))
-		return (FALSE);
+		return (false);
 	else if (*tree == ad_view)
 	{
 		if (*obj != ROOT && ctrled)
 			*obj = get_parent(*tree, *obj);
-		return (TRUE);
+		return (true);
 	}
 	else if (*obj == ROOT)
-		return (FALSE);
+		return (false);
 	else
-		return (TRUE);
+		return (true);
 }
 
-VOID send_redraw(WORD w_handle, GRECT *p)
+void send_redraw(short w_handle, GRECT *p)
 {
 	rcs_rmsg[0] = WM_REDRAW;
 	rcs_rmsg[1] = gl_apid;
@@ -453,7 +444,7 @@ VOID send_redraw(WORD w_handle, GRECT *p)
 	appl_write(gl_apid, 16, (void *)ad_rmsg);
 } 
 
-VOID obj_redraw(LONG tree, WORD obj)
+void obj_redraw(long tree, short obj)
 {
 	GRECT	p;
 
@@ -463,10 +454,10 @@ VOID obj_redraw(LONG tree, WORD obj)
 	send_redraw(rcs_view, &p);
 }
 
-LOCAL VOID hndl_pmenu(WORD which, WORD item)
+static void hndl_pmenu(short which, short item)
 {
-	WORD	i;
-	LONG    tree;	 
+	short	i;
+	long    tree;	 
 		     
 	tree = ad_view;
 	for (i = 0; i < rcs_nsel; i++)
@@ -510,13 +501,13 @@ LOCAL VOID hndl_pmenu(WORD which, WORD item)
 		set_switch();
 	}
 
-	rcs_edited = TRUE;
+	rcs_edited = true;
 	set_filemenu();
 }
 
-LOCAL VOID hndl_tlbx(LONG tree, WORD obj, WORD dup)
+static void hndl_tlbx(long tree, short obj, short dup)
 {
-	WORD	pmenu, i;
+	short	pmenu, i;
 
 	if ( (GET_FLAGS(tree, obj) & SELECTABLE))
 	{
@@ -528,17 +519,17 @@ LOCAL VOID hndl_tlbx(LONG tree, WORD obj, WORD dup)
 					;
 			else if (obj == CLIPBORD )
 				cut_part(rcs_sel[0], dup);
-			else if ( (pmenu = hndl_pop(obj, FALSE)) != NIL)
+			else if ( (pmenu = hndl_pop(obj, false)) != NIL)
 				hndl_pmenu(obj, pmenu);
 			wait_tools();
 		}
 	}
 }
 
-LOCAL WORD hndl_button(WORD mx, WORD my, WORD button, WORD keystate, WORD clicks)
+static short hndl_button(short mx, short my, short button, short keystate, short clicks)
 {
-	WORD	obj_sel, dup_sel;
-	LONG	tree_sel;
+	short	obj_sel, dup_sel;
+	long	tree_sel;
 
 	graf_mkstate(&mx, &my, &button, &keystate);
 	if ( !hndl_sclck( mx, my, keystate, &tree_sel, &obj_sel, &dup_sel) )
@@ -554,23 +545,23 @@ LOCAL WORD hndl_button(WORD mx, WORD my, WORD button, WORD keystate, WORD clicks
 	}
 	else
 		hndl_dblklik(tree_sel, obj_sel );
-	return (FALSE);
+	return (false);
 }
 
-LOCAL VOID hndl_open(VOID)
+static void hndl_open(void)
 {
 	if (tree_view())
     	open_obj(rcs_sel[0]);
    	else if (!rcs_nsel)	      
 	{
 		if(open_rsc())
-			rcs_edited = FALSE;
+			rcs_edited = false;
 	}
 	else	 
 		open_tree(trpan_f(rcs_sel[0]));
 }
 
-LOCAL VOID hndl_clos(VOID)
+static void hndl_clos(void)
 {
 	if (tree_view())
  	{
@@ -578,14 +569,14 @@ LOCAL VOID hndl_clos(VOID)
 	}
 	else if (rcs_state == FILE_STATE)
    		if(clos_rsc())	 
-			rcs_edited = FALSE;
+			rcs_edited = false;
 }
 
-LOCAL WORD hndl_filemenu(WORD item)
+static short hndl_filemenu(short item)
 {
-	WORD	done;
+	short	done;
 
-	done = FALSE;
+	done = false;
 
 	switch (item)
 	{
@@ -593,28 +584,28 @@ LOCAL WORD hndl_filemenu(WORD item)
 			if ( iconedit_flag)
 			{
 				if (new_img() )
-					icn_edited = FALSE;
+					icn_edited = false;
 			}
 			else
 				if(new_rsc())
-					rcs_edited = FALSE;
+					rcs_edited = false;
 			break;
 		case OPENITEM:	 
 			if ( iconedit_flag)
 			{
 	 			if(icnopen())
-					icn_edited = FALSE;	    
+					icn_edited = false;	    
 			}
 			else
 				hndl_open();
 			break; 
 		case MERGITEM:
 			merge_rsc();
-			rcs_edited = TRUE;
+			rcs_edited = true;
 			break;
 		case CLOSITEM:	 
 			if (iconedit_flag)
-				done = TRUE;
+				done = true;
 			else
 				hndl_clos();
 			break;
@@ -622,33 +613,33 @@ LOCAL WORD hndl_filemenu(WORD item)
 			if (iconedit_flag)		
 			{
 				if(save_icn())
-					icn_edited = FALSE;	       
+					icn_edited = false;	       
 			}
 			else		 
 			{
 				save_rsc();
-				rcs_edited = FALSE;
+				rcs_edited = false;
 			}
 			break;
 		case SVASITEM:	 
 			if( iconedit_flag)
 			{
 				if(svas_icn())
-					icn_edited = FALSE;
+					icn_edited = false;
 			}
 			else
 				if(svas_rsc())
-					rcs_edited = FALSE;
+					rcs_edited = false;
 			break;
 		case RVRTITEM:
 			if (iconedit_flag)	       
 			{
 				if(rvrt_icn())
-					icn_edited = FALSE;
+					icn_edited = false;
 			}
 			else
 				if(rvrt_rsc())
-					rcs_edited = FALSE;
+					rcs_edited = false;
 			break;
 		case QUITITEM:				      
 			done =	quit_rsc();
@@ -660,17 +651,17 @@ LOCAL WORD hndl_filemenu(WORD item)
 	return (done);													
 }
 
-LOCAL WORD hndl_editmenu(WORD item)
+static short hndl_editmenu(short item)
 {
-	WORD	done, obmsb, new_h, new_w;
-	LONG	tree;
+	short	done, obmsb, new_h, new_w;
+	long	tree;
 
-	done = FALSE;
+	done = false;
 
 	switch (item)
 	{
 		case DELITEM:
-			if(iconedit_flag) del_img(TRUE, 3);
+			if(iconedit_flag) del_img(true, 3);
 			else hndl_del();
 			break;
 		case CUTITEM:
@@ -678,12 +669,12 @@ LOCAL WORD hndl_editmenu(WORD item)
 			else hndl_cut();
 			break; 
 		case COPYITEM:
-			if(iconedit_flag) copy_img(TRUE);
+			if(iconedit_flag) copy_img(true);
 			else hndl_copy();
 			break;
 		case PASTITEM:
 			if(iconedit_flag){
-			    paste_img = TRUE;
+			    paste_img = true;
 			    rubrec_off();
 			    mflags |= MU_M2;
 			}
@@ -726,21 +717,21 @@ LOCAL WORD hndl_editmenu(WORD item)
 				tree = save_tree;			
 				obmsb = 1;	  
 				if (gl_isicon)
-					LWSET(OB_TYPE(save_obj),(obmsb<< 8)| G_ICON);
+					(*(short *)(OB_TYPE(save_obj)) = ((obmsb<< 8)| G_ICON));
 				else
-					LWSET(OB_TYPE(save_obj),(obmsb<<8)|G_IMAGE);
+					(*(short *)(OB_TYPE(save_obj)) = ((obmsb<<8)|G_IMAGE));
 				if (gl_isicon)
 				{
-					LWSET(IB_WICON(gl_icnspec), new_w);
-					LWSET(IB_HICON(gl_icnspec), new_h);
+					(*(short *)(IB_WICON(gl_icnspec)) = (new_w));
+					(*(short *)(IB_HICON(gl_icnspec)) = (new_h));
 				}
 				else
 				{     
-					LWSET(BI_WB(gl_icnspec), new_w >> 3);
-					LWSET(BI_HL(gl_icnspec), new_h);
+					(*(short *)(BI_WB(gl_icnspec)) = (new_w >> 3));
+					(*(short *)(BI_HL(gl_icnspec)) = (new_h));
 				}
-				icn_init(TRUE);
-				icn_edited = FALSE;
+				icn_init(true);
+				icn_edited = false;
 			}
 			else if (scale == CLEARSZ) /*same size, but clear it*/
 				clear_img();
@@ -751,11 +742,11 @@ LOCAL WORD hndl_editmenu(WORD item)
    	return( done );
 }
 
-LOCAL WORD hndl_omenu(WORD item)
+static short hndl_omenu(short item)
 {
-	WORD	done;
+	short	done;
 
-	done = FALSE;
+	done = false;
 	switch (item)
 	{
 		case RNAMITEM:
@@ -781,11 +772,11 @@ LOCAL WORD hndl_omenu(WORD item)
 	return (done);
 } 
 
-LOCAL WORD hndl_hmenu(WORD item)
+static short hndl_hmenu(short item)
 {
-	WORD	done;
+	short	done;
 
-	done = FALSE;
+	done = false;
 	switch (item)
 	{
 		case SRTITEM:
@@ -800,17 +791,17 @@ LOCAL WORD hndl_hmenu(WORD item)
 		default:
 			break;
 	}
-	rcs_edited = TRUE;
+	rcs_edited = true;
 	return (done);
 }
 
-LOCAL VOID hndl_hidsho(WORD *flag, WORD item, WORD hide, WORD show)
+static void hndl_hidsho(short *flag, short item, short hide, short show)
 {
-	WORD	str;
+	short	str;
 
 	*flag = !(*flag);
 	str = (*flag)? hide: show;
-	menu_text((OBJECT FAR *)ad_menu, item, (const char *)string_addr(str));
+	menu_text((OBJECT  *)ad_menu, item, (const char *)string_addr(str));
 	ini_panes();
 	if (file_view())
 		redo_trees();
@@ -824,11 +815,11 @@ LOCAL VOID hndl_hidsho(WORD *flag, WORD item, WORD hide, WORD show)
 	send_redraw(rcs_view, &full);
 } 
 
-LOCAL WORD hndl_globmenu(WORD item)
+static short hndl_globmenu(short item)
 {
-	WORD	done;
+	short	done;
 
-	done = FALSE;
+	done = false;
 	switch (item)
 	{
 		case OUTPITEM:
@@ -842,12 +833,12 @@ LOCAL WORD hndl_globmenu(WORD item)
 			break;
 		case PARTITEM:
 	        if( iconedit_flag)
-			     save_fat(FALSE);
+			     save_fat(false);
 			hndl_hidsho(&partp, PARTITEM, HIDEPART, SHOWPART);
 			break;
 		case TOOLITEM:		
 			if (iconedit_flag)
-			     save_fat(FALSE);	
+			     save_fat(false);	
 			hndl_hidsho(&toolp, TOOLITEM, HIDETOOL, SHOWTOOL);
 	 		break;
 		default:
@@ -856,12 +847,12 @@ LOCAL WORD hndl_globmenu(WORD item)
 	return (done);
 } 
 
-WORD hndl_menu(WORD title, WORD item)
+short hndl_menu(short title, short item)
 {
-	WORD	done;
+	short	done;
 
-	done = FALSE;
-	paste_img = FALSE;
+	done = false;
+	paste_img = false;
 	switch (title)
 	{
 		case DESKMENU:
@@ -884,13 +875,13 @@ WORD hndl_menu(WORD title, WORD item)
 			done = hndl_hmenu(item);
 			break;
 	}
-	menu_tnormal((OBJECT FAR *)ad_menu,title,TRUE);
+	menu_tnormal((OBJECT  *)ad_menu,title,true);
 	if ( iconedit_flag)
 		set_icnmenus();
 	return (done);
 }
 
-VOID hndl_arrowed(WORD w_handle, WORD kind)
+void hndl_arrowed(short w_handle, short kind)
 {
 	if (file_view())
 	{
@@ -950,23 +941,23 @@ VOID hndl_arrowed(WORD w_handle, WORD kind)
 	}
 }
 
-VOID hndl_hslid(WORD w_handle, WORD h_set)
+void hndl_hslid(short w_handle, short h_set)
 {
-	WORD	x;
+	short	x;
 
 	if (!file_view())
 	{
 		x = max(0, GET_WIDTH(ad_view, ROOT) - view.g_w); 
-		x = (WORD) umul_div(x, h_set, 1000);
+		x = (short) umul_div(x, h_set, 1000);
 		rcs_xpan = clamp_xs(ad_view, snap_xs(x));
 		dslct_obj(ad_view, rcs_sel[0]);
 		view_objs();
 	}
 }
 
-VOID hndl_vslid(WORD w_handle, WORD v_set)
+void hndl_vslid(short w_handle, short v_set)
 {
-	WORD	y;
+	short	y;
 
 	if (file_view())
 	{
@@ -978,18 +969,18 @@ VOID hndl_vslid(WORD w_handle, WORD v_set)
 	else
 	{
 		y = max(0, GET_HEIGHT(ad_view, ROOT) - view.g_h); 
-		y = (WORD) umul_div(y, v_set, 1000);
+		y = (short) umul_div(y, v_set, 1000);
 		rcs_ypan = clamp_ys(ad_view, snap_ys(y));
 		dslct_obj(ad_view, rcs_sel[0]);
 		view_objs();
 	}
 } 		
 
-LOCAL WORD hndl_msg(VOID)
+static short hndl_msg(void)
 {
-	WORD 	done;
+	short 	done;
 
-	done = FALSE;
+	done = false;
 	switch ( rcs_rmsg[0] )
 	{
 		case MN_SELECTED:
@@ -1022,11 +1013,11 @@ LOCAL WORD hndl_msg(VOID)
 	return(done);
 } 
 
-BOOLEAN hndl_keybd(WORD key)
+short hndl_keybd(short key)
 {
-	WORD		title, item, done ;
+	short		title, item, done ;
 
-    done = FALSE ;
+    done = false ;
     title = FILEMENU ;
     switch ( key )
 	{
@@ -1102,21 +1093,21 @@ BOOLEAN hndl_keybd(WORD key)
     return( done ) ;
 } /* hndl_keybd */
 
-LOCAL VOID rcs_main(VOID)
+static void rcs_main(void)
 {
-	WORD flags, done; 
-	WORD ev_which, rets[6];
+	short flags, done; 
+	short ev_which, rets[6];
 
 	/* initialize for event loop */
 	flags = MU_BUTTON | MU_MESAG | MU_M1 | MU_KEYBD;  
-	ad_rmsg = (LONG)ADDR(rcs_rmsg);
-	done = FALSE;
+	ad_rmsg = (long)((long)(rcs_rmsg));
+	done = false;
 	do	
 	{
 		ev_which = evnt_multi(flags, 0x02, 0xff, 0x01,
 			wait_io, wait.g_x, wait.g_y, wait.g_w, wait.g_h,
 			0, 0, 0, 0, 0,
-			(WORD *)ad_rmsg, 0, 0,
+			(short *)ad_rmsg, 0,
 			&rets[0], &rets[1], &rets[2],
 			&rets[3], &rets[4], &rets[5]);
 
@@ -1134,9 +1125,9 @@ LOCAL VOID rcs_main(VOID)
 	while (!done) ;
 }
 
-VOID GEMAIN(VOID)
+void GEMAIN(void)
 {
-	WORD	rcs_term;
+	short	rcs_term;
 
 	rcs_term = rcs_init();
 	if ( !rcs_term )

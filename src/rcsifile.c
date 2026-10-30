@@ -3,17 +3,9 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
-#include <portab.h>
-#include <machine.h>
-#if GEMDOS
-#if TURBO_C
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <obdefs.h>
-#include <gembind.h>
-#endif
+#include <gem.h>
+#include <string.h>
+#include <stdbool.h>
 #include "rcs.h"
 #include "rcslib.h"
 #include "rcsfiles.h"
@@ -24,9 +16,9 @@
 #include "rcsimain.h"
 #include "rcsifile.h"
 
-VOID clear_img(VOID)
+void clear_img(void)
 {
-	WORD old_color, old_pen;
+	short old_color, old_pen;
 	
 	old_color = colour;
 	old_pen = pen_on;
@@ -38,12 +30,12 @@ VOID clear_img(VOID)
 	pen_on = old_pen;
 }
 
-WORD save_icn(VOID)
+short save_icn(void)
 {    
-	LONG	daddr, maddr;
-	WORD	ret;
+	long	daddr, maddr;
+	short	ret;
 					    
-	save_fat(FALSE);
+	save_fat(false);
 	rast_op(3,&hold_area, &hold_mfdb, &hold_area, &save_mfdb);
 	if(gl_isicon)
 		rast_op(3, &hold_area, &hld2_mfdb, &hold_area, &sav2_mfdb);
@@ -52,47 +44,47 @@ WORD save_icn(VOID)
 	{
 		/* write data and mask */
 		maddr = GET_SPEC(ad_pbx, MASKWIND);
-		ret = writ_icon(LLGET(BI_PDATA(daddr)),
+		ret = writ_icon((*(long *)(BI_PDATA(daddr))),
 			gl_wimage, gl_himage, gl_datasize,
-			TRUE) ;
+			true) ;
 		if (ret )
-			return( writ_icon(LLGET(BI_PDATA(maddr)),
+			return( writ_icon((*(long *)(BI_PDATA(maddr))),
 			gl_wimage, gl_himage, gl_datasize,
-			FALSE) );
+			false) );
 		else 
 			return( ret );
 	}
 	else	 
 		/* write data only */
-		return(	writ_icon(LLGET(BI_PDATA(daddr)),
+		return(	writ_icon((*(long *)(BI_PDATA(daddr))),
 			gl_wimage, gl_himage, gl_datasize,
-			TRUE) );
+			true) );
 }
 
-WORD svas_icn(VOID)
+short svas_icn(void)
 {
 	get_icnfile(&icn_file[0], STSASICN);
 	if (!icn_file[0])
-		return(FALSE);
+		return(false);
 	else		  
 		if (save_icn())
 		{
 			icn_state = FILE_STATE;
-			return(TRUE);
+			return(true);
 		}
 		else
-			return(FALSE);	
+			return(false);	
 }   
 
-WORD new_img(VOID)
+short new_img(void)
 {
-	WORD	abtn;					  
+	short	abtn;					  
 	if ( icn_edited && !rcs_xpert )
 	{
 	 	if ( (abtn = abandon_button()) == 1 ) 
    		{
 			clear_img();				    
-			return( TRUE );
+			return( true );
 		}
 		else if (abtn == 2) /* Save Changes */			   
 		{
@@ -102,34 +94,34 @@ WORD new_img(VOID)
 				return(	save_icn());
 		}
 		else /* cancel */
-			return (FALSE);
+			return (false);
 	}
 	else			      
 	{
 		clear_img();
-		return( TRUE );
+		return( true );
 	}
 }
 
-VOID do_open(VOID)
+void do_open(void)
 {
-    WORD state;
+    short state;
 	load_part(save_obj); /*if successfully load, icn_state = file_state*/
 	state = icn_state;
-	icn_init(FALSE);
-	icn_edited = FALSE;
+	icn_init(false);
+	icn_edited = false;
 	icn_state = state;	/*icn_init will put icn_state = nofile_state*/
 }
 
-WORD icnopen(VOID)
+short icnopen(void)
 {
-	WORD	abtn;					  
+	short	abtn;					  
 
 	if ( icn_edited && !rcs_xpert )
 	 	if ( (abtn = abandon_button()) == 1 ) 
    		{
 			do_open();
-			return( TRUE );
+			return( true );
 		}
 		else if (abtn == 2) /* Save Changes */			   
 		{
@@ -137,55 +129,55 @@ WORD icnopen(VOID)
 				if( svas_icn())
 				{
 					do_open();
-					return(TRUE);
+					return(true);
 				}
 				else
-					return( FALSE );
+					return( false );
 			else
 				if(save_icn())
 				{
 					do_open();
-					return(TRUE);
+					return(true);
 				}
 				else
-					return( FALSE );
+					return( false );
 	
 		}
 		else /* cancel */
-			return (FALSE) ;
+			return (false) ;
 	else			      
 	{
 		do_open();
-		return( TRUE );
+		return( true );
 	}
 }
 
-WORD rvrt_icn(VOID)
+short rvrt_icn(void)
 {
-	WORD	abtn;					  
+	short	abtn;					  
 
 	if ( icn_edited && !rcs_xpert )
 	 	if ( (abtn = abandon_button()) == 1 ) 
    		{
 			undo_img();				    
-			return( TRUE );
+			return( true );
 		}
 		else if (abtn == 2) /* Save Changes */			   
 			if ( icn_state == NOFILE_STATE)
 				if( svas_icn())
-					return(TRUE);
+					return(true);
 				else
-					return(FALSE);
+					return(false);
 			else
 				if(save_icn())
-					return(TRUE);
+					return(true);
 				else
-					return(FALSE);
+					return(false);
 		else /* cancel */
-			return (FALSE) ;
+			return (false) ;
 	else			      
 	{
 		undo_img();
-		return( TRUE );
+		return( true );
 	}
 }

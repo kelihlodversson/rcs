@@ -4,50 +4,41 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
-#include <portab.h>
-#include <machine.h>
-#include <rclib.h>
-#if GEMDOS
-#if TURBO_C
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <obdefs.h>
-#include <gembind.h>
-#endif
+#include <gem.h>
+#include <string.h>
+#include <stdbool.h>
 #include "rcsdefs.h"
 #include "rcs.h"
 #include "rcsdata.h"
 #include "rcslib.h"
 #include "rcsalert.h"
 
-VOID pt_parse(LONG tree, WORD obj0, WORD nobj, LONG where, WORD *here)
+void pt_parse(long tree, short obj0, short nobj, long where, short *here)
 {
-	WORD	iobj;
-	BYTE	tmp;
+	short	iobj;
+	char	tmp;
 
-	tmp = NULL;
+	tmp = 0;
 	for (iobj = 0; tmp != ']' && iobj < nobj; iobj++)
 	{
 		SET_SPEC(tree, obj0 + iobj, where + *here);
-		tmp = LBGET(where + *here);
+		tmp = (*(char *)(where + *here));
 		while (tmp != ']' && tmp != '|')
 		{
 			*here += 1;
-			tmp = LBGET(where + *here);
+			tmp = (*(char *)(where + *here));
 		}
-		LBSET(where + *here, '\0');
+		(*(char *)(where + *here) = ('\0'));
 		*here += 1;
 	}
 }
 
-VOID parse_alert(LONG tree, LONG where)
+void parse_alert(long tree, long where)
 {
-	LONG	stree, obspec;
-	WORD	icon, curr_id;
+	long	stree, obspec;
+	short	icon, curr_id;
 
-	icon = LBGET(where + 1) - '0';
+	icon = (*(char *)(where + 1)) - '0';
 	if (icon < 1 || icon > 3)
 		obspec = -1L;
 	else
@@ -62,23 +53,23 @@ VOID parse_alert(LONG tree, LONG where)
 	pt_parse(tree, ALRTBTN0, 3, where, &curr_id);
 }
 
-WORD is_alert(LONG where)
+short is_alert(long where)
 {
-	return (LBGET(where) == '[' && LBGET(where + 2) == ']');
+	return ((*(char *)(where)) == '[' && (*(char *)(where + 2)) == ']');
 }
 
-VOID comp_alerts(LONG hdr)
+void comp_alerts(long hdr)
 {
-	LONG	frstr, trindex, where, tree, maddr;
-	WORD	nalert, nfrstr, istr, ndex;
-	BYTE	name[9];
+	long	frstr, trindex, where, tree, maddr;
+	short	nalert, nfrstr, istr, ndex;
+	char	name[9];
 
 	ini_tree(&maddr, NEWALRT);
-	frstr = hdr + LW( LWGET(RSH_FRSTR(hdr)) );
-	nfrstr = LWGET(RSH_NSTRING(hdr));
+	frstr = hdr + ((short)((*(short *)(RSH_FRSTR(hdr)))));
+	nfrstr = (*(short *)(RSH_NSTRING(hdr)));
 	for (nalert = istr = 0; istr < nfrstr; istr++)
 	{
-		where = LLGET(frstr + (UWORD) (istr * sizeof(LONG)));
+		where = (*(long *)(frstr + (unsigned short) (istr * sizeof(long))));
 		if (is_alert(where))
 			nalert++;
 	}
@@ -86,37 +77,37 @@ VOID comp_alerts(LONG hdr)
 	{
 		trindex = mak_trindex(nalert);
 
-		for (istr = 0; istr < LWGET(RSH_NSTRING(hdr)); istr++)
+		for (istr = 0; istr < (*(short *)(RSH_NSTRING(hdr))); istr++)
 		{
-			where = LLGET(frstr + (UWORD) (istr * sizeof(LONG)));
+			where = (*(long *)(frstr + (unsigned short) (istr * sizeof(long))));
 			if (is_alert(where))
 			{
-				tree = copy_tree(maddr, ROOT, TRUE);
+				tree = copy_tree(maddr, ROOT, true);
 				parse_alert(tree, where);
-				LLSET(frstr + (UWORD) (istr * sizeof(LONG)), -1L);
+				(*(long *)(frstr + (unsigned short) (istr * sizeof(long))) = (-1L));
 				fix_alert(tree);
-				LLSET(trindex, tree);
-				trindex += (UWORD) sizeof(LONG);
-				if ((ndex = find_value((BYTE *) where)) != NIL)
-					set_value(ndex, (BYTE *) tree);
+				(*(long *)(trindex) = (tree));
+				trindex += (unsigned short) sizeof(long);
+				if ((ndex = find_value((char *) where)) != NIL)
+					set_value(ndex, (char *) tree);
 				else
 				{
 					unique_name(&name[0], "ALERT%hd", istr);
-					ndex = new_index((BYTE *) tree, ALRT, name);
+					ndex = new_index((char *) tree, ALRT, name);
 				}
 			}
 		}
-		if (nalert == LWGET(RSH_NSTRING(hdr)))
-			LWSET(RSH_NSTRING(hdr), 0);
+		if (nalert == (*(short *)(RSH_NSTRING(hdr))))
+			(*(short *)(RSH_NSTRING(hdr)) = (0));
 	} 
 }
 
-VOID pt_unparse(LONG tree, WORD obj0, WORD nobj, LONG where, WORD *here)
+void pt_unparse(long tree, short obj0, short nobj, long where, short *here)
 {
-	LONG	obspec;
-	WORD	iobj, lstr;
+	long	obspec;
+	short	iobj, lstr;
 
-	LBSET(where + *here, '[');
+	(*(char *)(where + *here) = ('['));
 	*here += 1;
 	for (iobj = 0; iobj < nobj; iobj++)
 	{
@@ -124,14 +115,14 @@ VOID pt_unparse(LONG tree, WORD obj0, WORD nobj, LONG where, WORD *here)
 			break;
 		else
 		{
-			lstr = (WORD)LSTRLEN(obspec);
+			lstr = (short)strlen((char *)(obspec));
 			if ( !lstr )
 				break;
 			else
 			{
 				if (iobj)
 				{
-					LBSET(where + *here, '|');
+					(*(char *)(where + *here) = ('|'));
 					*here += 1;
 				}
 				LLSTRCPY(obspec, where + *here);
@@ -139,14 +130,14 @@ VOID pt_unparse(LONG tree, WORD obj0, WORD nobj, LONG where, WORD *here)
 			}
 		}
 	}
-	LBSET(where + *here, ']');
+	(*(char *)(where + *here) = (']'));
 	*here += 1;
 }
 
-VOID unparse_alert(LONG tree, LONG where)
+void unparse_alert(long tree, long where)
 {
-	LONG	stree, obspec;
-	WORD	picnum, here;
+	long	stree, obspec;
+	short	picnum, here;
 
 	obspec = GET_SPEC(tree, ALRTIMG);
 	if (obspec == -1L)
@@ -159,77 +150,77 @@ VOID unparse_alert(LONG tree, LONG where)
 				break;
 		picnum++;
 	}
-	LBSET(where, '[');
-	LBSET(where + 1, '0' + (BYTE) picnum);
-	LBSET(where + 2, ']');
+	(*(char *)(where) = ('['));
+	(*(char *)(where + 1) = ('0' + (char) picnum));
+	(*(char *)(where + 2) = (']'));
 	here = 3;
 	pt_unparse(tree, ALRTSTR0, 5, where, &here);
 	pt_unparse(tree, ALRTBTN0, 3, where, &here);
-	LBSET(where + here, '\0');
+	(*(char *)(where + here) = ('\0'));
 	get_mem(here + 1);
 }
 
-VOID dcomp_alerts(VOID)
+void dcomp_alerts(void)
 {
-	LONG	frstr, where, tree;
-	WORD	nalert, ntrind, nfrstr, itree, ntree, ndex;
+	long	frstr, where, tree;
+	short	nalert, ntrind, nfrstr, itree, ntree, ndex;
 
-	ntrind = LWGET(RSH_NTREE(head));
+	ntrind = (*(short *)(RSH_NTREE(head)));
 	for (nalert = itree = 0; itree < ntrind; itree++)
 	{
-		ndex = find_value((BYTE *) tree_addr(itree));
+		ndex = find_value((char *) tree_addr(itree));
 		if (ndex != NIL && get_kind(ndex) == ALRT)
 			nalert++;
 	}
 
 	if (nalert)
 	{
-		nfrstr = LWGET(RSH_NSTRING(head));
+		nfrstr = (*(short *)(RSH_NSTRING(head)));
 		frstr = mak_frstr(nalert);
 
 		for (ntree = itree = 0; itree < ntrind; itree++)
 		{
 			tree = tree_addr(itree);
-			ndex = find_value((BYTE *) tree);
+			ndex = find_value((char *) tree);
 			if (ndex == NIL || get_kind(ndex) != ALRT)
 			{
 				if (ntree != itree)
-					LLSET(tree_ptr(ntree), tree_addr(itree));
+					(*(long *)(tree_ptr(ntree)) = (tree_addr(itree)));
 				ntree++;
 			}
 			else
 			{
 				where = get_mem(0);
 				unparse_alert(tree, where);
-				LLSET(frstr, where);
-				frstr += (UWORD) sizeof(LONG);
-				set_value(ndex, (BYTE *) nfrstr++);
+				(*(long *)(frstr) = (where));
+				frstr += (unsigned short) sizeof(long);
+				set_value(ndex, (char *) nfrstr++);
 			}
 		}
-		LWSET(RSH_NTREE(head), ntree);
+		(*(short *)(RSH_NTREE(head)) = (ntree));
 	}
 }
 
-WORD pt_roomp(LONG tree, WORD obj0, WORD nobj)
+short pt_roomp(long tree, short obj0, short nobj)
 {
-	WORD	iobj;
-	LONG	taddr;
+	short	iobj;
+	long	taddr;
 
 	for (iobj = 0; iobj < nobj; iobj++)
 	{
 		taddr = GET_SPEC(tree, obj0 + iobj);
 		if (taddr == -1L)
 			return (obj0 + iobj);
-		else if (!LSTRLEN(taddr))
+		else if (!strlen((char *)(taddr)))
 			return (obj0 + iobj);
 	}
 	return (0);
 } 
 
-VOID pt_count(LONG tree, WORD obj0, WORD nobj, WORD *n, WORD *mxl)
+void pt_count(long tree, short obj0, short nobj, short *n, short *mxl)
 {
-	LONG	taddr;
-	WORD	iobj, slen;
+	long	taddr;
+	short	iobj, slen;
 
 	*n = *mxl = 0;
 	for (iobj = 0; iobj < nobj; iobj++)
@@ -237,7 +228,7 @@ VOID pt_count(LONG tree, WORD obj0, WORD nobj, WORD *n, WORD *mxl)
 		taddr = GET_SPEC(tree, obj0 + iobj);
 		if (taddr != -1L)
 		{
-			slen = (WORD)LSTRLEN(taddr);
+			slen = (short)strlen((char *)(taddr));
 			if (slen)
 			{
 				if (*n != iobj)
@@ -253,7 +244,7 @@ VOID pt_count(LONG tree, WORD obj0, WORD nobj, WORD *n, WORD *mxl)
 	}
 }
 
-VOID al_count(LONG tree, WORD *pic, WORD *nmsg, WORD *mxlmsg, WORD *nbut, WORD *mxlbut)
+void al_count(long tree, short *pic, short *nmsg, short *mxlmsg, short *nbut, short *mxlbut)
 {
 	*pic = (GET_SPEC(tree, ALRTIMG) != -1L);
 	hide_obj(tree, ALRTIMG);
@@ -261,9 +252,9 @@ VOID al_count(LONG tree, WORD *pic, WORD *nmsg, WORD *mxlmsg, WORD *nbut, WORD *
 	pt_count(tree, ALRTBTN0, 3, nbut, mxlbut);
 } 
 
-VOID al_space(LONG tree, WORD haveicon, WORD nummsg, WORD mlenmsg, WORD numbut, WORD mlenbut)
+void al_space(long tree, short haveicon, short nummsg, short mlenmsg, short numbut, short mlenbut)
 {
-	WORD		i;
+	short		i;
 	GRECT		al, ic, bt, ms;
 
 	rc_set(&al, 0, 0, 1+INTER_WSPACE, 1+INTER_HSPACE);
@@ -309,9 +300,9 @@ VOID al_space(LONG tree, WORD haveicon, WORD nummsg, WORD mlenmsg, WORD numbut, 
 	SET_FLAGS(tree, ALRTBTN0 + numbut - 1, SELECTABLE | EXIT | LASTOB);
 }
 
-VOID fix_alert(LONG tree)
+void fix_alert(long tree)
 {
-	WORD	pic, pnummsg, plenmsg, pnumbut, plenbut;
+	short	pic, pnummsg, plenmsg, pnumbut, plenbut;
 
 	al_count(tree, &pic, &pnummsg, &plenmsg, &pnumbut, &plenbut);
 	al_space(tree, pic, pnummsg, plenmsg, pnumbut, plenbut);

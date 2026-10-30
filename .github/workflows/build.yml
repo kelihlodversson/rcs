@@ -24,11 +24,11 @@ jobs:
         run: make m68k
       - name: Check that it is a GEMDOS program
         run: |
-          test "$(od -A n -t x1 -N 2 build/m68k/SMOKE.PRG | tr -d ' ')" = 601a
+          test "$(od -A n -t x1 -N 2 build/m68k/RCS.PRG | tr -d ' ')" = 601a
       - uses: actions/upload-artifact@v4
         with:
           name: rcs-m68k
-          path: build/m68k/SMOKE.PRG
+          path: build/m68k/RCS.PRG
 
   arm:
     name: Build for ARM
@@ -47,4 +47,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: rcs-arm
-          path: build/arm/SMOKE.PRG
+          path: build/arm/RCS.PRG

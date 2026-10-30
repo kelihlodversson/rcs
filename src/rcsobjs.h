@@ -8,31 +8,31 @@
 
 #define RCSOBJS_J
 
-EXTERN	WORD	snap_xs(WORD x);
-EXTERN	WORD	snap_ys(WORD y);
-EXTERN	WORD	clamp_xs(LONG tree, WORD x);
-EXTERN	WORD	clamp_ys(LONG tree, WORD y);
-EXTERN	VOID	do_hsinc(WORD inc);
-EXTERN	VOID	do_vsinc(WORD inc);
-EXTERN	VOID	set_rootxy(LONG tree);
-EXTERN  WORD	newsize_obj(LONG tree, WORD obj, WORD neww, WORD newh, WORD ok);
-EXTERN  VOID	slid_objs(VOID);
-EXTERN	VOID	view_objs(VOID);
-EXTERN	VOID	type_obj(WORD obj);
-EXTERN	VOID	del_ob(WORD sobj);
-EXTERN  WORD	posn_obj(LONG tree, WORD obj, WORD *px, WORD *py, WORD w, WORD h, WORD exact_ok);
-EXTERN	VOID	cut_obj(WORD sobj, WORD dup);
-EXTERN	VOID	paste_obj(WORD dobj, WORD dx, WORD dy, WORD dup);
-EXTERN	WORD	new_obj(LONG stree, WORD sobj, WORD dobj, WORD dx, WORD dy);
-EXTERN	VOID	mov_obj(WORD sobj, WORD dobj, WORD dx, WORD dy);
-EXTERN  VOID	size_obj(LONG tree, WORD obj);
-EXTERN	VOID	slct_obj(LONG tree, WORD obj);
-EXTERN	VOID	mslct_obj(LONG tree, WORD obj);
-EXTERN	VOID	dslct_1obj(LONG tree, WORD obj);
-EXTERN	VOID	map_dslct(LONG tree, WORD obj);
-EXTERN	VOID	dslct_obj(LONG tree, WORD obj);
-EXTERN	VOID	unhid_part(WORD obj);
-EXTERN	VOID	sort_part(WORD obj);
-EXTERN	VOID	flatten_part(WORD obj);
+extern	short	snap_xs(short x);
+extern	short	snap_ys(short y);
+extern	short	clamp_xs(long tree, short x);
+extern	short	clamp_ys(long tree, short y);
+extern	void	do_hsinc(short inc);
+extern	void	do_vsinc(short inc);
+extern	void	set_rootxy(long tree);
+extern  short	newsize_obj(long tree, short obj, short neww, short newh, short ok);
+extern  void	slid_objs(void);
+extern	void	view_objs(void);
+extern	void	type_obj(short obj);
+extern	void	del_ob(short sobj);
+extern  short	posn_obj(long tree, short obj, short *px, short *py, short w, short h, short exact_ok);
+extern	void	cut_obj(short sobj, short dup);
+extern	void	paste_obj(short dobj, short dx, short dy, short dup);
+extern	short	new_obj(long stree, short sobj, short dobj, short dx, short dy);
+extern	void	mov_obj(short sobj, short dobj, short dx, short dy);
+extern  void	size_obj(long tree, short obj);
+extern	void	slct_obj(long tree, short obj);
+extern	void	mslct_obj(long tree, short obj);
+extern	void	dslct_1obj(long tree, short obj);
+extern	void	map_dslct(long tree, short obj);
+extern	void	dslct_obj(long tree, short obj);
+extern	void	unhid_part(short obj);
+extern	void	sort_part(short obj);
+extern	void	flatten_part(short obj);
 
 #endif

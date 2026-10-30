@@ -45,21 +45,37 @@ The original build of the Atari version is `src/atari/rcs.prj`, for Pure C
 ## Building
 
     git submodule update --init
-    make m68k      # build/m68k/SMOKE.PRG
-    make arm       # build/arm/SMOKE.PRG
+    make m68k      # build/m68k/RCS.PRG
+    make arm       # build/arm/RCS.PRG
     make libs      # gemlib and libcmini for both targets only
 
 On macOS use `gmake`. `docs/toolchains.md` says which toolchains are needed.
 The libraries are the `kelihlodversson` forks of gemlib and libcmini, in
-`third_party/`.
+`third_party/`. The build is the one of
+[TypeShelf](https://github.com/kelihlodversson/TypeShelf), and CI
+(`.github/workflows/build.yml`) builds both targets on every pull request.
 
-The build is the one of [TypeShelf](https://github.com/kelihlodversson/TypeShelf).
-What it builds so far is `SMOKE.PRG`, a few lines that link against gemlib and
-libcmini to show that each toolchain works, not RCS: the sources in `src/` still
-use the headers of the original GEM release (`portab.h`, `obdefs.h`,
-`gembind.h`, `rclib.h`), which neither library has, and have to be ported to
-gemlib first. They move into the Makefile's `PRG_SRC` as they are ported.
-CI (`.github/workflows/build.yml`) builds both targets on every pull request.
+## State of the port
+
+The sources include `<gem.h>` of gemlib and the C headers of libcmini; the
+headers of the original GEM release (`portab.h`, `machine.h`, `obdefs.h`,
+`gembind.h`, `rclib.h`, ...) are no longer used. What they defined is
+replaced in the sources: the DRI types (`WORD`, `LONG`, `VOID`, `LOCAL`, ...)
+by standard C, the `LWGET`/`LLSET`/`ADDR` family of memory macros by plain
+expressions, and `TRUE`/`FALSE` by `<stdbool.h>`. The old object names
+(`NORMAL`, `SELECTED`, ...) come from gemlib with `-D__GEMLIB_OLDNAMES`.
+
+Both targets compile and link `RCS.PRG`, but it has never been run, and the
+port is not finished:
+
+- the code still treats addresses as `long` and reads resource trees through
+  fixed byte offsets, which is only right for the 32-bit big-endian layout of
+  an RSC file in memory: it needs a look for ARM;
+- the flags that only ViewMAX (the DOS build) knew (`ESCCANCEL`, `BITBUTTON`,
+  `SCROLLER`, `USECOLOURCAT`, `HIGHLIGHTED`, `UNHIGHLIGHTED`) are left out of
+  the object flags editor, as they mean something else under TOS;
+- the build has about a hundred compiler warnings (hence no `-Wextra`
+  or `-Werror` yet).
 
 ## Origin and license
 

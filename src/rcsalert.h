@@ -8,17 +8,17 @@
 
 #define RCSALERT_H
 
-EXTERN	VOID	pt_parse(LONG tree, WORD obj0, WORD nobj, LONG where, WORD *here);
-EXTERN	VOID	parse_alert(LONG tree, LONG where);
-EXTERN	WORD	is_alert(LONG where);
-EXTERN	VOID	comp_alerts(LONG hdr);
-EXTERN	VOID	pt_unparse(LONG tree, WORD obj0, WORD nobj, LONG where, WORD *here);
-EXTERN	VOID	unparse_alert(LONG tree, LONG where);
-EXTERN	VOID	dcomp_alerts(VOID);
-EXTERN	WORD	pt_roomp(LONG tree, WORD obj0, WORD nobj);
-EXTERN	VOID	pt_count(LONG tree, WORD obj0, WORD nobj, WORD *n, WORD *mxl);
-EXTERN	VOID	al_count(LONG tree, WORD *pic, WORD *nmsg, WORD *mxlmsg, WORD *nbut, WORD *mxlbut);
-EXTERN	VOID	al_space(LONG tree, WORD haveicon, WORD nummsg, WORD mlenmsg, WORD numbut, WORD mlenbut);
-EXTERN	VOID	fix_alert(LONG tree);
+extern	void	pt_parse(long tree, short obj0, short nobj, long where, short *here);
+extern	void	parse_alert(long tree, long where);
+extern	short	is_alert(long where);
+extern	void	comp_alerts(long hdr);
+extern	void	pt_unparse(long tree, short obj0, short nobj, long where, short *here);
+extern	void	unparse_alert(long tree, long where);
+extern	void	dcomp_alerts(void);
+extern	short	pt_roomp(long tree, short obj0, short nobj);
+extern	void	pt_count(long tree, short obj0, short nobj, short *n, short *mxl);
+extern	void	al_count(long tree, short *pic, short *nmsg, short *mxlmsg, short *nbut, short *mxlbut);
+extern	void	al_space(long tree, short haveicon, short nummsg, short mlenmsg, short numbut, short mlenbut);
+extern	void	fix_alert(long tree);
 
 #endif

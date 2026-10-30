@@ -4,19 +4,10 @@
  * This software is licensed under the GNU Public License.   *
  * Please see LICENSE.TXT for further information.           *
  *************************************************************/
-#include <portab.h>
-#include <machine.h>
-#if GEMDOS
-#if TURBO_C
-#include <tos.h>
-#include <aes.h>
-#include <vdi.h>
-#endif
-#else
-#include <dosbind.h>
-#include <obdefs.h>
-#include <gembind.h>
-#endif
+#include <gem.h>
+#include <string.h>
+#include <errno.h>
+#include <stdbool.h>
 #include "rcsdefs.h"
 #include "rcs.h"
 #include "rcsdata.h"
@@ -49,11 +40,10 @@
 #define APP_LO1RESV (rs_global + 16)
 #define APP_LO2RESV (rs_global + 20)
 
-#if MC68K
-LOCAL WORD read_68k(BOOLEAN merge)
+static short read_68k(short merge)
 /* simulate IBM PC data storage in "*.def" files. */
 {
-	UWORD	idx, old_ndxno, rd_ndxno, rd_val, rd_kind;
+	unsigned short	idx, old_ndxno, rd_ndxno, rd_val, rd_kind;
 
 	if ( merge )
 		old_ndxno = rcs_ndxno;
@@ -74,7 +64,7 @@ LOCAL WORD read_68k(BOOLEAN merge)
 				return( rcs_ndxno = 0 );
 			else
 			{
-				rcs_index[idx].val = (BYTE *) ( LW(swap_bytes(rd_val)) & 0xffffL );
+				rcs_index[idx].val = (char *) ( ((short)(swap_bytes(rd_val))) & 0xffffL );
 				if (fread( &rd_kind, 1, 2, rcs_dhndl ) != 2)
 					return( rcs_ndxno = 0 );
 				else
@@ -88,119 +78,83 @@ LOCAL WORD read_68k(BOOLEAN merge)
 		return( rcs_ndxno );
 	}
 }
-#else
-/* Does not rely on internal representation of INDEX struct */
-LOCAL WORD read_i8086( BOOLEAN merge )
+
+short open_files(short def)
 {
-	UWORD	idx, old_ndxno, rd_ndxno, rd_val, rd_kind;
-
-	if ( merge )
-		old_ndxno = rcs_ndxno;
-	else
-	     old_ndxno = 0;
-
-	if (fseek( rcs_fdhndl, 0x0L, SEEK_SET))
-		return( rcs_ndxno = 0 );
-	else if (fread(&rd_ndxno, 1, 2, rcs_fdhndl) < 2)
-		return( rcs_ndxno = 0 );
-	else if (ferror(rcs_fdhndl))
-		return ( rcs_ndxno = 0 );
-	else
-	{
-		rcs_ndxno = rd_ndxno;
-		rcs_ndxno = old_ndxno + rcs_ndxno;
-		for ( idx = old_ndxno; idx < rcs_ndxno; idx++)
-	    {
-	    	if (fread( &rd_val, 1, 2, rcs_fdhndl) < 2 )
-	    		return( rcs_ndxno = 0 );
-			rcs_index[idx].val = (BYTE *) ( LW(rd_val) & 0xffffL );
-			if (fread( &rd_kind, 1, 2, rcs_fdhndl) < 2 )
-				return( rcs_ndxno = 0 );
-			rcs_index[idx].kind = rd_kind;
-			if (fread( rcs_index[idx].name, 1, 10, rcs_fdhndl) < 10)
-				return( rcs_ndxno = 0 );
-	    }
-		return( rcs_ndxno );
-	}
-}
-#endif
-
-WORD open_files(WORD def)
-{
-	WORD	ii;
+	short	ii;
 
 	if (!def)
 		if (!get_file(STLDRES))
-			return (FALSE);
-	FOREVER
+			return (false);
+	for (;;)
 	{
 		rcs_rhndl = fopen(rcs_rfile, "rb");
 		if (rcs_rhndl != NULL)
 			break;
 		if (!form_error(errno))
-			return(FALSE);
+			return(false);
 	}
-	FOREVER
+	for (;;)
 	{
 		rcs_dhndl = fopen(rcs_dfile, "rb");
 		if (rcs_dhndl != NULL)
-			return (TRUE);
+			return (true);
 		else
 		{
 			ii = hndl_alert(2, string_addr(STNODEF));
 			if (ii == 1)
 			{
 				fclose( rcs_rhndl );
-				return (FALSE);
+				return (false);
 			}
 			if (ii == 2)
 			{
 				rcs_dhndl = NULL;
-				return (TRUE);
+				return (true);
 			}
 		}
 	}
 }
 
-LOCAL LONG get_sub(UWORD rsindex, WORD rtype, WORD rsize)
+static long get_sub(unsigned short rsindex, short rtype, short rsize)
 {
-	UWORD		offset;
+	unsigned short		offset;
 
-	offset = LWGET( rs_hdr + LW(rtype*2) );
+	offset = (*(short *)(rs_hdr + ((short)(rtype*2))));
 	/* get base of objects	*/
 	/*   and then index in	*/
-	return( rs_hdr + LW(offset) + LW(rsize * rsindex) );
+	return( rs_hdr + ((short)(offset)) + ((short)(rsize * rsindex)) );
 }
 
 /* return address of given type and index, INTERNAL ROUTINE */
-LOCAL LONG get_addr(WORD rstype, WORD rsindex)
+static long get_addr(short rstype, short rsindex)
 {
-	LONG		psubstruct;
-	WORD		size;
-	WORD		rt;
-	WORD		valid;
+	long		psubstruct;
+	short		size;
+	short		rt;
+	short		valid;
 
-	valid = TRUE;
+	valid = true;
 	switch(rstype)
 	{
 		case R_OBJECT:
 			rt = RT_OB;
-			size = (WORD)sizeof(OBJECT);
+			size = (short)sizeof(OBJECT);
 			break;
 		case R_TEDINFO:
 		case R_TEPTEXT:
 			rt = RT_TEDINFO;
-			size = (WORD)sizeof(TEDINFO);
+			size = (short)sizeof(TEDINFO);
 			break;
 		case R_ICONBLK:
 		case R_IBPMASK:
 			rt = RT_ICONBLK;
-			size = (WORD)sizeof(ICONBLK);
+			size = (short)sizeof(ICONBLK);
 			break;
 		case R_BITBLK:
 		case R_BIPDATA:
 			rt = RT_BITBLK;
-			size = (WORD)sizeof(BITBLK);
+			size = (short)sizeof(BITBLK);
 			break;
 		case R_OBSPEC:
 			psubstruct = get_addr(R_OBJECT, rsindex);
@@ -220,19 +174,19 @@ LOCAL LONG get_addr(WORD rstype, WORD rsindex)
 			else
 				return( RIB_PTEXT );
 		case R_STRING:
-			return( LLGET( get_sub(rsindex, RT_FREESTR, (WORD)sizeof(LONG)) ) );
+			return( (*(long *)(get_sub(rsindex, RT_FREESTR, (short)sizeof(long)))) );
 		case R_IMAGEDATA:
-			return( LLGET( get_sub(rsindex, RT_FREEIMG, (WORD)sizeof(LONG)) ) );
+			return( (*(long *)(get_sub(rsindex, RT_FREEIMG, (short)sizeof(long)))) );
 		case R_FRSTR:
 			rt = RT_FREESTR;
-			size = (WORD)sizeof(LONG);
+			size = (short)sizeof(long);
 			break;
 		case R_FRIMG:
 			rt = RT_FREEIMG;
-			size = (WORD)sizeof(LONG);
+			size = (short)sizeof(long);
 			break;
 		default:
-			valid = FALSE;
+			valid = false;
 			break;
 	}
 	if (valid)
@@ -241,47 +195,47 @@ LOCAL LONG get_addr(WORD rstype, WORD rsindex)
 		return(-1L);
 } /* get_addr() */
 
-LOCAL WORD fix_long(LONG plong)
+static short fix_long(long plong)
 {
-	LONG		lngval;
+	long		lngval;
 
-	lngval = LLGET(plong);
+	lngval = (*(long *)(plong));
 	if (lngval != -1L)
 	{
-		LLSET(plong, rs_hdr + lngval);
-		return(TRUE);
+		(*(long *)(plong) = (rs_hdr + lngval));
+		return(true);
 	}
 	else
-		return(FALSE);
+		return(false);
 }
 
-LOCAL VOID fix_trindex(VOID)
+static void fix_trindex(void)
 {
-	WORD		ii;
-	LONG		ptreebase;
+	short		ii;
+	long		ptreebase;
 
-	ptreebase = get_sub(0, RT_TRINDEX, (WORD)sizeof(LONG));
+	ptreebase = get_sub(0, RT_TRINDEX, (short)sizeof(long));
 
 	for (ii = NUM_TREE-1; ii >= 0; ii--)
-		fix_long(ptreebase + LW(ii*4));
+		fix_long(ptreebase + ((short)(ii*4)));
 }
 
-LOCAL WORD fix_ptr(WORD type, WORD index)
+static short fix_ptr(short type, short index)
 {
 	return( fix_long( get_addr(type, index) ) );
 }
 
-LOCAL VOID fix_objects(VOID)
+static void fix_objects(void)
 {
-	WORD		ii;
-	WORD		obtype, obflags;
-	LONG		psubstruct;
+	short		ii;
+	short		obtype, obflags;
+	long		psubstruct;
 
 	for (ii = NUM_OBS-1; ii >= 0; ii--)
 	{
 		psubstruct = get_addr(R_OBJECT, ii);
 		rs_obfix(psubstruct, 0);
-		obtype = LLOBT( LWGET( ROB_TYPE ) );
+		obtype = (((*(short *)(ROB_TYPE))) & 0xff);
 		switch (obtype)
 		{
 			case G_TEXT:
@@ -298,15 +252,15 @@ LOCAL VOID fix_objects(VOID)
 			default:
 				break;
 		}
-		obflags = LWGET(ROB_FLAGS);	/* zap LASTOB's */
-		LWSET(ROB_FLAGS, obflags & ~LASTOB);
+		obflags = (*(short *)(ROB_FLAGS));	/* zap LASTOB's */
+		(*(short *)(ROB_FLAGS) = (obflags & ~LASTOB));
 	}
 }
 
-LOCAL VOID fix_tedinfo(VOID)
+static void fix_tedinfo(void)
 {
-	WORD		ii, i;
-	LONG		psubstruct, tl[2], ls[2];
+	short		ii, i;
+	long		psubstruct, tl[2], ls[2];
 
 	for (ii = NUM_TI-1; ii >= 0; ii--)
 	{
@@ -325,15 +279,15 @@ LOCAL VOID fix_tedinfo(VOID)
 		for(i=0; i<2; i++)
 		{
 			if (tl[i])
-				LWSET( tl[i], LSTRLEN( LLGET(ls[i]) ) + 1 );
+				(*(short *)(tl[i]) = (strlen((char *)((*(long *)(ls[i])))) + 1));
 		}
 		fix_ptr(R_TEPVALID, ii);
 	}
 }
 
-LOCAL VOID fix_iconblk(VOID)
+static void fix_iconblk(void)
 {
-	WORD		ii;
+	short		ii;
 
 	for (ii = NUM_IB-1; ii >= 0; ii--)
 	{
@@ -343,31 +297,31 @@ LOCAL VOID fix_iconblk(VOID)
 	}
 }
 
-LOCAL VOID fix_bitblk(VOID)
+static void fix_bitblk(void)
 {
-	WORD	ii;
+	short	ii;
 
 	for (ii = NUM_BB-1; ii >= 0; ii--)
 		fix_ptr(R_BIPDATA, ii);
 }
 
-LOCAL VOID fix_frstr(VOID)
+static void fix_frstr(void)
 {
-	WORD	ii;
+	short	ii;
 
 	for (ii = NUM_FRSTR-1; ii >= 0; ii--)
 		fix_ptr(R_FRSTR, ii);
 }
 
-LOCAL VOID fix_frimg(VOID)
+static void fix_frimg(void)
 {
-	WORD	ii;
+	short	ii;
 
 	for (ii = NUM_FRIMG-1; ii >= 0; ii--)
 		fix_ptr(R_FRIMG, ii);
 }
 
-LOCAL VOID fix_all(VOID)
+static void fix_all(void)
 {
 	fix_trindex();
 	fix_objects();
@@ -378,36 +332,36 @@ LOCAL VOID fix_all(VOID)
 	fix_frimg();
 }   
 
-LOCAL VOID comp_str(LONG hdr)
+static void comp_str(long hdr)
 {
-	LONG	frstr, where, tree, maddr;
-	WORD	istr, nstr, lstr, w, h, obj, ndex;
-	BYTE	name[9];
+	long	frstr, where, tree, maddr;
+	short	istr, nstr, lstr, w, h, obj, ndex;
+	char	name[9];
 
-	nstr = LWGET(RSH_NSTRING(hdr));
+	nstr = (*(short *)(RSH_NSTRING(hdr)));
 	if ( nstr )
 	{
-		frstr = hdr + LW( LWGET(RSH_FRSTR(hdr)) );
+		frstr = hdr + ((short)((*(short *)(RSH_FRSTR(hdr)))));
 
 		ini_tree(&maddr, NEWPANEL);
-		tree = copy_tree(maddr, ROOT, TRUE);
+		tree = copy_tree(maddr, ROOT, true);
 		add_trindex(tree);
 		ini_tree(&maddr, FREEPBX);
 
 		for (istr = 0; istr < nstr; istr++)
 		{
-			where = LLGET(frstr + (LONG) (istr * sizeof(LONG)));
+			where = (*(long *)(frstr + (long) (istr * sizeof(long))));
 			if (where != -1L)
 			{
-				lstr = (WORD)LSTRLEN(where);
-				obj = copy_objs(maddr, PBXSTR, tree, FALSE);
-				objc_add((OBJECT FAR *)tree, ROOT, obj);
+				lstr = (short)strlen((char *)(where));
+				obj = copy_objs(maddr, PBXSTR, tree, false);
+				objc_add((OBJECT  *)tree, ROOT, obj);
 				SET_SPEC(tree, obj, where);
 				SET_WIDTH(tree, obj, gl_wchar * lstr);
-				if ((ndex = find_value((BYTE *) where)) != NIL)
+				if ((ndex = find_value((char *) where)) != NIL)
 				{
-					set_value(ndex, (BYTE *) (tree + 
-						(LONG) (obj * sizeof(OBJECT))));
+					set_value(ndex, (char *) (tree + 
+						(long) (obj * sizeof(OBJECT))));
 					set_kind(ndex, OBJKIND);
 				}
 			}
@@ -417,39 +371,39 @@ LOCAL VOID comp_str(LONG hdr)
 		SET_HEIGHT(tree, ROOT, h);	/* each on a different line */
 		SET_WIDTH(tree, ROOT, max(w, 20 * gl_wchar));
 		unique_name(&name[0], "FRSTR%hd", 1);	/* make up a name */
-		new_index((BYTE *)tree, FREE, name);
-		LWSET(RSH_NSTRING(hdr), 0);
+		new_index((char *)tree, FREE, name);
+		(*(short *)(RSH_NSTRING(hdr)) = (0));
 	}
 }
 
-LOCAL VOID comp_img(LONG hdr)
+static void comp_img(long hdr)
 {
-	LONG	frimg, where, tree, maddr;
-	WORD	iimg, nimg, w, h, obj, ndex;
-	BYTE	name[9];
+	long	frimg, where, tree, maddr;
+	short	iimg, nimg, w, h, obj, ndex;
+	char	name[9];
 
-	nimg = LWGET(RSH_NIMAGES(hdr));
+	nimg = (*(short *)(RSH_NIMAGES(hdr)));
 	if ( nimg )
 	{
-		frimg = hdr + LW( LWGET(RSH_FRIMG(hdr)) );
+		frimg = hdr + ((short)((*(short *)(RSH_FRIMG(hdr)))));
 
 		ini_tree(&maddr, NEWPANEL);
-		tree = copy_tree(maddr, ROOT, TRUE);
+		tree = copy_tree(maddr, ROOT, true);
 		add_trindex(tree);
 		ini_tree(&maddr, FREEPBX);
 
 		for (iimg = 0; iimg < nimg; iimg++)
 		{
-			where = LLGET(frimg + (UWORD) (iimg * sizeof(LONG)));
-			obj = copy_objs(maddr, PBXIMG, tree, FALSE);
-			objc_add((OBJECT FAR *)tree, ROOT, obj);
+			where = (*(long *)(frimg + (unsigned short) (iimg * sizeof(long))));
+			obj = copy_objs(maddr, PBXIMG, tree, false);
+			objc_add((OBJECT  *)tree, ROOT, obj);
 			SET_SPEC(tree, obj, where);
-			SET_HEIGHT(tree, obj, LWGET(BI_HL(where)));
-			SET_WIDTH(tree, obj, LWGET(BI_WB(where)) << 3);
-			if ((ndex = find_value((BYTE *) where)) != NIL)
+			SET_HEIGHT(tree, obj, (*(short *)(BI_HL(where))));
+			SET_WIDTH(tree, obj, (*(short *)(BI_WB(where))) << 3);
+			if ((ndex = find_value((char *) where)) != NIL)
 			{
-				set_value(ndex, (BYTE *) (tree + 
-					(UWORD) (obj * sizeof(OBJECT))));
+				set_value(ndex, (char *) (tree + 
+					(unsigned short) (obj * sizeof(OBJECT))));
 				set_kind(ndex, OBJKIND);
 			}
 		}
@@ -459,51 +413,49 @@ LOCAL VOID comp_img(LONG hdr)
 		SET_WIDTH(tree, ROOT, w);
 		map_tree(tree, ROOT, NIL, (fkt_parm)trans_obj);
 		unique_name(&name[0], "FRIMG%hd", 1);	/* make up a name */
-		new_index((BYTE *)tree, FREE, name);
-		LWSET(RSH_NIMAGES(hdr), 0);
+		new_index((char *)tree, FREE, name);
+		(*(short *)(RSH_NIMAGES(hdr)) = (0));
 	}
 }
 
-WORD read_files(VOID)
+short read_files(void)
 {
-	WORD	ii;
-	WORD	ntree, nobj;
-	BYTE	name[9];
+	short	ii;
+	short	ntree, nobj;
+	char	name[9];
 
 	if ( ad_clip ) 
 		clr_clip();
 	ini_buff();
-	if ( !dmcopy(rcs_rhndl, 0x0L, head, (WORD)sizeof(RSHDR)))
+	if ( !dmcopy(rcs_rhndl, 0x0L, head, (short)sizeof(RSHDR)))
 	{
 		fclose(rcs_rhndl);
 		ini_buff();
-		return (FALSE);
+		return (false);
 	}
-	else if (avail_mem() < LW( LWGET(RSH_RSSIZE(head)) )) 
+	else if (avail_mem() < ((short)((*(short *)(RSH_RSSIZE(head)))))) 
 	{
 		hndl_alert(1, string_addr(STNROOM) );
 		ini_buff();
-		return (FALSE);
+		return (false);
 	}
 	else
 	{
-		if (!dmcopy(rcs_rhndl, (LONG)sizeof(RSHDR),
+		if (!dmcopy(rcs_rhndl, (long)sizeof(RSHDR),
 				head + sizeof(RSHDR),
-				LWGET(RSH_RSSIZE(head)) - (WORD)sizeof(RSHDR)))
+				(*(short *)(RSH_RSSIZE(head))) - (short)sizeof(RSHDR)))
 		{
 			fclose(rcs_rhndl);
 			ini_buff();
-			return(FALSE);
+			return(false);
 		}
 		else
 		{
 			fclose(rcs_rhndl);
-			rcs_free = (head + LW( LWGET(RSH_RSSIZE(head)) ) );
+			rcs_free = (head + ((short)((*(short *)(RSH_RSSIZE(head))))) );
 
-#if	  MC68K   /* memory can only be written on even boundary */
 			if (rcs_free & 0x1) 
 	    		rcs_free++;
-#endif
 
 			rs_hdr = head;
 			fix_all();
@@ -513,11 +465,7 @@ WORD read_files(VOID)
 				rcs_ndxno = 0;
 			else
 			{
-#if	MC68K
-				read_68k( FALSE );
-#else
-				read_i8086( FALSE );
-#endif
+				read_68k( false );
 				fclose(rcs_dhndl);
 			}
 			/* convert stored values to addresses */
@@ -529,23 +477,23 @@ WORD read_files(VOID)
 					case PANL:
 					case DIAL:
 					case MENU:
-						set_value(ii, (BYTE *) tree_addr(
-							(WORD) get_value(ii)) );
+						set_value(ii, (char *) tree_addr(
+							(short) get_value(ii)) );
 						break;
 					case ALRT:
 					case FRSTR:
-						set_value(ii, (BYTE *) str_addr(
-							(WORD) get_value(ii)) );
+						set_value(ii, (char *) str_addr(
+							(short) get_value(ii)) );
 						break;
 					case FRIMG:
-						set_value(ii, (BYTE *) img_addr(
-							(WORD) get_value(ii)) );
+						set_value(ii, (char *) img_addr(
+							(short) get_value(ii)) );
 						break;
 					case OBJKIND:
-						nobj = (WORD) LLOBT( (UWORD) get_value(ii) ) & 0xff;
-						ntree = (WORD) LHIBT( (UWORD) get_value (ii) ) & 0xff;
-						set_value(ii, (BYTE *) (tree_addr(ntree) + 
-							(UWORD) (nobj * sizeof(OBJECT))));
+						nobj = (short) (((unsigned short) get_value(ii)) & 0xff) & 0xff;
+						ntree = (short) ((((unsigned short) get_value (ii)) >> 8) & 0xff) & 0xff;
+						set_value(ii, (char *) (tree_addr(ntree) + 
+							(unsigned short) (nobj * sizeof(OBJECT))));
 						break;
 					default:
 						break;
@@ -556,59 +504,59 @@ WORD read_files(VOID)
 			comp_str(head);	/* scavenge all other freestrs	*/
 			comp_img(head);	/* and likewise for free images */
 			/* make sure all trees are indexed */
-			for (ii = 0; ii < LWGET(RSH_NTREE(head)); ii++)
+			for (ii = 0; ii < (*(short *)(RSH_NTREE(head))); ii++)
 				if (find_tree(ii) == NIL)
 				{
 					unique_name(name, "TREE%hd", ii + 1);
-					new_index((BYTE *) tree_addr(ii), UNKN, name);
+					new_index((char *) tree_addr(ii), UNKN, name);
 				}
 
-			return LWGET(RSH_RSSIZE(head));
+			return (*(short *)(RSH_RSSIZE(head)));
 		}
 	}
 }
 
-WORD merge_files(VOID)
+short merge_files(void)
 {
-	UWORD	foo, indoff;
-	WORD	total, i, ii;
-	WORD	nobj, ntree, old_ntree;
-	LONG	merge, oldndx, newndx, old_ndxno, frstr, frimg, here;
+	unsigned short	foo, indoff;
+	short	total, i, ii;
+	short	nobj, ntree, old_ntree;
+	long	merge, oldndx, newndx, old_ndxno, frstr, frimg, here;
 
-	merge = get_mem((WORD)sizeof(RSHDR));
-	if (!dmcopy(rcs_rhndl, 0x0L, merge, (WORD)sizeof(RSHDR) ))
+	merge = get_mem((short)sizeof(RSHDR));
+	if (!dmcopy(rcs_rhndl, 0x0L, merge, (short)sizeof(RSHDR) ))
 	{ 
 		fclose(rcs_rhndl);
-		return(FALSE);
+		return(false);
 	}
 	else
 	{
-		if (rcs_low || avail_mem() < (UWORD) LWGET(RSH_RSSIZE(merge)) - 
-			(UWORD) sizeof(RSHDR) )
+		if (rcs_low || avail_mem() < (unsigned short) (*(short *)(RSH_RSSIZE(merge))) - 
+			(unsigned short) sizeof(RSHDR) )
 		{
 			hndl_alert(1, string_addr(STNROOM));
-			return(FALSE);
+			return(false);
 		}
 		else
 		{
 			/* synchronize objects */
-			foo = (UWORD) (( merge + LW( LWGET(RSH_OBJECT(merge)) ) ) -
-				( head + LW( LWGET(RSH_OBJECT(head)) ) ));
-			foo %= (WORD)sizeof(OBJECT);
+			foo = (unsigned short) (( merge + ((short)((*(short *)(RSH_OBJECT(merge))))) ) -
+				( head + ((short)((*(short *)(RSH_OBJECT(head))))) ));
+			foo %= (short)sizeof(OBJECT);
 			if (foo) 
 			{
-				get_mem(foo = (WORD)(sizeof(OBJECT) - foo));
+				get_mem(foo = (short)(sizeof(OBJECT) - foo));
 				merge = merge + foo;
-				dmcopy(rcs_rhndl, 0x0L, merge, (WORD)sizeof(RSHDR));
+				dmcopy(rcs_rhndl, 0x0L, merge, (short)sizeof(RSHDR));
 			}
 
-			here = get_mem((UWORD) LWGET(RSH_RSSIZE(merge)) - 
-				(UWORD) sizeof(RSHDR));
-			if (!dmcopy (rcs_rhndl, (LONG) sizeof(RSHDR), 
-				here, LWGET(RSH_RSSIZE(merge))))
+			here = get_mem((unsigned short) (*(short *)(RSH_RSSIZE(merge))) - 
+				(unsigned short) sizeof(RSHDR));
+			if (!dmcopy (rcs_rhndl, (long) sizeof(RSHDR), 
+				here, (*(short *)(RSH_RSSIZE(merge)))))
 			{
 				fclose(rcs_rhndl);
-				return(FALSE);
+				return(false);
 			}
 			else
 			{
@@ -616,53 +564,37 @@ WORD merge_files(VOID)
 				rs_hdr = merge;
 				fix_all();
 
-				old_ntree = LWGET(RSH_NTREE(head));
-				if (LWGET(RSH_NTREE(merge)))
+				old_ntree = (*(short *)(RSH_NTREE(head)));
+				if ((*(short *)(RSH_NTREE(merge))))
 				{
-					total = LWGET(RSH_NTREE(head)) + LWGET(RSH_NTREE(merge));
-					newndx = get_mem((WORD)(sizeof(LONG) * total));
-					indoff = (UWORD) (newndx - head);		
-					for (i = 0; i < LWGET(RSH_NTREE(head)); i++)
+					total = (*(short *)(RSH_NTREE(head))) + (*(short *)(RSH_NTREE(merge)));
+					newndx = get_mem((short)(sizeof(long) * total));
+					indoff = (unsigned short) (newndx - head);		
+					for (i = 0; i < (*(short *)(RSH_NTREE(head))); i++)
 					{
-						LLSET(newndx, tree_addr(i));
-						newndx += sizeof(LONG);
+						(*(long *)(newndx) = (tree_addr(i)));
+						newndx += sizeof(long);
 					}
-					oldndx = merge + LW( LWGET(RSH_TRINDEX(merge)) );
-					for (i = 0; i < LWGET(RSH_NTREE(merge)); i++)
+					oldndx = merge + ((short)((*(short *)(RSH_TRINDEX(merge)))));
+					for (i = 0; i < (*(short *)(RSH_NTREE(merge))); i++)
 					{
-						LLSET(newndx, LLGET(oldndx));
-						newndx += sizeof(LONG);
-						oldndx += sizeof(LONG);
+						(*(long *)(newndx) = ((*(long *)(oldndx))));
+						newndx += sizeof(long);
+						oldndx += sizeof(long);
 					}
-					LWSET(RSH_NTREE(head), total);
-					LWSET(RSH_TRINDEX(head), indoff);
+					(*(short *)(RSH_NTREE(head)) = (total));
+					(*(short *)(RSH_TRINDEX(head)) = (indoff));
 				}
 
 				if (rcs_dhndl)
 				{  
-#if	MC68K				      
 					{	
 						old_ndxno = rcs_ndxno;
-						read_68k( TRUE );
+						read_68k( true );
 						total = rcs_ndxno;
-						rcs_ndxno = (WORD)old_ndxno;
+						rcs_ndxno = (short)old_ndxno;
 					}
-#else
-					{
-						old_ndxno = rcs_ndxno;		
-						if (!dmcopy(rcs_dhndl, 0x0L, ADDR(&total), sizeof(WORD) ))
-							total = 0;
-						else
-						{
-							if (!dmcopy(rcs_dhndl, 0x02L, ADDR(&rcs_index[old_ndxno]),
-								sizeof(INDEX) * total))
-								total = 0;
-							else
-								total = total + old_ndxno;
-						}
-					}
-#endif
-					for ( ii = (WORD)old_ndxno; ii < total; ii++ )				
+					for ( ii = (short)old_ndxno; ii < total; ii++ )				
 					{	
 						if (find_name(&rcs_index[ii].name[0]) != NIL)
 							if (tree_kind(rcs_index[ii].kind))
@@ -675,25 +607,25 @@ WORD merge_files(VOID)
 							case PANL:
 							case DIAL:
 							case MENU:
-								rcs_index[ii].val = (BYTE *) tree_addr(
-									(WORD) rcs_index[ii].val + old_ntree);
+								rcs_index[ii].val = (char *) tree_addr(
+									(short) rcs_index[ii].val + old_ntree);
 								break;
 							case ALRT:
 							case FRSTR:
-								frstr = merge +	LW( LWGET(RSH_FRSTR(merge)) );
-								rcs_index[ii].val = (BYTE *) LLGET(frstr + 
-								(UWORD) (sizeof(LONG) * (WORD) rcs_index[ii].val));
+								frstr = merge +	((short)((*(short *)(RSH_FRSTR(merge)))));
+								rcs_index[ii].val = (char *) (*(long *)(frstr + 
+								(unsigned short) (sizeof(long) * (short) rcs_index[ii].val)));
 								break;
 							case FRIMG:
-								frimg = merge + LW( LWGET(RSH_FRIMG(merge)) );
-								rcs_index[ii].val = (BYTE *) LLGET(frimg +
-									(UWORD) (sizeof(LONG) * (WORD)rcs_index[ii].val));
+								frimg = merge + ((short)((*(short *)(RSH_FRIMG(merge)))));
+								rcs_index[ii].val = (char *) (*(long *)(frimg +
+									(unsigned short) (sizeof(long) * (short)rcs_index[ii].val)));
 								break;
 							case OBJKIND:
-								nobj = (WORD) LLOBT( (UWORD) rcs_index[ii].val) & 0xff;
-								ntree = (WORD) LHIBT( (UWORD) rcs_index[ii].val) & 0xff;
-								rcs_index[ii].val = (BYTE *) (tree_addr(ntree + old_ntree) 
-									+ (UWORD) (nobj * sizeof(OBJECT))); 
+								nobj = (short) (((unsigned short) rcs_index[ii].val) & 0xff) & 0xff;
+								ntree = (short) ((((unsigned short) rcs_index[ii].val) >> 8) & 0xff) & 0xff;
+								rcs_index[ii].val = (char *) (tree_addr(ntree + old_ntree) 
+									+ (unsigned short) (nobj * sizeof(OBJECT))); 
 								break;
 							default:
 								break;
@@ -704,13 +636,13 @@ WORD merge_files(VOID)
 					fclose(rcs_dhndl);
 				}
 
-				for (i = old_ntree; i < LWGET(RSH_NTREE(head)); i++)
+				for (i = old_ntree; i < (*(short *)(RSH_NTREE(head))); i++)
 				{
 					map_tree(tree_addr(i), ROOT, NIL, (fkt_parm)trans_obj); 
 					if (find_tree(i) == NIL)
 					{
 						unique_name(&rcs_index[i].name[0], "TREE%hd", i + 1);
-						if (new_index((BYTE *) tree_addr(i), UNKN, &rcs_index[i].name[0]) == NIL)
+						if (new_index((char *) tree_addr(i), UNKN, &rcs_index[i].name[0]) == NIL)
 							break;
 					}
 				}
@@ -718,7 +650,7 @@ WORD merge_files(VOID)
 				comp_alerts(merge);
 				comp_str(merge);
 				comp_img(merge);
-				return (TRUE);
+				return (true);
 			}
 		}
 	}

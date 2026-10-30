@@ -8,9 +8,7 @@
 
 #define RCSWRITE_H
 
-#if	MC68K				      
-EXTERN  UWORD   swap_bytes(UWORD x);
-#endif
-EXTERN	WORD	write_files(VOID);
+extern  unsigned short   swap_bytes(unsigned short x);
+extern	short	write_files(void);
 
 #endif
