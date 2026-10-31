@@ -20,6 +20,7 @@
 #include "rcsfiles.h"
 #include "rcsvdi.h"
 #include "rcswrite.h"
+#include "rcscicon.h"
 
 typedef	struct	outobj
 {
@@ -251,6 +252,26 @@ static void c_string(long addr)
 	}
 }
 
+/* The colour icons that were read: RCS has their mono icons as G_ICONs, and
+ * keeps their colour versions until now.  They are written as G_CICONs after
+ * the rest, in the order in which their objects are written. */
+#define MAXCICON	254
+static struct cicon_kept	*wr_cic[MAXCICON];
+static long	wr_cic_ib[MAXCICON];
+static short	wr_ncic;
+static unsigned long	wr_cic_table, wr_cic_total;
+static unsigned short	wr_cic_rssize;
+
+static struct cicon_kept *wr_kept(long tree, short which)
+{
+	struct cicon_kept	*k;
+
+	if (((GET_TYPE(tree, which)) & 0xff) != G_ICON || GET_SPEC(tree, which) == -1L)
+		return 0;
+	k = cicon_kept(GET_SPEC(tree, which));
+	return (k && k->used) ? k : 0;
+}
+
 static void wr_str(long where)
 {
 	long	staddr;
@@ -277,7 +298,7 @@ static void wr_string(long tree, short which)
 		wr_str(OB_SPEC(which));
 	else if (type == G_ICON)
 	{
-		if ( (iconblk = GET_SPEC(tree, which)) != -1L)
+		if ( (iconblk = GET_SPEC(tree, which)) != -1L && !wr_kept(tree, which))
 			wr_str(IB_PTEXT(iconblk));
 	}
 	else if (type == G_TEXT || type == G_BOXTEXT ||
@@ -412,7 +433,7 @@ static void wr_image(long tree, short which)
 	else if (type == G_ICON)
 	{
 		iconblk = GET_SPEC(tree, which);
-		if ( iconblk != -1L)
+		if ( iconblk != -1L && !wr_kept(tree, which))
 		{
 			w = ((*(short *)(IB_WICON(iconblk))) + 7) / 8;
 			h = (*(short *)(IB_HICON(iconblk)));
@@ -498,7 +519,7 @@ static void wr_iconblk(long tree, short which)
 {
 	long	iconblk;
 
-	if (((GET_TYPE(tree, which)) & 0xff) == G_ICON)
+	if (((GET_TYPE(tree, which)) & 0xff) == G_ICON && !wr_kept(tree, which))
 	{
 		iconblk = GET_SPEC(tree, which);
 		if ( iconblk != -1L)
@@ -736,6 +757,7 @@ static void wr_obj(short itree, long tree, short iobj)
 {
 	short	entno, where, link, obtype;
 	long	object;
+	struct cicon_kept	*kept;
 
 	where = wr_obndx[iobj];		/* the actual object #	*/
 
@@ -750,7 +772,15 @@ static void wr_obj(short itree, long tree, short iobj)
 	if ( (link = GET_TAIL(tree, where)) != -1)
 		SET_TAIL(tree, where, fnd_ob(link));
 	obtype = GET_TYPE(tree, where) & 0x00ff; /*low byte*/
-	if(obtype == G_ICON || obtype == G_IMAGE) /*0 hi byte*/
+	if ((kept = wr_kept(tree, where)) != 0 && wr_ncic < MAXCICON)
+	{
+		/* a colour icon: its spec is the number in the table written last */
+		wr_cic[wr_ncic] = kept;
+		wr_cic_ib[wr_ncic] = GET_SPEC(tree, where);
+		SET_SPEC(tree, where, (long) wr_ncic++);
+		obtype = G_CICON;
+	}
+	if(obtype == G_ICON || obtype == G_IMAGE || obtype == G_CICON) /*0 hi byte*/
 		(*(short *)(OB_TYPE(where)) = (obtype));
 	unfix_chpos(OB_X(where), 0);
 	unfix_chpos(OB_WIDTH(where), 0);
@@ -975,11 +1005,76 @@ static void write_inclfile(char *ext, char *ptns[])
 	fclose(rcs_hhndl);
 }
 
+static void wr_mono(long where, short w, short h)
+{
+	gsx_untrans(where, w, (long)((long)(wr_obndx)), w, h);
+	rsc_fwrite_words(rcs_rhndl, (long)((long)(wr_obndx)), w * h);
+}
+
+/* the table of the CICONBLKs and the CICONBLKs: the 38 bytes of the
+ * ICONBLK as RCS has it now, its mono data and mask, its text, and the
+ * colour versions as they were read */
+static void wr_cicons(void)
+{
+	unsigned char	b[38];
+	ICONBLK	*ib;
+	short	i, w, h;
+	unsigned long	off;
+
+	if (!wr_ncic)
+		return;
+	/* The 16 bits of rsh_rssize stop at the extension, and what comes
+	 * after it has 32-bit offsets: the table of CICONBLKs and the CICONBLKs
+	 * are not limited by them. */
+	wr_sync();
+	wr_cic_rssize = rcs_wraddr;
+	memset(b, 0, 12);
+	fwrite(b, 1, 12, rcs_rhndl);		/* the extension is written last */
+	wr_cic_table = (unsigned long)rcs_wraddr + 12UL;
+	off = wr_cic_table + 4UL * (wr_ncic + 1);
+	for (i = 0; i < wr_ncic; i++)
+	{
+		wr_be32(b, off);
+		fwrite(b, 1, 4, rcs_rhndl);
+		off += 38UL + 4UL * wr_cic[i]->words + 12UL + wr_cic[i]->vlen;
+	}
+	wr_be32(b, 0xffffffffUL);
+	fwrite(b, 1, 4, rcs_rhndl);
+	for (i = 0; i < wr_ncic; i++)
+	{
+		ib = (ICONBLK *)wr_cic_ib[i];
+		memcpy(b, wr_cic[i]->head, 38);
+		wr_be16(b + 12, ib->ib_char);
+		wr_be16(b + 14, ib->ib_xchar);
+		wr_be16(b + 16, ib->ib_ychar);
+		wr_be16(b + 18, ib->ib_xicon);
+		wr_be16(b + 20, ib->ib_yicon);
+		wr_be16(b + 22, ib->ib_wicon);
+		wr_be16(b + 24, ib->ib_hicon);
+		wr_be16(b + 26, ib->ib_xtext);
+		wr_be16(b + 28, ib->ib_ytext);
+		wr_be16(b + 30, ib->ib_wtext);
+		wr_be16(b + 32, ib->ib_htext);
+		fwrite(b, 1, 38, rcs_rhndl);
+		w = (ib->ib_wicon + 7) / 8;
+		h = ib->ib_hicon;
+		wr_mono((long)ib->ib_pdata, w, h);
+		wr_mono((long)ib->ib_pmask, w, h);
+		memset(b, 0, 12);
+		strncpy((char *)b, ib->ib_ptext ? ib->ib_ptext : "", 12);
+		fwrite(b, 1, 12, rcs_rhndl);
+		fwrite(wr_cic[i]->versions, 1, wr_cic[i]->vlen, rcs_rhndl);
+	}
+	wr_cic_total = off;
+}
+
 short write_files(void)
 {
 	long	mem_needs;
 	
 	do_tally();			 
+	wr_ncic = 0;
+	cicon_prepare(0x1000000L - 1024);
 	if (rcs_cflag)
 		mem_needs = 3 * rcs_tally.nbytes;
 	else
@@ -1082,10 +1177,26 @@ short write_files(void)
 	c_treehead();
 	wr_trindex();		/* also handles RSH_TRINDEX(head) */
 	c_tail(c_ntree);
+	wr_cicons();
 
 	show_prog(STHDR);
 	(*(unsigned short *)(RSH_RSSIZE(head)) = (rcs_wraddr));
+	if (wr_ncic)
+		*(unsigned short *)(RSH_VRSN(head)) |= RCS_NEW_FORMAT;
+	else
+		*(unsigned short *)(RSH_VRSN(head)) &= ~RCS_NEW_FORMAT;
 	wr_header();		/* rewrite updated header	  */
+	if (wr_ncic)
+	{
+		/* the extension: length of the file, the table of colour icons */
+		unsigned char	ext[12];
+
+		wr_be32(ext, wr_cic_total);
+		wr_be32(ext + 4, wr_cic_table);
+		wr_be32(ext + 8, 0UL);
+		fseek(rcs_rhndl, wr_cic_rssize, SEEK_SET);
+		fwrite(ext, 1, 12, rcs_rhndl);
+	}
 	fclose(rcs_rhndl);
 	c_foobar();
 	c_defs();
