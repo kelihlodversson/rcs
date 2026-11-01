@@ -23,7 +23,11 @@ typedef unsigned int rentry;
 #else
 typedef long rentry;
 #endif
-#define RS_ENTRY	((short)sizeof(rentry))
+/* RS_ENTRY keeps the type of sizeof(long) the code used to have (size_t), so
+ * that the arithmetic around it compiles to the same code on m68k and ARM;
+ * RS_ENTRY_S is the same size as a short */
+#define RS_ENTRY	sizeof(rentry)
+#define RS_ENTRY_S	((short)sizeof(rentry))
 
 /* the rentry at an address, and the same read back as a signed long, so
  * that the -1 which means "none" stays -1 on the host */

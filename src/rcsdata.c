@@ -511,9 +511,18 @@ short set_obname(long tree, short obj, char *name, long ntree, short nobj)
 {
 	long	taddr;
 	short	where;
+#ifdef RCS_HOST
+	long	nbuf;
+#endif
 
 	taddr = GET_SPEC(tree, obj);
-	(RFIELD(taddr) = (((long)(name))));
+#ifdef RCS_HOST
+	/* the field must hold an arena address, not the address of name */
+	nbuf = get_mem(9);
+	RFIELD(taddr) = nbuf;
+#else
+	(*(long *)RP(taddr) = (((long)(name))));
+#endif
 	(*(short *)RP(TE_TXTLEN(taddr)) = (9));
 	(*(short *)RP(TE_TMPLEN(taddr)) = (9));
 
@@ -522,6 +531,9 @@ short set_obname(long tree, short obj, char *name, long ntree, short nobj)
 		strcpy(name, "@");
 	else
 		strcpy(name, get_name(where));
+#ifdef RCS_HOST
+	strcpy((char *)RP(nbuf), name);
+#endif
 	return (where);
 }
 
