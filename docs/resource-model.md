@@ -117,9 +117,14 @@ fields of `struct rsc_cicon` and `struct rsc_cicon_version` marked as the
 model's: those go through the setters. The text of a colour icon must keep
 its NUL in `text[12]`. As a safety net the writer refuses (`RSC_EARG`) a
 colour version whose `num_planes`, or a colour icon whose size, does not
-match the blocks the model allocated; an ICONBLK or BITBLK (AES structures,
-with no room to record the allocated size) has to be trusted. The writer's output buffer comes from `rsc_malloc` and is freed with
-`rsc_mfree`, not `free`.
+match the blocks the model allocated. An ICONBLK or BITBLK (AES structures,
+with no room to record the allocated size) has to be trusted: if `ib_wicon`,
+`ib_hicon`, `bi_wb` or `bi_hl` of a plain one is changed directly so that it
+no longer matches the allocated data, the writer reads past that data (a heap
+over-read: garbage in the file, or a crash; AddressSanitizer reports a
+heap-buffer-overflow READ). Use `rsc_obj_resize_icon`,
+`rsc_obj_resize_bitblk` or `rsc_frimg_resize` instead. The writer's output
+buffer comes from `rsc_malloc` and is freed with `rsc_mfree`, not `free`.
 
 ## Example
 

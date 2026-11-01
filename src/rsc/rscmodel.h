@@ -40,7 +40,10 @@
  * num_planes, or a colour icon whose size, does not match the blocks the
  * model allocated is refused (RSC_EARG); for an ICONBLK or a BITBLK the
  * model has no place to record the allocated size (they are the AES
- * structures), and the writer must trust the size fields.  A caller that
+ * structures), and the writer must trust the size fields: if one is changed
+ * so that it no longer matches the data, the writer reads past the allocated
+ * data (use rsc_obj_resize_icon, rsc_obj_resize_bitblk, rsc_frimg_resize).
+ * A caller that
  * writes the links should keep them in
  * range or -1: rsc_tree_preorder checks them, and the calls that follow
  * links (rsc_obj_add, rsc_obj_delete, rsc_tree_compact) fail cleanly on
