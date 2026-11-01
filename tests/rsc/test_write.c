@@ -1399,6 +1399,7 @@ static uint8_t *round_trip(struct rsc *r, size_t *len)
 
 static void test_cicons(void)
 {
+	struct rsc_error	e2;
 	struct rsc	*r = rsc_new();
 	struct rsc_cicon	*c;
 	struct rsc_cicon_version	*v;
@@ -1488,6 +1489,27 @@ static void test_cicons(void)
 	v->c.next_res = &v->c;
 	EXPECT_FAIL(r, 0, 0, RSC_ECICON, 0);
 	v->c.next_res = NULL;
+	/* num_planes or the icon size written directly (against the contract):
+	 * refused, not read past the blocks (AddressSanitizer would see it) */
+	v->c.num_planes = 4;
+	EXPECT_FAIL(r, 0, 0, RSC_EARG, 0);
+	CHECK(wr(r, 0, 0, &o, &len, &e2) == -1 && strstr(e2.msg, "num_planes") != NULL
+	      && strstr(e2.msg, "(tree 0, object 3)") != NULL);
+	v->c.num_planes = RSC_MAX_PLANES;
+	EXPECT_FAIL(r, 0, 0, RSC_EARG, 0);
+	v->c.num_planes = 2;
+	EXPECT_FAIL(r, 0, 0, RSC_EARG, 0);
+	v->c.num_planes = 3;
+	c->blk.monoblk.ib_wicon = 33;
+	EXPECT_FAIL(r, 0, 0, RSC_EARG, 0);
+	c->blk.monoblk.ib_wicon = 17;
+	c->blk.monoblk.ib_hicon = 4;
+	EXPECT_FAIL(r, 0, 0, RSC_EARG, 0);
+	c->blk.monoblk.ib_hicon = 3;
+	c->blk.monoblk.ib_wicon = 32;		/* the same plane size: accepted */
+	o = round_trip(r, &len);
+	rsc_mfree(o);
+	c->blk.monoblk.ib_wicon = 17;
 	/* exactly RSC_MAX_PLANES planes, with selected planes */
 	CHECK(rsc_cicon_add_version(c, RSC_MAX_PLANES, pat, pat + 1, pat + 2, pat + 3) == 1);
 	o = round_trip(r, &len);

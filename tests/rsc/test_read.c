@@ -1426,7 +1426,7 @@ static void test_charges(void)
 	/* family: the measured boundary */
 	static const long	want[] =
 	{
-		1160, 209, 2793, 105, 13489, 336, 5091, 13, 698, 320, 19, 7301, 7, 1175, 563
+		1160, 209, 2793, 105, 13489, 336, 5091, 13, 644, 297, 18, 7301, 7, 1175, 467
 	};
 	/* the largest k a family can have (16-bit header offsets, 32767
 	 * objects in a tree, the size of big) */

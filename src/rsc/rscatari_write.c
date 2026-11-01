@@ -64,7 +64,11 @@
  *    bi_wb * bi_hl; an odd last byte is copied as it is, as the reader
  *    does.
  *  - A negative icon or image size is refused (RSC_EARG): the reader would
- *    refuse the file.
+ *    refuse the file.  A colour icon whose ib_wicon and ib_hicon, or a
+ *    colour version whose num_planes, do not match the size of the blocks
+ *    the model allocated (written directly, against the contract of
+ *    rscmodel.h) is refused (RSC_EARG) rather than read past its blocks;
+ *    the size fields of an ICONBLK and a BITBLK have to be trusted.
  *  - te_txtlen and te_tmplen are written as the model has them (the reader
  *    recomputes them from the strings).
  *  - Coordinates: with a cell size of 0, 0 they are written as they are
@@ -477,8 +481,8 @@ static int put_version(struct wr *w, int t, int i, const CICON *v, size_t pb)
 
 	if (planes < 1 || planes > RSC_MAX_PLANES)
 		return fail_in(w, RSC_ECICON, "bad number of colour planes", "tree", t, i);
-	if (pb > (size_t)-1 / (size_t)planes)
-		return fail(w, RSC_ETOOBIG, w->cur[S_CBLK], "output too big");
+	if (pb * (size_t)planes != cv->data_bytes)	/* pb <= 4096 * 32767, 16 planes: fits */
+		return fail_in(w, RSC_EARG, "num_planes does not match the colour data", "tree", t, i);
 	if (adv(w, S_CBLK, CICON_SIZE, &at))
 		return -1;
 	put16(w, at, (unsigned)planes);
@@ -516,6 +520,8 @@ static int put_cicon(struct wr *w, int t, int i, const struct rsc_cicon *c, uint
 	if (nv > RSC_MAX_VERSIONS)
 		return fail_in(w, RSC_ECICON, "too many colour versions", "tree", t, i);
 	pb = rsc_plane_bytes(ib->ib_wicon, ib->ib_hicon);
+	if (pb != c->mono_bytes)
+		return fail_in(w, RSC_EARG, "colour icon size does not match its data", "tree", t, i);
 	if (adv(w, S_CTAB, 4, &tab) || adv(w, S_CBLK, CBLK_SIZE, &at))
 		return -1;
 	put32(w, tab, (uint32_t)at);

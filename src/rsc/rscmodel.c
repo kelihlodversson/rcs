@@ -345,6 +345,7 @@ static struct rsc_cicon *new_cicon(const ICONBLK *mono, const char *text)
 	ib->ib_pmask = ib->ib_pdata = NULL;
 	ib->ib_ptext = c->text;
 	c->blk.mainlist = NULL;
+	c->mono_bytes = n;
 	if (dup_mem(&ib->ib_pmask, mono->ib_pmask, n) || dup_mem(&ib->ib_pdata, mono->ib_pdata, n))
 	{
 		free_cicon(c);
@@ -1042,6 +1043,7 @@ int rsc_cicon_add_version(struct rsc_cicon *c, int planes,
 	memset(v, 0, sizeof *v);
 	v->c.num_planes = (short)planes;
 	v->c.next_res = NULL;
+	v->data_bytes = pb * (size_t)planes;
 	if (dup_mem(&v->c.col_data, col_data, pb * (size_t)planes)
 	    || dup_mem(&v->c.col_mask, col_mask, pb)
 	    || dup_mem(&v->c.sel_data, sel_data, pb * (size_t)planes)

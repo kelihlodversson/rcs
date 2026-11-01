@@ -93,8 +93,14 @@ next call that changes the same tree or list, or `rsc_free`. A call that can
 fail returns -1 or NULL and leaves the model as it was; nothing aborts. The
 caller may write the links, `ob_state`, the coordinates and the non-pointer
 fields of a record through a borrowed pointer, but not `ob_type`, `ob_spec`,
-`ob_flags`, a pointer field or the size of an image: those go through the
-setters. The writer's output buffer comes from `rsc_malloc` and is freed with
+`ob_flags`, a pointer field, a field that sizes an owned block (`ib_wicon`,
+`ib_hicon`, `bi_wb`, `bi_hl`, and `num_planes` of a colour version) or the
+fields of `struct rsc_cicon` and `struct rsc_cicon_version` marked as the
+model's: those go through the setters. The text of a colour icon must keep
+its NUL in `text[12]`. As a safety net the writer refuses (`RSC_EARG`) a
+colour version whose `num_planes`, or a colour icon whose size, does not
+match the blocks the model allocated; an ICONBLK or BITBLK (AES structures,
+with no room to record the allocated size) has to be trusted. The writer's output buffer comes from `rsc_malloc` and is freed with
 `rsc_mfree`, not `free`.
 
 ## Example

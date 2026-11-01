@@ -27,11 +27,21 @@
  *
  * Direct access.  The caller may read everything and may write, through
  * the pointers it gets, the links (ob_next, ob_head, ob_tail), ob_state,
- * the coordinates and the non-pointer fields of the records.  It must not
- * write ob_type, ob_spec, ob_flags or any pointer field of a record (use
- * the setters: they keep ownership right; OF_INDIRECT changes the kind of
- * spec and OF_LASTOB is the model's), nor the size fields of image data
- * (see Image data).  A caller that writes the links should keep them in
+ * the coordinates and the non-pointer fields of the records, with these
+ * exceptions.  It must not write ob_type, ob_spec, ob_flags or any pointer
+ * field of a record (use the setters: they keep ownership right;
+ * OF_INDIRECT changes the kind of spec and OF_LASTOB is the model's), nor
+ * a field that defines the size of an owned block: ib_wicon and ib_hicon
+ * of an ICONBLK or of the mono icon of a colour icon, bi_wb and bi_hl of a
+ * BITBLK (see Image data), num_planes of a colour version; nor the fields
+ * of struct rsc_cicon and struct rsc_cicon_version marked as the model's.
+ * The text of a colour icon may be written in place but must keep a NUL
+ * in text[12].  The writer checks what it can: a colour version whose
+ * num_planes, or a colour icon whose size, does not match the blocks the
+ * model allocated is refused (RSC_EARG); for an ICONBLK or a BITBLK the
+ * model has no place to record the allocated size (they are the AES
+ * structures), and the writer must trust the size fields.  A caller that
+ * writes the links should keep them in
  * range or -1: rsc_tree_preorder checks them, and the calls that follow
  * links (rsc_obj_add, rsc_obj_delete, rsc_tree_compact) fail cleanly on
  * broken ones.
@@ -233,7 +243,9 @@ typedef struct object
  * to the c of the next version (NULL for the last).  col_data has
  * num_planes planes of rsc_plane_bytes(w, h) bytes, col_mask one plane;
  * sel_data and sel_mask are both NULL (no selected image) or both set, of
- * the same sizes; w and h are those of the mono ICONBLK.
+ * the same sizes; w and h are those of the mono ICONBLK.  data_bytes is
+ * the model's: the size col_data and sel_data were allocated with (planes
+ * times the plane size), which the writer compares with num_planes.
  *
  * file_ptr holds the five pointer fields of the version header in the file
  * (col_data, col_mask, sel_data, sel_mask, next_res) as read, opaque; the
@@ -243,6 +255,7 @@ struct rsc_cicon_version
 {
 	CICON		c;		/* must stay the first member */
 	uint32_t	file_ptr[5];
+	size_t		data_bytes;	/* the model's */
 };
 
 /* What a G_CICON object's ob_spec points to (ob_spec.ciconblk is &blk).
@@ -256,9 +269,11 @@ struct rsc_cicon_version
  * block in the file (ib_pmask, ib_pdata, ib_ptext) as read, opaque; the API
  * sets them to 0.  PLACEHOLDER as for rsc_cicon_version.file_ptr.
  *
- * last and nver are the model's (read them through rsc_cicon_nversions and
- * rsc_cicon_version, never write them): the last version of the chain, so
- * that appending is O(1), and the number of versions.
+ * last, nver and mono_bytes are the model's (read the first two through
+ * rsc_cicon_nversions and rsc_cicon_version, never write them): the last
+ * version of the chain, so that appending is O(1), the number of versions,
+ * and the size the mono data and mask (and every colour mask) were
+ * allocated with, which the writer compares with ib_wicon and ib_hicon.
  *
  * The struct points into itself (ib_ptext): it is never copied by value. */
 struct rsc_cicon
@@ -268,6 +283,7 @@ struct rsc_cicon
 	uint32_t	file_head[3];
 	struct rsc_cicon_version *last;	/* the model's: NULL without versions */
 	int		nver;		/* the model's */
+	size_t		mono_bytes;	/* the model's */
 };
 
 /* ---- the kind of spec an object type has: THE ownership rule ------------- */
