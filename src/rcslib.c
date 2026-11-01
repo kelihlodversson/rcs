@@ -233,7 +233,7 @@ void icon_wh(long taddr, short *w, short *h)
 	ICONBLK	here;
 	GRECT	p;
 
-	memmove((void *)(((long)(&here))), (void *)RP(taddr), sizeof(ICONBLK));
+	memmove((void *)(&here), (void *)RP(taddr), sizeof(ICONBLK));
 	rc_copy((GRECT *) &here.ib_xchar, &p);
 	rc_union((GRECT *) &here.ib_xicon, &p);
 	rc_union((GRECT *) &here.ib_xtext, &p);
