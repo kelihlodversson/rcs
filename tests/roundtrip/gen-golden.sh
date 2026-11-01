@@ -19,8 +19,10 @@ ARCH=arm
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
 
+# the hooked objects must never survive this script, even when it is aborted
+trap 'rm -rf "build/$ARCH/src" "build/$ARCH/RCS.PRG"' EXIT INT TERM
 rm -rf "build/$ARCH/src" "build/$ARCH/RCS.PRG"
-make "$ARCH" EXTRA_CFLAGS=-DRCS_ROUNDTRIP
+make "$ARCH" RCS_TEST_CFLAGS=-DRCS_ROUNDTRIP
 
 run() {  # NAME RUN -> build/emulator/golden-NAME-RUN.rsc
     rm -f "build/emulator/qdir-$ARCH/out.rsc" "build/emulator/qdir-$ARCH/OUT.RSC"
@@ -59,5 +61,3 @@ for NAME in rcs rcslow cicon; do
     cp "build/emulator/golden-$NAME-1.rsc" "tests/golden/$NAME.out.rsc"
     echo "gen-golden: $NAME -> tests/golden/$NAME.out.rsc ($(wc -c < "tests/golden/$NAME.out.rsc") bytes)"
 done
-
-rm -rf "build/$ARCH/src" "build/$ARCH/RCS.PRG"

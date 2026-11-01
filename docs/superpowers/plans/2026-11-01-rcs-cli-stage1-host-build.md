@@ -83,7 +83,7 @@ Copy `qd.py` and `rcsrun/launch.c`, `launch2.c` from the session scratchpad
 
 - [ ] **Step 3: Write the generator script**
 
-`tests/roundtrip/gen-golden.sh`: for each input (`src/atari/rcs.rsc`, `src/atari/rcslow.rsc`, the colour icon file) build `RCS.PRG` for m68k with `make m68k EXTRA_CFLAGS=-DRCS_ROUNDTRIP`, run `QD_RSC=<input> python3 tests/emulator/qd.py m68k build/m68k/RCS.PRG out w60`, and copy `C:\OUT.RSC` from the vvfat directory (`qdir-m68k/OUT.RSC`) to `tests/golden/NAME.out.rsc`. Add `EXTRA_CFLAGS` to the compile lines in `Makefile` (`$(EXTRA_CFLAGS)` after `$(WARN)`).
+`tests/roundtrip/gen-golden.sh`: for each input (`src/atari/rcs.rsc`, `src/atari/rcslow.rsc`, the colour icon file) build `RCS.PRG` for m68k with `make m68k RCS_TEST_CFLAGS=-DRCS_ROUNDTRIP`, run `QD_RSC=<input> python3 tests/emulator/qd.py m68k build/m68k/RCS.PRG out w60`, and copy `C:\OUT.RSC` from the vvfat directory (`qdir-m68k/OUT.RSC`) to `tests/golden/NAME.out.rsc`. Add `RCS_TEST_CFLAGS` to the compile lines in `Makefile` (`$(RCS_TEST_CFLAGS)` after `$(WARN)`).
 
 - [ ] **Step 4: Generate and check the golden files**
 
@@ -97,7 +97,7 @@ Expected: three `.out.rsc` files, each non-empty. Run once more for ARM (`arm` i
 
 - [ ] **Step 5: Revert the hook out of normal builds and commit**
 
-The hook is under `#ifdef`, so `make m68k` and `make arm` without `EXTRA_CFLAGS` are unchanged; check with `make m68k && make arm`.
+The hook is under `#ifdef`, so `make m68k` and `make arm` without `RCS_TEST_CFLAGS` are unchanged; check with `make m68k && make arm`.
 
 ```bash
 git add Makefile src/rcsfiles.c tests
