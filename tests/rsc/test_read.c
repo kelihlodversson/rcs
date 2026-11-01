@@ -541,12 +541,16 @@ static void build_mini(uint8_t *b)
 	put32(b, 150, 78);		/* tree index */
 }
 
-/* Reads b; returns the error code (RSC_OK on success, the model freed). */
+/* Reads b; returns the error code (RSC_OK on success, the model freed);
+ * the report is left in read_err. */
+static struct rsc_error	read_err;
+
 static int read_code(const uint8_t *b, size_t len, size_t *off)
 {
 	struct rsc_error	err;
 	struct rsc	*r = read_copy(b, len, 8, 16, &err);
 
+	read_err = err;
 	*off = err.offset;
 	if (r)
 	{
@@ -846,6 +850,105 @@ static size_t build_cfile(uint8_t *b, size_t room, int nobj, int first, int ncic
 	return end;
 }
 
+/* The bytes written from reading len bytes of b with cell cw x ch, in a
+ * block of rsc_malloc (*olen bytes), or NULL when either fails. */
+static uint8_t *reread(const uint8_t *b, size_t len, int cw, int ch, size_t *olen)
+{
+	struct rsc_error	err;
+	struct rsc	*r = read_copy(b, len, cw, ch, &err);
+	uint8_t	*o = NULL;
+
+	*olen = 0;
+	if (!r)
+		fprintf(stderr, "reread: %s\n", err.msg);
+	else if (rsc_atari_write(r, cw, ch, &o, olen, &err))
+		fprintf(stderr, "reread: write: %s\n", err.msg);
+	rsc_free(r);
+	return o;
+}
+
+/* b reads (cells 8 x 16 and 0) to what want (want_len bytes) reads to:
+ * the same bytes are written. */
+static int reads_like(const uint8_t *b, size_t len, const uint8_t *want, size_t want_len)
+{
+	uint8_t	*o, *w;
+	size_t	ol, wl;
+	int	cell, ok = 1;
+
+	for (cell = 0; cell < 2; cell++)
+	{
+		o = reread(b, len, 8 * cell, 16 * cell, &ol);
+		w = reread(want, want_len, 8 * cell, 16 * cell, &wl);
+		ok &= o && w && ol == wl && memcmp(o, w, ol) == 0;
+		rsc_mfree(o);
+		rsc_mfree(w);
+	}
+	return ok;
+}
+
+/* The values of the colour icon table are ignored: cicon.rsc (its table
+ * at 0x58: one entry, 0x60, then the terminator; the block at 0x60; the
+ * extension at 0x428, the end of the block) reads the same with the entry
+ * 0, as TeraDesk's files have it, or garbage; and so does a file laid out
+ * like TeraDesk's cicons.rsc: an extension of six longs, the third the
+ * offset of a palette that follows it, the total the file length. */
+static void test_table_values(void)
+{
+	static const uint32_t	vals[] = { 0, 0xdeadbeef, 1, 0x7fffffff, 0x60 };
+	struct file	f = load("cicon.rsc");
+	uint8_t	*b = malloc(f.len + 24 + 64);
+	size_t	k, len = 0x428 + 24 + 64;
+
+	if (!b)
+		exit(2);
+	CHECK(f.len == 0x434 && rd16(f.b, 34) == 0x428 && rd32(f.b, 0x42c) == 0x58);
+	CHECK(rd32(f.b, 0x58) == 0x60 && rd32(f.b, 0x5c) == FILE_NULL);
+	for (k = 0; k < sizeof vals / sizeof vals[0]; k++)
+	{
+		memcpy(b, f.b, f.len);
+		put32(b, 0x58, vals[k]);
+		CHECK(reads_like(b, f.len, f.b, f.len));
+	}
+	/* TeraDesk's layout */
+	memcpy(b, f.b, 0x428);
+	put32(b, 0x58, 0);
+	put32(b, 0x428, (uint32_t)len);
+	put32(b, 0x42c, 0x58);
+	put32(b, 0x430, 0x428 + 24);
+	memset(b + 0x434, 0, 12);
+	for (k = 0; k < 64; k++)
+		b[0x428 + 24 + k] = (uint8_t)(0x80 + k);
+	CHECK(reads_like(b, len, f.b, f.len));
+	free(b);
+	free(f.b);
+	CHECK(rsc_test_live_blocks() == 0);
+}
+
+/* The file b of build_cfile(.., 2, 0, 2, 0) whose second block has the
+ * text "Two!", with the table entries set to e0 and e1, reads to two
+ * colour icons: the first block's for object 1, the second's for object
+ * 2. */
+static int two_blocks(uint8_t *b, size_t len, uint32_t e0, uint32_t e1)
+{
+	struct rsc_error	err;
+	struct rsc	*r;
+	struct rsc_cicon	*c1, *c2;
+	size_t	tab = 36 + 72 + 4 + 12;
+	int	ok;
+
+	put32(b, tab, e0);
+	put32(b, tab + 4, e1);
+	r = read_copy(b, len, 0, 0, &err);
+	c1 = r ? rsc_obj_cicon(r, 0, 1) : NULL;
+	c2 = r ? rsc_obj_cicon(r, 0, 2) : NULL;
+	ok = c1 && c2 && strcmp(c1->blk.monoblk.ib_ptext, "Mini") == 0
+	     && strcmp(c2->blk.monoblk.ib_ptext, "Two!") == 0 && rsc_cicon_nversions(c2) == 2;
+	if (!r)
+		fprintf(stderr, "two_blocks: %s\n", err.msg);
+	rsc_free(r);
+	return ok;
+}
+
 static void test_cfile(void)
 {
 	static uint8_t	b[65536];
@@ -912,9 +1015,20 @@ static void test_cfile(void)
 	len = build_cfile(b, sizeof b, 1, 0, 1, 0);
 	put32(b, 36 + 48 + 8, 101);
 	CHECK(read_code(b, len, &off) == RSC_ECICON && off == 36 + 48 + 8);
-	/* no table at all: a G_CICON object is then an error */
+	/* no table at all (0 or 0xFFFFFFFF): a G_CICON object is then an
+	 * error, unless its index is 0xFFFFFFFF too */
 	put32(b, 36 + 48 + 8, 0);
 	CHECK(read_code(b, len, &off) == RSC_ECICON && off == 36 + 24 + 12);
+	put32(b, 36 + 48 + 8, FILE_NULL);
+	CHECK(read_code(b, len, &off) == RSC_ECICON && off == 36 + 24 + 12);
+	put32(b, 36 + 24 + 12, FILE_NULL);
+	r = read_copy(b, len, 0, 0, &err);
+	CHECK(r && rsc_obj_cicon(r, 0, 1) == NULL);
+	rsc_free(r);
+	put32(b, 36 + 48 + 8, 0);
+	r = read_copy(b, len, 0, 0, &err);
+	CHECK(r && rsc_obj_cicon(r, 0, 1) == NULL);
+	rsc_free(r);
 	/* too many planes; the version count larger than the file */
 	len = build_cfile(b, sizeof b, 1, 0, 1, 0);
 	blk = 36 + 48 + 4 + 12 + 8;
@@ -929,16 +1043,42 @@ static void test_cfile(void)
 	len = build_cfile(b, sizeof b, 1, 0, 1, 0);
 	put16(b, blk + 22, 0xfff0);
 	CHECK(read_code(b, len, &off) == RSC_ECICON && off == blk);
-	/* a table that lists a block twice */
-	len = build_cfile(b, sizeof b, 1, 0, 2, 0);
-	put32(b, 104, rd32(b, 100));	/* the table is at 100 */
-	CHECK(read_code(b, len, &off) == RSC_ECICON && off == 104);
-	/* a block at an odd offset (inside the file: only its oddness is
-	 * wrong), reported at its table entry */
+	/* the blocks follow the table one after the other and the values of
+	 * the entries are ignored: zeros (as TeraDesk's files have), an entry
+	 * repeated, odd or past the end all read the same two blocks */
+	len = build_cfile(b, sizeof b, 2, 0, 2, 0);
+	blk = 36 + 72 + 4 + 12 + 12;
+	CHECK(rd32(b, blk - 12) == blk && rd32(b, blk - 8) == blk + CBLK_LEN);
+	memcpy(b + blk + CBLK_LEN + 46, "Two!", 4);	/* the second block's text */
+	CHECK(two_blocks(b, len, 0, 0));
+	CHECK(two_blocks(b, len, 0, blk));
+	CHECK(two_blocks(b, len, blk + CBLK_LEN, blk));
+	CHECK(two_blocks(b, len, 0xdeadbeef, 1));
+	CHECK(two_blocks(b, len, 0x7fffffff, FILE_NULL - 1));
+	/* more entries than blocks: the file ends where the second block
+	 * should start, or inside it */
+	put32(b, blk - 12, (uint32_t)blk);
+	put32(b, blk - 8, (uint32_t)(blk + CBLK_LEN));
+	put32(b, 36 + 72 + 4, (uint32_t)(blk + CBLK_LEN));
+	CHECK(read_code(b, blk + CBLK_LEN, &off) == RSC_ECICON && off == blk - 8);
+	CHECK(read_err.code == RSC_ECICON
+	      && strncmp(read_err.msg, "colour icon table lists more blocks than the file holds", 55) == 0);
+	put32(b, 36 + 72 + 4, (uint32_t)(blk + CBLK_LEN + 37));
+	CHECK(read_code(b, blk + CBLK_LEN + 37, &off) == RSC_ECICON && off == blk - 8);
+	put32(b, 36 + 72 + 4, (uint32_t)(blk + CBLK_LEN + 60));
+	CHECK(read_code(b, blk + CBLK_LEN + 60, &off) == RSC_ECICON && off == blk + CBLK_LEN + 34);
+	put32(b, 36 + 72 + 4, (uint32_t)(len - 2));
+	CHECK(read_code(b, len - 2, &off) == RSC_ECICON && off == blk + CBLK_LEN + 92);
+	/* more entries than the rest of the file could hold blocks: refused
+	 * before any block is looked at, at the first entry that cannot fit */
 	len = build_cfile(b, sizeof b, 1, 0, 1, 0);
-	CHECK(rd32(b, 100) == 108);
-	put32(b, 100, 109);
-	CHECK(read_code(b, len, &off) == RSC_ECICON && off == 100);
+	blk = 36 + 48 + 4 + 12 + 8;
+	CHECK(read_code(b, len, &off) == RSC_OK);
+	put32(b, blk - 4, 0);		/* the terminator: 2 entries, then 3, ... */
+	CHECK(read_code(b, len, &off) == RSC_ECICON && off == blk - 8);	/* no end */
+	put32(b, blk + 4, FILE_NULL);	/* 3 entries: 118 bytes left, room for 2 */
+	CHECK(read_code(b, len, &off) == RSC_ECICON && off == blk + 0);
+	CHECK(strncmp(read_err.msg, "colour icon table lists more blocks than the file holds", 55) == 0);
 	/* the total length of the extension may be shorter than the buffer
 	 * (pTOS wants it equal; trailing bytes are ignored), not longer */
 	len = build_cfile(b, sizeof b, 1, 0, 1, 0);
@@ -1059,9 +1199,10 @@ static size_t build_shared_ted(int nobj, size_t slen, size_t tlen)
 	return at;
 }
 
-/* A colour icon file in b (room bytes) of one block of nver versions of a
- * 0 x 0 icon, named by every one of ntab table entries.  Returns the
- * length. */
+/* A colour icon file in b (room bytes) of a table of ntab entries (each
+ * the offset of the block) and one block of nver versions of a 0 x 0
+ * icon right after it (so more than one entry lists blocks the file does
+ * not hold).  Returns the length. */
 static size_t build_dup_table_in(uint8_t *b, size_t room, long nver, long ntab)
 {
 	size_t	objs = 36, tr = objs + 24, ext = tr + 4, tab = ext + 12;
@@ -1220,14 +1361,16 @@ static void test_hostile(void)
 	len = build_cfile(big, sizeof big, 20, -1, 1, 0);
 	CHECK(big_code(len, &off, NULL) == RSC_OK);
 
-	/* a table naming one block of RSC_MAX_VERSIONS versions 250000 times:
-	 * 1 MB, refused at the second entry, so the block is checked once (the
-	 * clock bound is only a safety net) */
+	/* a table of 60000 entries and one block of RSC_MAX_VERSIONS versions
+	 * in a file padded with zeros to 300 KB: the 59920 bytes after the
+	 * table can hold at most 1198 blocks, so it is refused at entry 1198
+	 * before any block is checked (the clock bound is only a safety net) */
 	t0 = clock();
-	len = build_dup_table(RSC_MAX_VERSIONS, 250000);
-	CHECK(len > 1000000);
-	CHECK(big_code(len, &off, msg) == RSC_ECICON && off == 36 + 24 + 4 + 12 + 4);
-	CHECK(strncmp(msg, "colour icon block listed twice", 30) == 0);
+	len = build_dup_table(RSC_MAX_VERSIONS, 60000);
+	memset(big + len, 0, 300000 - len);
+	put32(big, 36 + 24 + 4, 300000);
+	CHECK(big_code(300000, &off, msg) == RSC_ECICON && off == 36 + 24 + 4 + 12 + 4 * 1198);
+	CHECK(strncmp(msg, "colour icon table lists more blocks than the file holds", 55) == 0);
 	len = build_dup_table(RSC_MAX_VERSIONS, 1);
 	CHECK(big_code(len, &off, NULL) == RSC_OK);
 	CHECK(clock() - t0 < 10 * CLOCKS_PER_SEC);
@@ -1306,7 +1449,7 @@ static size_t put_cblock(size_t blk, int w, int h, long nver, int sel)
 static size_t build_family(long k)
 {
 	size_t	p, s, end;
-	long	i;
+	long	i, m;
 
 	memset(big, 0, sizeof big);
 	switch (family)
@@ -1378,19 +1521,21 @@ static size_t build_family(long k)
 			put32(big, 40 + 4 * (size_t)i, (uint32_t)s);
 		return end;
 	case 14:	/* k empty 0 x 0 blocks, each named by three G_CICON objects */
+	case 15:	/* k 0 x 0 blocks of RSC_MAX_VERSIONS versions, one object each */
 		put16(big, 0, 4);
 		put16(big, 34, 40);
-		put32(big, 44, 52);
-		p = 52 + 4 * (size_t)k + 4;
-		end = put_tree(p, 3 * k, G_CICON, 0);
-		for (i = 1; i <= 3 * k; i++)
-			put32(big, p + 24 * (size_t)i + 12, (uint32_t)((i - 1) / 3));
+		m = family == 14 ? 3 : 1;
+		s = put_tree(52, m * k, G_CICON, 0);	/* the table after the tree */
+		put32(big, 44, (uint32_t)s);
+		for (i = 1; i <= m * k; i++)
+			put32(big, 52 + 24 * (size_t)i + 12, (uint32_t)((i - 1) / m));
+		end = s + 4 * (size_t)k + 4;
 		for (i = 0; i < k; i++)
 		{
-			put32(big, 52 + 4 * (size_t)i, (uint32_t)end);
-			end = put_cblock(end, 0, 0, 0, 0);
+			put32(big, s + 4 * (size_t)i, (uint32_t)end);
+			end = put_cblock(end, 0, 0, family == 14 ? 0 : RSC_MAX_VERSIONS, 0);
 		}
-		put32(big, 52 + 4 * (size_t)k, FILE_NULL);
+		put32(big, s + 4 * (size_t)k, FILE_NULL);
 		put32(big, 40, (uint32_t)end);
 		return end;
 	default:	/* k free images naming one BITBLK of 2 x 2 bytes */
@@ -1442,14 +1587,14 @@ static void test_charges(void)
 	/* family: the measured boundary */
 	static const long	want[] =
 	{
-		1160, 209, 2793, 105, 13489, 336, 5091, 13, 644, 297, 18, 7301, 7, 1175, 467
+		1160, 209, 2793, 105, 13489, 336, 5091, 13, 653, 299, 18, 7301, 7, 1175, 467, 35
 	};
 	/* the largest k a family can have (16-bit header offsets, 32767
 	 * objects in a tree, the size of big) */
 	static const long	most[] =
 	{
 		32000, 32000, 32000, 32000, 32000, 32000, 32000, 2500, 2500, 2500,
-		2500, 15000, 15000, 15000, 9000
+		2500, 15000, 15000, 15000, 9000, 1000
 	};
 	long	k;
 
@@ -1461,7 +1606,7 @@ static void test_charges(void)
 		       (unsigned)sizeof(void *));
 		return;
 	}
-	for (family = 0; family < 15; family++)
+	for (family = 0; family < 16; family++)
 	{
 		k = boundary(1, most[family]);
 		if (getenv("RSC_PRINT_BOUNDARY"))
@@ -1523,6 +1668,7 @@ int main(int argc, char **argv)
 	test_rcs("rcs.rsc", 0);
 	test_rcs("rcslow.rsc", 1);
 	test_cicon();
+	test_table_values();
 	test_mini();
 	test_cfile();
 	test_coords();

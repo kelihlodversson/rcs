@@ -18,10 +18,19 @@
  *		free strings (nstring longs) and the free images (nimages
  *		longs: offsets of BITBLKs)
  *
- * With bit 2 of vrsn set, 12 bytes at rssize extend the file: the total
- * file length, the offset of the colour icon table and a zero long.  The
- * table is a list of longs (the offsets of the colour icon blocks) ending
- * with 0xFFFFFFFF; a G_CICON object's spec is an index into it.  A block:
+ * With bit 2 of vrsn set, longs at rssize extend the file: the total
+ * file length, the offset of the colour icon table, then more longs that
+ * this library ignores (the writer writes a third long of 0; TeraDesk's
+ * files have a non-zero third long, the offset of a colour palette after
+ * the blocks, which is not kept).  The table is a list of longs ending
+ * with 0xFFFFFFFF, one per colour icon block; their values do not matter
+ * (the AES and EmuTOS fill them in with pointers when they load the file,
+ * pTOS's aes/rsload_legacy.c; real files such as TeraDesk's have zeros,
+ * this writer and pTOS's resource generator put the offsets of the
+ * blocks).  The first block starts right after the terminator and each
+ * next one right after the previous, as long as its own head says; a
+ * G_CICON object's spec is the index of its block in that sequence.
+ * Bytes after the last block are ignored.  A block:
  *
  *   ICONBLK	34 bytes, its three pointers meaningless (kept opaque in
  *		struct rsc_cicon.file_head)
@@ -95,10 +104,29 @@
  *    the extension is accepted when it is at most len (pTOS: equal to
  *    len); a G_CICON index of 0xFFFFFFFF is accepted as no colour icon
  *    when there is a table (pTOS rejects it); next_res is kept opaque and
- *    not checked (pTOS wants 1, ..., 1, 0).  A table that lists a block
- *    twice is refused (RSC_ECICON).
+ *    not checked (pTOS wants 1, ..., 1, 0).
+ *  - The colour icon table: its entries are counted up to the terminator
+ *    (none before the end of the buffer is RSC_ECICON at the table) and
+ *    their values ignored.  A table with more entries than the rest of
+ *    the file could hold blocks (each takes at least CBLK_SIZE +
+ *    CTEXT_SIZE bytes) is refused at once, at the first entry that cannot
+ *    fit, before any block is looked at; otherwise the blocks are checked
+ *    one after the other, and a file that ends before the block of an
+ *    entry is RSC_ECICON at the entry ("lists more blocks than the file
+ *    holds"), one that ends inside a block RSC_ECICON in the block.  So
+ *    the work on the table is linear in len.  The blocks stay at even
+ *    offsets: the table offset is even and every block length is even.
  *  - Errors that concern a pointer report the position of the field that
  *    holds it, except a string without its NUL, which reports the string.
+ *
+ * Differences from the old RCS reader (src/rcsread.c, src/rcscicon.c) and
+ * pTOS's portable loader: both took the colour icon table entries as the
+ * offsets of the blocks, which only holds for files written by pTOS's
+ * generator, the old RCS writer and this writer, whose entries happen to
+ * equal the sequential positions.  A real file with zero entries
+ * (TeraDesk's cicons.rsc) lost its colour icons in the old reader (it
+ * stopped at the first entry that is not a block).  Here the blocks are
+ * found as the AES finds them.
  */
 #include <string.h>
 #include "rscatari.h"
@@ -130,6 +158,7 @@ struct rd
 	struct table	obj, ted, ib, bb;
 	size_t	ctable;		/* offset of the colour icon table, 0 for none */
 	size_t	ncicon;		/* the number of colour icon blocks */
+	size_t	*cblk;		/* their offsets (rsc_malloc), NULL for none */
 	size_t	budget;		/* bytes that may be charged */
 	size_t	used;		/* bytes charged so far */
 	size_t	at;		/* the object (or table entry) being decoded */
@@ -353,8 +382,9 @@ static int check_version(struct rd *d, size_t *pos, size_t words)
 	return 0;
 }
 
-/* Checks the colour icon block at off (the table entry at field). */
-static int check_cblk(struct rd *d, uint32_t off, size_t field)
+/* Checks the colour icon block at off (the table entry at field) and sets
+ * *end to the first byte after it. */
+static int check_cblk(struct rd *d, size_t off, size_t field, size_t *end)
 {
 	size_t	words, pos;
 	uint32_t	count, i;
@@ -378,43 +408,59 @@ static int check_cblk(struct rd *d, uint32_t off, size_t field)
 	for (i = 0; i < count; i++)
 		if (check_version(d, &pos, words))
 			return -1;
+	*end = pos;
 	return 0;
 }
 
-/* Checks the blocks of the table at tab, each once: seen has a bit per
- * even offset of the buffer, and a block listed twice is an error. */
-static int scan_table(struct rd *d, size_t tab, unsigned char *seen)
+static int too_few_blocks(struct rd *d, size_t entry)
 {
-	size_t	pos;
-	uint32_t	off;
+	return fail(d, RSC_ECICON, entry, "colour icon table lists more blocks than the file holds");
+}
 
-	for (pos = tab; in_buf(d, pos, 4); pos += 4)
+/* The blocks of the table at tab: one per entry before the terminator,
+ * the first right after it, each next right after the previous; the
+ * entries' values are not looked at.  Their offsets go to d->cblk. */
+static int scan_table(struct rd *d, size_t tab)
+{
+	size_t	pos, n, k, room;
+
+	for (pos = tab; be32(d, pos) != FILE_NULL; pos += 4)
+		if (!in_buf(d, pos + 4, 4))
+			return fail(d, RSC_ECICON, tab, "colour icon table without end");
+	n = (pos - tab) / 4;
+	pos += 4;
+	d->ctable = tab;
+	/* every block takes at least CBLK_SIZE + CTEXT_SIZE bytes */
+	room = (d->len - pos) / (CBLK_SIZE + CTEXT_SIZE);
+	if (n > room)
+		return too_few_blocks(d, tab + 4 * room);
+	if (n == 0)
+		return 0;
+	if (charge(d, n * sizeof *d->cblk))
+		return -1;
+	d->cblk = rsc_malloc(n * sizeof *d->cblk);
+	if (!d->cblk)
+		return nomem(d);
+	for (k = 0; k < n; k++)
 	{
-		d->at = pos;
-		off = be32(d, pos);
-		if (off == FILE_NULL)
-		{
-			d->ctable = tab;
-			return 0;
-		}
-		if (off < d->len && seen[off / 16] & 1 << (off / 2 % 8))
-			return fail(d, RSC_ECICON, pos, "colour icon block listed twice");
-		if (check_cblk(d, off, pos))
+		d->at = tab + 4 * k;
+		if (!in_buf(d, pos, CBLK_SIZE))
+			return too_few_blocks(d, d->at);
+		d->cblk[k] = pos;
+		if (check_cblk(d, pos, d->at, &pos))
 			return -1;
-		seen[off / 16] |= (unsigned char)(1 << (off / 2 % 8));
 		d->ncicon++;
 	}
-	return fail(d, RSC_ECICON, tab, "colour icon table without end");
+	return 0;
 }
 
 /* The extension and the colour icon table, when bit 2 of vrsn says so;
- * every block is checked here. */
+ * every block is checked here.  The longs after the table offset are
+ * ignored. */
 static int cicon_ext(struct rd *d)
 {
-	size_t	ext = d->h[H_RSSIZE], nseen = d->len / 16 + 1;
+	size_t	ext = d->h[H_RSSIZE];
 	uint32_t	total, tab;
-	unsigned char	*seen;
-	int	rc;
 
 	if (!(d->h[H_VRSN] & RSC_VRSN_FORMAT_BITS))
 		return 0;
@@ -429,15 +475,7 @@ static int cicon_ext(struct rd *d)
 		return 0;
 	if ((tab & 1) || !in_buf(d, tab, 4))
 		return fail(d, RSC_ECICON, ext + 4, "bad colour icon table offset");
-	if (charge(d, nseen))
-		return -1;
-	seen = rsc_malloc(nseen);
-	if (!seen)
-		return nomem(d);
-	memset(seen, 0, nseen);
-	rc = scan_table(d, tab, seen);
-	rsc_mfree(seen);
-	return rc;
+	return scan_table(d, tab);
 }
 
 /* ---- specs -------------------------------------------------------------------- */
@@ -662,7 +700,7 @@ static int set_cicon(struct rd *d, int t, int i, uint32_t index, size_t field)
 		return 0;
 	if (index >= d->ncicon)
 		return fail(d, RSC_ECICON, field, "colour icon index out of range");
-	return build_cicon(d, t, i, be32(d, d->ctable + 4 * (size_t)index));
+	return build_cicon(d, t, i, d->cblk[index]);
 }
 
 /* The spec of object i of tree t, whose file record is at rec. */
@@ -941,8 +979,10 @@ struct rsc *rsc_atari_read(const uint8_t *buf, size_t len, int cell_w, int cell_
 	{
 		if (err && err->code == RSC_OK)
 			fail(&d, RSC_EARG, 0, "bad argument");
+		rsc_mfree(d.cblk);
 		rsc_free(d.r);
 		return NULL;
 	}
+	rsc_mfree(d.cblk);
 	return d.r;
 }
