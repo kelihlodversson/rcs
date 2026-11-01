@@ -69,9 +69,10 @@ jobs:
       - name: Resource library tests
         run: make rsc-test
       # AddressSanitizer fails at random with the high mmap randomisation of
-      # recent kernels; 28 bits is what it supports
+      # recent kernels; 28 bits is what it supports.  The step only guards
+      # ASAN, so a runner without this sysctl must not fail the job.
       - name: Allow AddressSanitizer
-        run: sudo sysctl -w vm.mmap_rnd_bits=28
+        run: sudo sysctl -w vm.mmap_rnd_bits=28 || true
       - name: Resource library tests with AddressSanitizer and UBSan
         run: make rsc-test RSC_SAN=1
       - name: Load/save round trip
