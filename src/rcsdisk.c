@@ -9,7 +9,7 @@
 
 /* an unsigned rentry: the type the longs of a record had here before */
 #ifdef RCS_HOST
-typedef unsigned int	urentry;
+typedef unsigned int	urentry __attribute__((aligned(2)));
 #else
 typedef unsigned long	urentry;
 #endif

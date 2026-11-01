@@ -19,7 +19,8 @@ extern void rcs_release(raddr a);
 /* an address held in a table entry or a record field, 4 bytes in the file
  * image: a long on m68k and ARM, so that nothing changes there */
 #ifdef RCS_HOST
-typedef unsigned int rentry;
+/* the data of a resource file is 2-aligned, as on the Atari */
+typedef unsigned int rentry __attribute__((aligned(2)));
 #else
 typedef long rentry;
 #endif

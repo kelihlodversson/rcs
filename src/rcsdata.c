@@ -587,8 +587,10 @@ long get_mem(unsigned short bytes)
 	long	ret;
 	long	left;
 
-	/* what is put here may be a structure the host wants aligned (ARM: 4) */
-	while (rcs_free % __alignof__(long))
+	/* what is put here may be a structure the host wants aligned (ARM: 4);
+	   on the host the records are 2-aligned and the OBJECTs have to stay on
+	   their 24 byte grid, so it is the alignment of an entry of a table */
+	while (rcs_free % __alignof__(rentry))
 		rcs_free++;
 	ret = rcs_free;
 	if (bytes & 0x1)

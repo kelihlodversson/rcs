@@ -9,6 +9,7 @@
 #define RCSDEFS_H
 
 #include <stddef.h>
+#include "rcsaddr.h"
 #include <stdio.h>
 
 /* variables used in icon edit mode */
@@ -140,13 +141,13 @@ extern  short    fgcolor, bgcolor;
 #define R_NSTRING	15
 #define R_IMAGES	16
 
-#define NUM_OBS		(*(short *)(rs_hdr + 2*R_NOBS))
-#define NUM_TREE	(*(short *)(rs_hdr + 2*R_NTREE))
-#define NUM_TI		(*(short *)(rs_hdr + 2*R_NTED))
-#define NUM_IB		(*(short *)(rs_hdr + 2*R_NICON))
-#define NUM_BB		(*(short *)(rs_hdr + 2*R_NBITBLK))
-#define NUM_FRSTR	(*(short *)(rs_hdr + 2*R_NSTRING))
-#define NUM_FRIMG	(*(short *)(rs_hdr + 2*R_IMAGES))
+#define NUM_OBS		(*(short *)RP(rs_hdr + 2*R_NOBS))
+#define NUM_TREE	(*(short *)RP(rs_hdr + 2*R_NTREE))
+#define NUM_TI		(*(short *)RP(rs_hdr + 2*R_NTED))
+#define NUM_IB		(*(short *)RP(rs_hdr + 2*R_NICON))
+#define NUM_BB		(*(short *)RP(rs_hdr + 2*R_NBITBLK))
+#define NUM_FRSTR	(*(short *)RP(rs_hdr + 2*R_NSTRING))
+#define NUM_FRIMG	(*(short *)RP(rs_hdr + 2*R_IMAGES))
 
 #define NUM_RN 7
 #define RS_SIZE 17				/* NUM_RTYPES + NUM_RN	*/

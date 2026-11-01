@@ -9,6 +9,10 @@
 #include <string.h>
 #include "rcsaddr.h"
 #include "rcshost.h"
+#include "rcsdefs.h"
+#include "rcsdata.h"
+#include "rcsdisk.h"
+#include "rcslib.h"
 #include "rcsintf.h"
 #include "rcsalert.h"
 #include "rcsfiles.h"
@@ -61,28 +65,115 @@ short form_error(short errorcode)
     return FALSE;
 }
 
+/* answers the default button, b_num: for the alert of open_files() about a
+ * missing definition file that is the button that continues without one
+ * (button 1 would cancel the load, and the Atari goldens were made with the
+ * load going on) */
 short hndl_alert(short b_num, long addr)
 {
-    (void)b_num;
     if (addr)
         fprintf(stderr, "alert: %s\n", (const char *)RP(addr));
-    return 1;
+    return b_num;
 }
 
-/* the alert trees and the free strings come from the program's own resource,
- * which the host does not have: string_addr gets 0 */
-short rsrc_gaddr(short type, short index, long *addr)
+/* The program's own resource (RCS.RSC: the panel and the boxes comp_str() and
+ * comp_img() copy, the alert strings) is what rsrc_load() gives the Atari
+ * program.  Here rsrc_load() reads that file into the arena and does what the
+ * AES does with it: the file's offsets become addresses and the character
+ * coordinates become pixels (8x16 cell, see gl_wchar above). */
+static raddr own_hdr;
+
+#define OW(off)		(*(unsigned short *)RP(own_hdr + (off)))
+
+static void own_ptr(long a)
 {
-    (void)type;
-    (void)index;
-    *addr = 0;
-    return 0;
+    if (RGET(a) != -1L)
+        RFIELD(a) = own_hdr + RFIELD(a);
 }
 
 short rsrc_load(const char *name)
 {
-    (void)name;
-    return 0;
+    FILE *f = fopen(name, "rb");
+    long size, saved_head = head, saved_size = buff_size, saved_free = rcs_free;
+    short i, ok;
+
+    if (!f)
+        return 0;
+    fseek(f, 0, SEEK_END);
+    size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    own_hdr = rcs_alloc(size + 0x1000);
+    if (fread(RP(own_hdr), 1, size, f) != (size_t)size) {
+        fclose(f);
+        return 0;
+    }
+    fclose(f);
+    /* the tables stay where they are (the records have the sizes of the file),
+     * so rsc_to_native() needs no room, only rcs_free to say where the file ends */
+    head = own_hdr;
+    buff_size = size + 0x1000;
+    rcs_free = own_hdr + size;
+    ok = rsc_to_native(own_hdr, 0L);
+    head = saved_head;
+    buff_size = saved_size;
+    rcs_free = saved_free;
+    if (!ok)
+        return 0;
+    for (i = 0; i < (short)OW(22); i++)
+        own_ptr(own_hdr + OW(18) + 4L * i);
+    for (i = 0; i < (short)OW(30); i++)
+        own_ptr(own_hdr + OW(10) + 4L * i);
+    for (i = 0; i < (short)OW(32); i++)
+        own_ptr(own_hdr + OW(16) + 4L * i);
+    for (i = 0; i < (short)OW(24); i++) {
+        long t = own_hdr + OW(4) + 28L * i;
+
+        own_ptr(t);
+        own_ptr(t + 4);
+        own_ptr(t + 8);
+    }
+    for (i = 0; i < (short)OW(26); i++) {
+        long t = own_hdr + OW(6) + 34L * i;
+
+        own_ptr(t);
+        own_ptr(t + 4);
+        own_ptr(t + 8);
+    }
+    for (i = 0; i < (short)OW(28); i++)
+        own_ptr(own_hdr + OW(8) + 14L * i);
+    for (i = 0; i < (short)OW(20); i++) {
+        long o = own_hdr + OW(2) + 24L * i;
+
+        switch (*(unsigned short *)RP(o + 6) & 0xff) {
+        case G_TEXT: case G_BOXTEXT: case G_FTEXT: case G_FBOXTEXT:
+        case G_BUTTON: case G_STRING: case G_TITLE:
+        case G_IMAGE: case G_ICON:
+            own_ptr(o + 12);
+            break;
+        default:
+            break;
+        }
+        rs_obfix(o, 0);
+    }
+    return 1;
+}
+
+short rsrc_gaddr(short type, short index, long *addr)
+{
+    *addr = 0;
+    if (!own_hdr || index < 0)
+        return 0;
+    switch (type) {
+    case R_TREE:      *addr = RGET(own_hdr + OW(18) + 4L * index); break;
+    case R_OBJECT:    *addr = own_hdr + OW(2) + 24L * index; break;
+    case R_TEDINFO:   *addr = own_hdr + OW(4) + 28L * index; break;
+    case R_ICONBLK:   *addr = own_hdr + OW(6) + 34L * index; break;
+    case R_BITBLK:    *addr = own_hdr + OW(8) + 14L * index; break;
+    case R_STRING:    *addr = RGET(own_hdr + OW(10) + 4L * index); break;
+    case R_IMAGEDATA: *addr = RGET(own_hdr + OW(16) + 4L * index); break;
+    default:          return 0;
+    }
+    return 1;
 }
 
 short rsrc_free(void)
