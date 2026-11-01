@@ -24,11 +24,22 @@ make "$ARCH" EXTRA_CFLAGS=-DRCS_ROUNDTRIP
 
 run() {  # NAME RUN -> build/emulator/golden-NAME-RUN.rsc
     rm -f "build/emulator/qdir-$ARCH/out.rsc" "build/emulator/qdir-$ARCH/OUT.RSC"
+    # rcs and rcslow are loaded with their own definition files. cicon.rsc has
+    # none: RCS then shows the "Can't find definition (.DFN) file" alert and waits
+    # for OK (at 678,455), after which it works the tree types out itself.
     case $1 in
+    rcs)    DFN=src/atari/rcs.dfn ;;
     rcslow) DFN=src/atari/rcslow.dfn ;;
-    *)      DFN=src/atari/rcs.dfn ;;
+    cicon)  DFN= ;;
     esac
-    QD_RSC="tests/golden/$1.rsc" QD_DFN="$DFN" python3 tests/emulator/qd.py "$ARCH" "build/$ARCH/RCS.PRG" "$1-$2" w50
+    if [ -n "$DFN" ]; then
+        export QD_DFN="$DFN"
+        ACTS="w50"
+    else
+        export QD_NODFN=1
+        ACTS="w10 c678,455 w50"
+    fi
+    QD_RSC="tests/golden/$1.rsc" python3 tests/emulator/qd.py "$ARCH" "build/$ARCH/RCS.PRG" "$1-$2" $ACTS
     # vvfat stores the new file in lowercase
     OUT=$(ls "build/emulator/qdir-$ARCH" | grep -i '^out\.rsc$' || true)
     if [ -z "$OUT" ] || [ ! -s "build/emulator/qdir-$ARCH/$OUT" ]; then
