@@ -24,6 +24,7 @@
 #include "rcsaddr.h"
 
 #ifdef RCS_HOST
+#include <stdlib.h>
 /* gsx_untrans() and rsc_fwrite_words() take an RCS address.  On m68k and ARM
  * the scratch area for the standard form of an image is the array wr_obndx[];
  * on the host that array is not in the arena, so the scratch area is a buffer
@@ -38,6 +39,11 @@ static raddr wr_scratch_buf(unsigned long bytes)
 	{
 		wr_scratch_size = bytes < 0x10000UL ? 0x10000UL : bytes;
 		wr_scratch = rcs_alloc(wr_scratch_size);
+		if (!wr_scratch)
+		{
+			fprintf(stderr, "rcswrite: out of memory for the image buffer\n");
+			exit(1);
+		}
 	}
 	return wr_scratch;
 }

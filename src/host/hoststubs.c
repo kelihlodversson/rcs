@@ -1,6 +1,6 @@
 /* HOSTSTUBS.C	the GEM, GEMDOS and GUI parts of RCS, on a host without them.
  *
- * Alerts print their text to stderr and answer the first button.  Drawing,
+ * Alerts print their text to stderr and answer the alert's default button (b_num).  Drawing,
  * mouse and window calls do nothing and return 0.  The pure helpers (object
  * tree links, rectangles, the file name of a resource) are the real ones, so
  * the load and save code sees the trees and names it expects. */
@@ -101,8 +101,18 @@ short rsrc_load(const char *name)
         return 0;
     fseek(f, 0, SEEK_END);
     size = ftell(f);
+    if (size < 0) {
+        fprintf(stderr, "rsrc_load: cannot get the size of %s\n", name);
+        fclose(f);
+        return 0;
+    }
     fseek(f, 0, SEEK_SET);
     own_hdr = rcs_alloc(size + 0x1000);
+    if (!own_hdr) {
+        fprintf(stderr, "rsrc_load: out of memory for %s\n", name);
+        fclose(f);
+        return 0;
+    }
     if (fread(RP(own_hdr), 1, size, f) != (size_t)size) {
         fclose(f);
         return 0;
