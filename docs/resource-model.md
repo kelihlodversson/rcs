@@ -19,6 +19,7 @@ it yet: the objects are compiled for m68k and ARM but not linked into
 | `src/rsc/rscfile.h` | the format selector (reserved for phase 3), the error type and codes, `RSC_MAX_CELL` |
 | `src/rsc/rscatari_read.c` | the reader of the classic Atari big-endian `.RSC` format |
 | `src/rsc/rscatari_write.c` | the writer of that format |
+| `src/rsc/rscatari.h` | private to those two: record sizes, header words, error filling |
 | `tests/rsc/` | `test_rsc.c`, `test_read.c`, `test_write.c` |
 
 The classic format is the 16-bit `RSHDR` with the AES 4 colour icon extension.

@@ -101,18 +101,7 @@
  *    holds it, except a string without its NUL, which reports the string.
  */
 #include <string.h>
-#include "rscfile.h"
-
-#define FILE_NULL		0xffffffffUL
-
-#define HDR_SIZE	36
-#define OBJ_SIZE	24
-#define TED_SIZE	28
-#define IB_SIZE		34
-#define BB_SIZE		14
-#define CBLK_SIZE	38	/* the ICONBLK and the count of colour versions */
-#define CTEXT_SIZE	12
-#define CICON_SIZE	22	/* the header of a colour version */
+#include "rscatari.h"
 
 /* What one allocation costs in the budget beyond its size.  The densest
  * file the writer can make (13099 empty free strings: 5 bytes of file and
@@ -121,14 +110,6 @@
  * reader refuse what the writer writes.  test_densest (tests/rsc/
  * test_write.c) checks it; change it consciously. */
 #define BLOCK_COST	8
-
-/* positions of the header words */
-enum
-{
-	H_VRSN, H_OBJECT, H_TEDINFO, H_ICONBLK, H_BITBLK, H_FRSTR, H_STRING,
-	H_IMDATA, H_FRIMG, H_TRINDEX, H_NOBS, H_NTREE, H_NTED, H_NIB, H_NBB,
-	H_NSTRING, H_NIMAGES, H_RSSIZE, H_WORDS
-};
 
 /* a table of the file: where, how many, how big */
 struct table
@@ -160,31 +141,7 @@ struct rd
  * Returns -1 for the caller to pass on. */
 static int fail(struct rd *d, int code, size_t off, const char *what)
 {
-	static const char	hex[] = "0123456789abcdef";
-	char	num[2 * sizeof(size_t) + 1];
-	struct rsc_error	*e = d->err;
-	size_t	n, k = sizeof num - 1;
-
-	if (!e)
-		return -1;
-	e->code = code;
-	e->offset = off;
-	num[k] = '\0';
-	do
-	{
-		num[--k] = hex[off & 15];
-		off >>= 4;
-	} while (off && k > 0);
-	n = strlen(what);
-	if (n > sizeof e->msg - 1)
-		n = sizeof e->msg - 1;
-	memcpy(e->msg, what, n);
-	e->msg[n] = '\0';
-	if (n + 13 + strlen(num + k) < sizeof e->msg)
-	{
-		strcat(e->msg, " at offset 0x");
-		strcat(e->msg, num + k);
-	}
+	rsc_error_set(d->err, code, off, what);
 	return -1;
 }
 

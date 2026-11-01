@@ -143,30 +143,10 @@
  *  - a classic part over 65535 bytes is an error, not a silent wrap.
  */
 #include <string.h>
-#include "rscfile.h"
-
-#define FILE_NULL	0xffffffffUL
-
-#define HDR_SIZE	36
-#define OBJ_SIZE	24
-#define TED_SIZE	28
-#define IB_SIZE		34
-#define BB_SIZE		14
-#define CBLK_SIZE	38	/* the ICONBLK and the count of colour versions */
-#define CTEXT_SIZE	12
-#define CICON_SIZE	22	/* the header of a colour version */
-#define EXT_SIZE	12	/* the extension at rsh_rssize */
+#include "rscatari.h"
 
 /* The largest classic part: its offsets are 16-bit words. */
 #define CLASSIC_MAX	65535UL
-
-/* positions of the header words */
-enum
-{
-	H_VRSN, H_OBJECT, H_TEDINFO, H_ICONBLK, H_BITBLK, H_FRSTR, H_STRING,
-	H_IMDATA, H_FRIMG, H_TRINDEX, H_NOBS, H_NTREE, H_NTED, H_NIB, H_NBB,
-	H_NSTRING, H_NIMAGES, H_RSSIZE, H_WORDS
-};
 
 /* The sections of the output in the order they are laid out: the classic
  * part, then the colour icon table and blocks. */
@@ -208,42 +188,11 @@ struct wr
 
 /* ---- errors -------------------------------------------------------------- */
 
-static void app(char *m, size_t *n, const char *s)
-{
-	while (*s && *n < sizeof ((struct rsc_error *)0)->msg - 1)
-		m[(*n)++] = *s++;
-	m[*n] = '\0';
-}
-
-static void app_num(char *m, size_t *n, size_t v, int hex)
-{
-	static const char	dig[] = "0123456789abcdef";
-	char	num[3 * sizeof(size_t) + 1];
-	size_t	k = sizeof num - 1, b = hex ? 16 : 10;
-
-	num[k] = '\0';
-	do
-	{
-		num[--k] = dig[v % b];
-		v /= b;
-	} while (v && k > 0);
-	app(m, n, num + k);
-}
-
 /* Fills the error report with code, offset and "what at offset 0x...".
  * Returns -1 for the caller to pass on. */
 static int fail(struct wr *w, int code, size_t off, const char *what)
 {
-	struct rsc_error	*e = w->err;
-	size_t	n = 0;
-
-	if (!e)
-		return -1;
-	e->code = code;
-	e->offset = off;
-	app(e->msg, &n, what);
-	app(e->msg, &n, " at offset 0x");
-	app_num(e->msg, &n, off, 1);
+	rsc_error_set(w->err, code, off, what);
 	return -1;
 }
 
@@ -258,17 +207,17 @@ static int fail_in(struct wr *w, int code, const char *what, const char *where, 
 		return -1;
 	e->code = code;
 	e->offset = 0;
-	app(e->msg, &n, what);
-	app(e->msg, &n, " (");
-	app(e->msg, &n, where);
-	app(e->msg, &n, " ");
-	app_num(e->msg, &n, (size_t)k, 0);
+	rsc_msg_app(e->msg, &n, what);
+	rsc_msg_app(e->msg, &n, " (");
+	rsc_msg_app(e->msg, &n, where);
+	rsc_msg_app(e->msg, &n, " ");
+	rsc_msg_num(e->msg, &n, (size_t)k, 0);
 	if (i >= 0)
 	{
-		app(e->msg, &n, ", object ");
-		app_num(e->msg, &n, (size_t)i, 0);
+		rsc_msg_app(e->msg, &n, ", object ");
+		rsc_msg_num(e->msg, &n, (size_t)i, 0);
 	}
-	app(e->msg, &n, ")");
+	rsc_msg_app(e->msg, &n, ")");
 	return -1;
 }
 
@@ -281,13 +230,13 @@ static int fail_obj(struct wr *w, int code, size_t at, const char *what, const c
 	size_t	n = 0;
 
 	m[0] = '\0';
-	app(m, &n, what);
-	app(m, &n, what2);
-	app(m, &n, " (tree ");
-	app_num(m, &n, (size_t)t, 0);
-	app(m, &n, ", object ");
-	app_num(m, &n, (size_t)i, 0);
-	app(m, &n, ")");
+	rsc_msg_app(m, &n, what);
+	rsc_msg_app(m, &n, what2);
+	rsc_msg_app(m, &n, " (tree ");
+	rsc_msg_num(m, &n, (size_t)t, 0);
+	rsc_msg_app(m, &n, ", object ");
+	rsc_msg_num(m, &n, (size_t)i, 0);
+	rsc_msg_app(m, &n, ")");
 	return fail(w, code, at, m);
 }
 
