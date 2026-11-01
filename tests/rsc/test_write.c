@@ -1585,7 +1585,13 @@ static void test_coord_files(void)
 		{
 			memcpy(b, f.b, f.len);
 			for (m = 1 + (int)mrnd(3); m > 0; m--)
-				b[mrnd((unsigned)f.len)] ^= (uint8_t)(1 + mrnd(255));
+			{
+				/* two statements: the operands of ^= are unsequenced
+				 * (gcc and clang both drew the value first) */
+				uint8_t	x = (uint8_t)(1 + mrnd(255));
+
+				b[mrnd((unsigned)f.len)] ^= x;
+			}
 			r = rd(b, f.len, 8, 16, &e);
 			if (!r)
 				continue;
