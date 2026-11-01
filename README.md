@@ -87,9 +87,11 @@ data sections), with three exceptions that differ on purpose: `rcs_init` and
 `rcs_exit` (`src/rcsinit.c`) and `read_files` (`src/rcsread.c`) call
 `rcs_alloc`/`rcs_release` where they called `malloc`/`free`. The new function
 `rcs_alloc` itself is plain `malloc` on m68k and ARM. The comparison has to be
-run for both targets after a change. It was last run on the final tree for ARM
-only (identical apart from the above); the m68k comparison was not re-run on
-the final tree because the m68k toolchain was unavailable at the time.
+run for both targets after a change. It was run on the final tree of this stage
+for both: identical apart from the above. On m68k the script also reports
+`comp_img`, `index_guessed_tree` and `merge_files` in `rcsread.o`, which only
+moved after `read_files` changed size (the script does not mask the absolute
+addresses in their relocation lines); with those masked they are identical.
 
 `make host-test` compares only the `.rsc` output with the golden files. The
 `.DFN` and `.H` files that the host run writes to `build/host` are not
