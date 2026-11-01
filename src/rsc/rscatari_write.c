@@ -68,17 +68,21 @@
  *  - te_txtlen and te_tmplen are written as the model has them (the reader
  *    recomputes them from the strings).
  *  - Coordinates: with a cell size of 0, 0 they are written as they are
- *    (file form); otherwise converted as unfix_chpos does: the low byte is
- *    pix / cell (C division), the high byte the remainder.  The cell size
- *    must be the one the model is in (rsc_cell): another one cannot be
- *    meant, and is refused (RSC_EARG), as are a mix of 0 and non-0 and
- *    sizes above RSC_MAX_CELL (rscfile.h), as for the reader.  A pixel
- *    value the file form cannot hold (negative, or above 256 * cell - 1:
- *    255 cells plus a remainder below the cell) is refused with
- *    RSC_ETOOBIG at the offset of the object, not wrapped.  (The old
- *    unfix_chpos wrapped them; the goldens have none.  Small negative
- *    values above -cell would survive the old conversion, but no editor
- *    produces them and the strict rule is the simple one.)
+ *    (file form).  Otherwise they are converted back exactly as the
+ *    reader converts them forward (fix_chpos: pixels = low byte * cell +
+ *    high byte, a high byte above 128 meaning high - 256), so every value
+ *    the reader can produce, -127 .. 255 * cell + 128, is written to a word
+ *    the reader turns into the same value: v < 0 as low byte 0 and high
+ *    byte 256 + v; v >= 0 as low byte min(v / cell, 255) and the rest in
+ *    the high byte.  For 0 <= v < 256 * cell that is the canonical form
+ *    (high byte below the cell) the old unfix_chpos wrote and the goldens
+ *    have; the old code wrapped the others (most negative values, and
+ *    values past 255 cells) into wrong words.  A value outside that range
+ *    has no file form and is refused with RSC_ETOOBIG at the offset of the
+ *    object, the message naming the field.  The cell size must be the one
+ *    the model is in (rsc_cell): another one cannot be meant, and is
+ *    refused (RSC_EARG), as are a mix of 0 and non-0 and sizes above
+ *    RSC_MAX_CELL (rscfile.h), as for the reader.
  *  - Colour icons: a G_CICON object's spec is the index of its icon in
  *    the order written (trees in order, objects in preorder); one without
  *    a struct rsc_cicon gets a NULL spec.  The opaque file_head and
@@ -512,29 +516,54 @@ static int put_cicon(struct wr *w, int t, int i, const struct rsc_cicon *c, uint
 
 /* ---- objects and trees -------------------------------------------------------- */
 
-/* A coordinate converted back to file form with cell size cell
- * (unfix_chpos): the low byte pix / cell, the high byte the remainder,
- * in two's complement as the old code computed it. */
-static unsigned unfix_coord(int pix, int cell)
-{
-	int	coff = pix / cell, cbits = pix - coff * cell;
-
-	return ((unsigned)coff | (unsigned)cbits << 8) & 0xffff;
-}
-
-/* Coordinate v in file form into *out; -1 when the file form cannot hold
- * it (only with a cell size). */
+/* Coordinate v in file form into *out, the inverse of the reader's
+ * conversion with cell size cell (see the top); -1 when the file form
+ * cannot hold it (only with a cell size). */
 static int coord(int v, int cell, unsigned *out)
 {
+	int	lo;
+
 	if (!cell)
 	{
 		*out = (unsigned short)v;
 		return 0;
 	}
-	if (v < 0 || v > 256 * cell - 1)
+	if (v < -127 || v > 255 * cell + 128)
 		return -1;
-	*out = unfix_coord(v, cell);
+	if (v < 0)
+	{
+		*out = (unsigned)(256 + v) << 8;
+		return 0;
+	}
+	lo = v / cell;
+	if (lo > 255)
+		lo = 255;
+	*out = (unsigned)lo | (unsigned)(v - lo * cell) << 8;
 	return 0;
+}
+
+#ifdef RSC_TEST
+int rsc_test_coord_to_file(int v, int cell, unsigned *word)
+{
+	return coord(v, cell, word);
+}
+#endif
+
+/* The coordinate field f of object i of tree t (written at at) has no
+ * file form. */
+static int bad_coord(struct wr *w, size_t at, const char *f, int t, int i)
+{
+	char	m[sizeof w->err->msg];
+	size_t	n = 0;
+
+	m[0] = '\0';
+	app(m, &n, f);
+	app(m, &n, " out of range (tree ");
+	app_num(m, &n, (size_t)t, 0);
+	app(m, &n, ", object ");
+	app_num(m, &n, (size_t)i, 0);
+	app(m, &n, ")");
+	return fail(w, RSC_ETOOBIG, at, m);
 }
 
 /* A link of the current tree (n objects) renumbered; -1 when it points to
@@ -597,9 +626,14 @@ static int put_object(struct wr *w, int t, const OBJECT *objs, int n, int i, int
 	if ((k && new_link(w, o->ob_next, n, &next)) || new_link(w, o->ob_head, n, &head)
 	    || new_link(w, o->ob_tail, n, &tail))
 		return fail_in(w, RSC_ELINK, "tree link out of range", "tree", t, i);
-	if (coord(o->ob_x, w->cell_w, &xywh[0]) || coord(o->ob_y, w->cell_h, &xywh[1])
-	    || coord(o->ob_width, w->cell_w, &xywh[2]) || coord(o->ob_height, w->cell_h, &xywh[3]))
-		return fail(w, RSC_ETOOBIG, at, "coordinate does not fit the file form");
+	if (coord(o->ob_x, w->cell_w, &xywh[0]))
+		return bad_coord(w, at, "ob_x", t, i);
+	if (coord(o->ob_y, w->cell_h, &xywh[1]))
+		return bad_coord(w, at, "ob_y", t, i);
+	if (coord(o->ob_width, w->cell_w, &xywh[2]))
+		return bad_coord(w, at, "ob_width", t, i);
+	if (coord(o->ob_height, w->cell_h, &xywh[3]))
+		return bad_coord(w, at, "ob_height", t, i);
 	switch (type & 0xff)
 	{
 	case G_ICON:

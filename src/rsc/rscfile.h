@@ -57,12 +57,20 @@ struct rsc_error
  *
  * rsc_atari_write encodes r into a buffer (*out, *len; allocated with
  * rsc_malloc, the caller frees it with rsc_mfree) and returns
- * 0, or returns -1 and fills *err; it does not modify r.  cell_w and cell_h
- * are the cell size pixel coordinates are converted back to file form with
- * (as unfix_chpos does); see rsc_cell for what r holds. */
+ * 0, or returns -1 and fills *err; it does not modify r.  On failure, bad
+ * arguments included, *out is NULL and *len is 0 (when out and len are
+ * not NULL); err may be NULL.  cell_w and cell_h are the cell size pixel
+ * coordinates are converted back to file form with (the inverse of the
+ * reader's conversion); they must be the cell size r holds (rsc_cell). */
 struct rsc *rsc_atari_read(const uint8_t *buf, size_t len, int cell_w, int cell_h,
 			   struct rsc_error *err);
 int rsc_atari_write(const struct rsc *r, int cell_w, int cell_h,
 		    uint8_t **out, size_t *len, struct rsc_error *err);
+
+#ifdef RSC_TEST
+/* The writer's conversion of a pixel coordinate v to its file word with
+ * cell size cell (1..RSC_MAX_CELL): returns 0, or -1 when v has none. */
+int rsc_test_coord_to_file(int v, int cell, unsigned *word);
+#endif
 
 #endif

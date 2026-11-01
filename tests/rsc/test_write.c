@@ -1046,27 +1046,156 @@ static void test_coords(void)
 	rsc_tree_add(r, 1);
 	k = rsc_obj_add(r, 0, 0, G_BOX);
 	CHECK(rsc_set_cell(r, 8, 16) == 0);
+	/* canonical values: the old unfix_chpos form */
 	CHECK(rsc_obj_set_geom(r, 0, 0, 0, 0, 255 * 8 + 7, 255 * 16 + 15) == 0);
 	CHECK(wr(r, 8, 16, &o, &len, &e) == 0 && o && rd16(o, 36 + 20) == 0x07ff && rd16(o, 36 + 22) == 0x0fff);
 	rsc_mfree(o);
-	CHECK(rsc_obj_set_geom(r, 0, 0, 0, 0, 256 * 8, 1) == 0);
+	/* the extremes the reader produces: -127 and 255 cells + 128 */
+	CHECK(rsc_obj_set_geom(r, 0, 0, -127, -1, 255 * 8 + 128, 255 * 16 + 128) == 0);
+	CHECK(wr(r, 8, 16, &o, &len, &e) == 0 && o);
+	if (o)
+		CHECK(rd16(o, 36 + 16) == 0x8100 && rd16(o, 36 + 18) == 0xff00
+		      && rd16(o, 36 + 20) == 0x80ff && rd16(o, 36 + 22) == 0x80ff);
+	rsc_mfree(o);
+	/* one past them: no file form */
+	CHECK(rsc_obj_set_geom(r, 0, 0, 0, 0, 255 * 8 + 129, 1) == 0);
 	EXPECT_FAIL(r, 8, 16, RSC_ETOOBIG, 36);
-	CHECK(rsc_obj_set_geom(r, 0, 0, 0, 0, 8, 256 * 16) == 0);
+	CHECK(wr(r, 8, 16, &o, &len, &e) == -1 && strstr(e.msg, "ob_width") && strstr(e.msg, "object 0"));
+	CHECK(rsc_obj_set_geom(r, 0, 0, 0, 0, 8, 255 * 16 + 129) == 0);
 	EXPECT_FAIL(r, 8, 16, RSC_ETOOBIG, 36);
 	CHECK(rsc_obj_set_geom(r, 0, 0, 0, 0, 8, 16) == 0);
-	CHECK(rsc_obj_set_geom(r, 0, k, -1, 0, 8, 16) == 0);
+	CHECK(rsc_obj_set_geom(r, 0, k, -128, 0, 8, 16) == 0);
+	EXPECT_FAIL(r, 8, 16, RSC_ETOOBIG, 36 + 24);
+	CHECK(wr(r, 8, 16, &o, &len, &e) == -1 && strstr(e.msg, "ob_x") && strstr(e.msg, "object 1"));
+	CHECK(rsc_obj_set_geom(r, 0, k, 0, -128, 8, 16) == 0);
 	EXPECT_FAIL(r, 8, 16, RSC_ETOOBIG, 36 + 24);
 	/* in file form every value is written as it is */
 	CHECK(rsc_set_cell(r, 0, 0) == 0);
-	CHECK(wr(r, 0, 0, &o, &len, &e) == 0 && o && rd16(o, 36 + 24 + 16) == 0xffff);
+	CHECK(rsc_obj_set_geom(r, 0, k, -1, -32768, 32767, 0x1234) == 0);
+	CHECK(wr(r, 0, 0, &o, &len, &e) == 0 && o && rd16(o, 36 + 24 + 16) == 0xffff
+	      && rd16(o, 36 + 24 + 18) == 0x8000 && rd16(o, 36 + 24 + 20) == 0x7fff);
 	rsc_mfree(o);
 	/* the largest cell */
 	CHECK(rsc_set_cell(r, RSC_MAX_CELL, RSC_MAX_CELL) == 0);
-	CHECK(rsc_obj_set_geom(r, 0, k, 256 * RSC_MAX_CELL - 1, 0, 0, 0) == 0);
-	CHECK(wr(r, RSC_MAX_CELL, RSC_MAX_CELL, &o, &len, &e) == 0 && o
-	      && rd16(o, 36 + 24 + 16) == (0xff | (RSC_MAX_CELL - 1) << 8));
+	CHECK(rsc_obj_set_geom(r, 0, k, 255 * RSC_MAX_CELL + 128, 0, 0, 0) == 0);
+	CHECK(wr(r, RSC_MAX_CELL, RSC_MAX_CELL, &o, &len, &e) == 0 && o && rd16(o, 36 + 24 + 16) == 0x80ff);
 	rsc_mfree(o);
 	rsc_free(r);
+}
+
+/* fix_chpos, the reader's conversion, written again */
+static int fix(unsigned v, int cell)
+{
+	int	hi = (int)(v >> 8) & 0xff, c = (int)(v & 0xff) * cell;
+
+	return hi > 128 ? c - (256 - hi) : c + hi;
+}
+
+/* Every word of every cell: what the reader makes of it the writer turns
+ * into a word the reader makes the same of; the values in between too; the
+ * canonical ones as the old unfix_chpos; outside the range nothing. */
+static void test_coord_brute(void)
+{
+	long	bad = 0, n = 0;
+	int	cell, v, coff;
+	unsigned	word, w2;
+
+	for (cell = 1; cell <= RSC_MAX_CELL; cell++)
+	{
+		for (word = 0; word < 0x10000; word++)
+		{
+			v = fix(word, cell);
+			n++;
+			if (rsc_test_coord_to_file(v, cell, &w2) || fix(w2, cell) != v)
+				bad++;
+		}
+		for (v = -127; v <= 255 * cell + 128; v++)
+			if (rsc_test_coord_to_file(v, cell, &w2) || w2 > 0xffff || fix(w2, cell) != v)
+				bad++;
+		for (v = 0; v < 256 * cell; v++)
+		{
+			coff = v / cell;
+			if (rsc_test_coord_to_file(v, cell, &w2)
+			    || w2 != ((unsigned)coff | (unsigned)(v - coff * cell) << 8))
+				bad++;
+		}
+		if (!rsc_test_coord_to_file(-128, cell, &w2) || !rsc_test_coord_to_file(255 * cell + 129, cell, &w2))
+			bad++;
+	}
+	CHECK(bad == 0);
+	printf("  coordinates: %ld (cell, word) pairs, %ld wrong\n", n, bad);
+}
+
+static uint64_t mrng = 0x2545f4914f6cdd1dULL;
+
+static unsigned mrnd(unsigned n)
+{
+	mrng = mrng * 6364136223846793005ULL + 1442695040888963407ULL;
+	return (unsigned)(mrng >> 33) % n;
+}
+
+/* Real files: coordinates the old writer wrapped, and every mutation of a
+ * golden the reader accepts at 8x16 is written and reads back the same. */
+static void test_coord_files(void)
+{
+	static const char	*names[] = { "rcs.rsc", "cicon.rsc" };
+	static const unsigned	words[] = { 0xff00, 0x08ff, 0x80ff, 0x8101 };
+	struct rsc_error	e;
+	struct rsc	*r, *r2;
+	struct file	f;
+	uint8_t	*b, *o;
+	size_t	len, at;
+	int	k, m, j, nread = 0, nfail = 0;
+
+	f = load("rcs.rsc");
+	b = malloc(f.len);
+	at = hw(f.b, H_OBJECT) + 24 + 16;		/* ob_x of object 1 */
+	for (k = 0; k < 4; k++)
+	{
+		memcpy(b, f.b, f.len);
+		b[at] = (uint8_t)(words[k] >> 8);
+		b[at + 1] = (uint8_t)words[k];
+		r = rd(b, f.len, 8, 16, &e);
+		CHECK(r && rsc_tree_objects(r, 0, NULL)[1].ob_x == fix(words[k], 8));
+		o = NULL;
+		CHECK(r && wr(r, 8, 16, &o, &len, &e) == 0);
+		r2 = o ? rd(o, len, 8, 16, &e) : NULL;
+		CHECK(r2 && same_model(r, r2) && rsc_tree_objects(r2, 0, NULL)[1].ob_x == fix(words[k], 8));
+		rsc_free(r);
+		rsc_free(r2);
+		rsc_mfree(o);
+	}
+	free(b);
+	free(f.b);
+	for (j = 0; j < 2; j++)
+	{
+		f = load(names[j]);
+		b = malloc(f.len);
+		for (k = 0; k < 2000; k++)
+		{
+			memcpy(b, f.b, f.len);
+			for (m = 1 + (int)mrnd(3); m > 0; m--)
+				b[mrnd((unsigned)f.len)] ^= (uint8_t)(1 + mrnd(255));
+			r = rd(b, f.len, 8, 16, &e);
+			if (!r)
+				continue;
+			nread++;
+			o = NULL;
+			r2 = NULL;
+			if (wr(r, 8, 16, &o, &len, &e) || !(r2 = rd(o, len, 8, 16, &e)) || !same_model(r, r2))
+			{
+				fprintf(stderr, "%s mutation %d: %s\n", names[j], k, e.msg);
+				nfail++;
+			}
+			rsc_free(r);
+			rsc_free(r2);
+			rsc_mfree(o);
+		}
+		free(b);
+		free(f.b);
+	}
+	CHECK(nfail == 0 && nread > 1000);
+	printf("  mutated goldens: %d read at 8x16, %d failed to write back\n", nread, nfail);
 }
 
 /* ---- (e) allocation failures ---------------------------------------------------------------- */
@@ -1506,6 +1635,8 @@ int main(int argc, char **argv)
 	test_limits();
 	test_errors();
 	test_coords();
+	test_coord_brute();
+	test_coord_files();
 	test_alloc();
 	test_cicons();
 	test_fuzz();
