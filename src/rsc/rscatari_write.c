@@ -109,6 +109,21 @@
  *  - Errors that concern the model rather than a position in the output
  *    (broken trees, negative sizes, bad colour versions) have offset 0 and
  *    name the tree and object, or the free image, in the message.
+ *
+ * Differences from the old writer (src/rcswrite.c), all deliberate:
+ *  - the old writer kept NULL image data pointers (0xFFFFFFFF); here NULL
+ *    image data is a blank image, written as zeros with a real pointer;
+ *  - icon planes by the AES rule (the old ((w + 7) / 8) * h was short for
+ *    widths that are not a multiple of 16);
+ *  - a record shared by two objects in the input was garbage on output;
+ *    the model has a copy per object, written once per object;
+ *  - coordinates the old unfix_chpos wrapped (negative values, values past
+ *    255 cells) are written so that they read back, or refused;
+ *  - colour icons come from the model, not from kept bytes; next_res is
+ *    normalised to 1 and 0 and sel_data made to agree with the planes;
+ *  - rsh_frstr and rsh_frimg are 0 for empty lists (the old value was
+ *    stale);
+ *  - a classic part over 65535 bytes is an error, not a silent wrap.
  */
 #include <string.h>
 #include "rscfile.h"

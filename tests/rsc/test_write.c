@@ -825,6 +825,63 @@ static void test_sample(void)
 	rsc_free(r2);
 }
 
+/* NULL image data pointers in a file (0xFFFFFFFF) read as NULL data, and
+ * are written as zeros of the right size with a real pointer; they read
+ * back as a zero image. */
+static void test_null_data(void)
+{
+	struct rsc	*r = build_sample(), *r2, *r3;
+	struct rsc_error	e;
+	uint8_t	*o = NULL, *o2 = NULL, *z;
+	size_t	len, len2, bb, ib, k;
+	const OBJECT	*ob;
+	uint32_t	p;
+
+	CHECK(wr(r, 0, 0, &o, &len, &e) == 0);
+	rsc_free(r);
+	if (!o)
+		return;
+	bb = hw(o, H_BITBLK);			/* the G_IMAGE of tree 0, 2 x 3 bytes */
+	ib = hw(o, H_ICONBLK);			/* the G_ICON of tree 0, 24 x 3 */
+	CHECK(rd16(o, bb + 4) == 2 && rd16(o, bb + 6) == 3 && rd16(o, ib + 22) == 24 && rd16(o, ib + 24) == 3);
+	memset(o + bb, 0xff, 4);
+	memset(o + ib, 0xff, 4);
+	r2 = rd(o, len, 0, 0, &e);
+	CHECK(r2 != NULL);
+	if (!r2)
+		return;
+	ob = rsc_tree_objects(r2, 0, NULL);
+	CHECK(ob[6].ob_spec.bitblk->bi_pdata == NULL);	/* preorder 0 1 3 4 7 2 6 */
+	CHECK(ob[3].ob_spec.iconblk->ib_pmask == NULL && ob[3].ob_spec.iconblk->ib_pdata != NULL);
+	CHECK(wr(r2, 0, 0, &o2, &len2, &e) == 0);
+	if (o2)
+	{
+		p = rd32(o2, bb);
+		CHECK(p != FILE_NULL && p + 6 <= len2);
+		for (k = 0; k < 6 && p + 6 <= len2; k++)
+			CHECK(o2[p + k] == 0);
+		p = rd32(o2, ib);
+		CHECK(p != FILE_NULL && p + 12 <= len2 && rd32(o2, ib + 4) == p + 12);
+		for (k = 0; k < 12 && p + 12 <= len2; k++)
+			CHECK(o2[p + k] == 0);
+		r3 = rd(o2, len2, 0, 0, &e);
+		CHECK(r3 != NULL);
+		if (r3)
+		{
+			ob = rsc_tree_objects(r3, 0, NULL);
+			z = calloc(1, 12);
+			CHECK(ob[6].ob_spec.bitblk->bi_pdata && memcmp(ob[6].ob_spec.bitblk->bi_pdata, z, 6) == 0);
+			CHECK(ob[3].ob_spec.iconblk->ib_pmask && memcmp(ob[3].ob_spec.iconblk->ib_pmask, z, 12) == 0);
+			free(z);
+			CHECK(same_model(r2, r3));
+		}
+		rsc_free(r3);
+	}
+	rsc_mfree(o);
+	rsc_mfree(o2);
+	rsc_free(r2);
+}
+
 /* Trees in several orders: the file follows the order of the model. */
 static void test_tree_order(void)
 {
@@ -1627,6 +1684,7 @@ int main(int argc, char **argv)
 	test_hand();
 	test_sample();
 	test_tree_order();
+	test_null_data();
 	test_limits();
 	test_errors();
 	test_coords();
