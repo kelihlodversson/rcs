@@ -100,7 +100,7 @@ $(LIBCMINI_CRT): $(LIBCMINI_A)
 
 # ---- m68k --------------------------------------------------------------
 
-M68K_CFLAGS = $(STD) $(WARN) -O2 -m68000 -fomit-frame-pointer $(INCLUDES)
+M68K_CFLAGS = $(STD) $(WARN) $(EXTRA_CFLAGS) -O2 -m68000 -fomit-frame-pointer $(INCLUDES)
 M68K_OBJ    = $(patsubst %.c,build/m68k/%.o,$(PRG_SRC))
 
 build/m68k/%.o: %.c $(GEMLIB_H)
@@ -124,7 +124,7 @@ ARM_LIBCMINI  = build/arm/lib/libcmini.a
 ARM_CRT       = build/arm/lib/minicrt0.o
 
 # gemlib's own include/arm directory has the compiler.h its headers need
-ARM_CFLAGS = $(STD) $(WARN) -O2 -ffreestanding $(ARM_ABI) \
+ARM_CFLAGS = $(STD) $(WARN) $(EXTRA_CFLAGS) -O2 -ffreestanding $(ARM_ABI) \
     -Isrc -I$(GEMLIB)/include/arm -I$(GEMLIB) -I$(LIBCMINI)/include -D__GEMLIB_OLDNAMES
 ARM_OBJ    = $(patsubst %.c,build/arm/%.o,$(PRG_SRC))
 
