@@ -172,7 +172,7 @@ extern short form_error(short errorcode);
 extern short form_alert(short button, const char *text);
 extern short wind_get(short handle, short field, short *w1, short *w2, short *w3, short *w4);
 extern short wind_set(short handle, short field, short w1, short w2, short w3, short w4);
-extern short rsrc_gaddr(short type, short index, void *addr);
+extern short rsrc_gaddr(short type, short index, long *addr);
 extern short rsrc_load(const char *name);
 extern short rsrc_free(void);
 extern short rc_intersect(const GRECT *src, GRECT *dst);

@@ -5,6 +5,7 @@
  * tree links, rectangles, the file name of a resource) are the real ones, so
  * the load and save code sees the trees and names it expects. */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "rcsaddr.h"
 #include "rcshost.h"
@@ -17,10 +18,24 @@
 #define TRUE	1
 #define FALSE	0
 
-/* the VDI handle, and the size of a character of the system font */
+/* The VDI handle, and the cell of the system font.  The goldens in tests/golden
+ * were made under the pTOS virt-arm image: its screen is the 1280x800 scanout
+ * of QEMU's virtio-gpu, and the system font there is 8x16, so a character is 8
+ * pixels wide and a line 16 high.  Checked on build/emulator/c2-1.png (ARM):
+ * the alert lines are 16 pixels apart and "Can't find definition (.DFN)" (28
+ * characters) spans about 222 pixels.  build/emulator/m1-1.png (m68k panic
+ * screen) shows the same cell.  ch_width and ch_height must agree with these. */
 short gl_handle = 0;
 short gl_hchar = 16;
 short gl_wchar = 8;
+
+/* the monochrome conversions are only reached from rast_op, which only the
+ * GUI calls: if one of them is ever called from the load or save path, stop */
+static void not_on_load_save(const char *name)
+{
+    fprintf(stderr, "%s: not supported on the host\n", name);
+    abort();
+}
 
 extern char rcs_rfile[];
 
@@ -56,11 +71,11 @@ short hndl_alert(short b_num, long addr)
 
 /* the alert trees and the free strings come from the program's own resource,
  * which the host does not have: string_addr gets 0 */
-short rsrc_gaddr(short type, short index, void *addr)
+short rsrc_gaddr(short type, short index, long *addr)
 {
     (void)type;
     (void)index;
-    *(long *)addr = 0;
+    *addr = 0;
     return 0;
 }
 
@@ -242,6 +257,7 @@ short *grect_to_array(const GRECT *area, short *array)
 
 /* ---- VDI and the screen ---------------------------------------------- */
 
+/* the width and height of a character of the system font: the cell above */
 short ch_width(short fn)
 {
     (void)fn;
@@ -264,22 +280,36 @@ void gsx_outline(GRECT *pt)
     (void)pt;
 }
 
-void gsx_trans(long saddr, short swb, long daddr, short dwb, short h)
+/* gsx_trans and gsx_untrans convert between the standard form of a bit image
+ * (one plane of words, as in ICONBLK and BITBLK data) and the device form.
+ * With one plane the two forms have the same bits, so the conversion is a copy
+ * of h lines of bytes, with the line length in bytes (swb, dwb) as the stride.
+ * The real calls always set nplanes to 1, and these signatures carry no plane
+ * count, so no plane check is possible here. */
+static void copy_image(long saddr, short swb, long daddr, short dwb, short h)
 {
-    (void)saddr;
-    (void)swb;
-    (void)daddr;
-    (void)dwb;
-    (void)h;
+    unsigned char *s = RP(saddr);
+    unsigned char *d = RP(daddr);
+    short y, n = swb < dwb ? swb : dwb;
+
+    for (y = 0; y < h; y++)
+        memmove(d + (long)y * dwb, s + (long)y * swb, n);
 }
 
+/* standard form to device form: 1 plane, so this is the copy above */
+void gsx_trans(long saddr, short swb, long daddr, short dwb, short h)
+{
+    /* the load path calls this in place (saddr == daddr, swb == dwb): the
+     * bits are already in the device form, so there is nothing to do */
+    if (saddr == daddr && swb == dwb)
+        return;
+    copy_image(saddr, swb, daddr, dwb, h);
+}
+
+/* device form to standard form: 1 plane, so this is the copy above */
 void gsx_untrans(long saddr, short swb, long daddr, short dwb, short h)
 {
-    (void)saddr;
-    (void)swb;
-    (void)daddr;
-    (void)dwb;
-    (void)h;
+    copy_image(saddr, swb, daddr, dwb, h);
 }
 
 void vro_cpyfm(short handle, short mode, short pxy[], MFDB *src, MFDB *dst)
@@ -295,12 +325,14 @@ void vro_cpyfm(short handle, short mode, short pxy[], MFDB *src, MFDB *dst)
 
 short edit_colour(void)
 {
+    not_on_load_save("edit_colour");
     return 0;
 }
 
 short is_mono(const MFDB *m)
 {
     (void)m;
+    not_on_load_save("is_mono");
     return 0;
 }
 
@@ -311,6 +343,7 @@ void mono_rop(short mode, GRECT *sa, MFDB *s, GRECT *da, MFDB *d)
     (void)s;
     (void)da;
     (void)d;
+    not_on_load_save("mono_rop");
 }
 
 void mono_to_scrn(GRECT *sa, MFDB *s, GRECT *da, short colour)
@@ -319,6 +352,7 @@ void mono_to_scrn(GRECT *sa, MFDB *s, GRECT *da, short colour)
     (void)s;
     (void)da;
     (void)colour;
+    not_on_load_save("mono_to_scrn");
 }
 
 void scrn_to_mono(GRECT *sa, MFDB *d, GRECT *da, short colour)
@@ -327,4 +361,5 @@ void scrn_to_mono(GRECT *sa, MFDB *d, GRECT *da, short colour)
     (void)d;
     (void)da;
     (void)colour;
+    not_on_load_save("scrn_to_mono");
 }
