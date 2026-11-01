@@ -1,0 +1,15 @@
+# Text files use Unix line endings in the repository and in the working tree.
+* text=auto eol=lf
+
+# Resource files, definition files and programs are binary.
+*.rsc binary
+*.RSC binary
+*.dfn binary
+*.DFN binary
+*.def binary
+*.DEF binary
+*.prg binary
+*.PRG binary
+
+# Original DOS file padded with ^Z (0x1a) bytes: git takes it for binary.
+src/pc/proend.asm text eol=lf
