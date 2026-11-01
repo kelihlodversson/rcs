@@ -659,10 +659,11 @@ static int walk_free(struct wr *w)
 	int	k;
 
 	for (k = 0; k < rsc_nfrstr(w->r); k++)
+	{
 		if (put_str(w, rsc_frstr(w->r, k), &off) || adv(w, S_FRSTR, 4, &at))
 			return -1;
-		else
-			put32(w, at, off);
+		put32(w, at, off);
+	}
 	for (k = 0; k < rsc_nfrimg(w->r); k++)
 	{
 		bb = rsc_frimg(w->r, k);
@@ -763,7 +764,7 @@ static int too_big(struct wr *w)
  * pass), and the length of the file. */
 static int layout(struct wr *w)
 {
-	size_t	p, end;
+	size_t	p = 0, end = 0;
 	int	s;
 
 	memcpy(w->size, w->cur, sizeof w->size);
