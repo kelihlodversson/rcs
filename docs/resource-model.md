@@ -77,8 +77,22 @@ mono ICONBLK with its data, mask and text, and a chain of
 data and mask), all as word arrays and in file order. Up to `RSC_MAX_PLANES`
 (16) planes and up to `RSC_MAX_VERSIONS` (32) versions per icon: the AES uses
 one version per plane count, and the cap bounds what a colour icon costs
-(the model, the reader and the writer all refuse more). The pointer fields of the file records are kept as opaque
-`uint32_t` fields (`file_head`, `file_ptr`).
+(the model, the reader and the writer all refuse more). The pointer fields of
+the file records are kept as opaque `uint32_t` fields (`file_head`,
+`file_ptr`), by decision: kept as read and written as stored, except that the
+writer makes `sel_data` agree with the planes and writes `next_res` as 1 or 0.
+The icon text is the 12 bytes of the file up to the first NUL (bytes after an
+embedded NUL are lost), zero-padded.
+
+The spec of a `G_USERDEF` object and of any object with `OF_INDIRECT` is the
+raw 32-bit value of the file, written back unchanged. In a file it is an
+offset that loaders such as pTOS's relocate, but the writer lays the file out
+anew and writes no USERBLK, so after a write such a value may point to a
+stale place: an editor has to set these values itself.
+
+`rsc_obj_add` accepts a parent that the root does not reach (a slot left by
+`rsc_obj_delete`, say); the new object is then unreachable too and is
+silently not written.
 
 Coordinates: `rsc_cell` is 0, 0 when the objects are in file form (low byte
 in character cells, high byte the pixel remainder), otherwise the cell size
@@ -271,8 +285,10 @@ file may not exceed 4 GB.
 
 Coordinates in pixel form are converted back so that the reader reads them
 as the same value: every value from -127 to `255 * cell + 128` is writable.
-Any other value is `RSC_ETOOBIG`, and so is a cell size different from the
-model's (`RSC_EARG`).
+Any other value is `RSC_ETOOBIG` at the offset of the object, the message
+naming the field, tree and object. The cell size passed to the writer must
+be the model's (`rsc_cell`): another one, a mix of 0 and non-0, or a size
+above `RSC_MAX_CELL` is `RSC_EARG`.
 
 ## Differences from the old code
 

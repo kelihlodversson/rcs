@@ -249,8 +249,9 @@ typedef struct object
  *
  * file_ptr holds the five pointer fields of the version header in the file
  * (col_data, col_mask, sel_data, sel_mask, next_res) as read, opaque; the
- * API sets them to 0.  PLACEHOLDER: the reader (#29 task 2) settles whether
- * they can be canonicalised (and this field dropped) or must be kept. */
+ * API sets them to 0.  They are opaque by decision: kept as read and
+ * written as stored, except that the writer makes sel_data say whether
+ * selected planes follow and writes next_res as 1 or 0 (rscatari_write.c). */
 struct rsc_cicon_version
 {
 	CICON		c;		/* must stay the first member */
@@ -262,12 +263,14 @@ struct rsc_cicon_version
  * blk is the AES CICONBLK: blk.monoblk is the mono icon, whose ib_pdata and
  * ib_pmask are owned word arrays and whose ib_ptext always points to text
  * below; blk.mainlist is the chain of colour versions (struct
- * rsc_cicon_version), in file order.  text has the 12 text bytes of the
- * file plus a NUL the model keeps, so ib_ptext is always a C string.
+ * rsc_cicon_version), in file order.  text is the icon text: the 12 text
+ * bytes of the file up to the first NUL (the bytes after an embedded NUL
+ * are not kept), zero-padded, plus a NUL in text[12] the model keeps, so
+ * ib_ptext is always a C string; the writer writes text[0..11].
  *
  * file_head holds the three pointer fields of the ICONBLK at the head of the
  * block in the file (ib_pmask, ib_pdata, ib_ptext) as read, opaque; the API
- * sets them to 0.  PLACEHOLDER as for rsc_cicon_version.file_ptr.
+ * sets them to 0.  Opaque by decision: kept as read and written as stored.
  *
  * last, nver and mono_bytes are the model's (read the first two through
  * rsc_cicon_nversions and rsc_cicon_version, never write them): the last
@@ -290,7 +293,8 @@ struct rsc_cicon
 
 enum rsc_spec_kind
 {
-	RSC_SPEC_VALUE,		/* a plain 32-bit value (boxes, G_BOXCHAR, G_USERDEF, any other type) */
+	RSC_SPEC_VALUE,		/* a plain 32-bit value (boxes, G_BOXCHAR, G_USERDEF, any other
+				 * type, and any type with OF_INDIRECT) */
 	RSC_SPEC_STRING,	/* ob_spec.free_string: G_BUTTON, G_STRING, G_TITLE */
 	RSC_SPEC_TEDINFO,	/* ob_spec.tedinfo: G_TEXT, G_BOXTEXT, G_FTEXT, G_FBOXTEXT */
 	RSC_SPEC_ICONBLK,	/* ob_spec.iconblk: G_ICON */
@@ -299,7 +303,14 @@ enum rsc_spec_kind
 };
 
 /* The kind of spec of an object of type ob_type (only the low byte counts).
- * A pointer kind may be NULL: no record (written as 0xFFFFFFFF). */
+ * A pointer kind may be NULL: no record (written as 0xFFFFFFFF).
+ *
+ * The spec of a G_USERDEF object and of an object with OF_INDIRECT is kept
+ * as the raw 32-bit value of the file and written back unchanged.  In the
+ * file it is an offset (of a USERBLK, or of the real spec), which loaders
+ * such as pTOS's relocate; the writer lays the file out anew and writes no
+ * USERBLK, so such a value may then point to a stale place.  An editor has
+ * to set these values itself. */
 enum rsc_spec_kind rsc_spec_kind(unsigned ob_type);
 /* The kind of spec of object o: rsc_spec_kind(o->ob_type), but
  * RSC_SPEC_VALUE when o has OF_INDIRECT (as far as the model is concerned
@@ -398,7 +409,10 @@ int rsc_tree_compact(struct rsc *r, int t, int *map);
  * ob_head when it had none) points to it, its ob_next points back to the
  * parent, and the parent's ob_tail is it.  The object has type type with an
  * empty spec (0, or NULL for a pointer kind), flags, state and coordinates
- * 0, no children; OF_LASTOB moves to it.  Returns its index, or -1. */
+ * 0, no children; OF_LASTOB moves to it.  Returns its index, or -1.
+ * parent need not be reachable from the root: a child added to an object
+ * that is not (a slot left by rsc_obj_delete, say) is not reachable
+ * either, and so is silently not written. */
 int rsc_obj_add(struct rsc *r, int t, int parent, unsigned type);
 
 /* Unlinks object i from its parent and releases the specs of i and all its
