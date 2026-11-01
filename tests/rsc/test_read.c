@@ -1696,6 +1696,38 @@ static void test_unreferenced_truncated(void)
 	}
 }
 
+/* ---- the total length of the extension -------------------------------------- */
+
+/* The total (the first long at rssize) must cover the extension itself:
+ * at least rssize + 12, and at most the length of the file. */
+static void test_ext_total(void)
+{
+	static uint8_t	b[2048];
+	const size_t	ext = 36 + 24 * 2 + 4;
+	size_t	len = build_cfile(b, sizeof b, 1, 0, 1, 0), off;
+	uint32_t	tot[4];
+	int	k, code;
+
+	tot[0] = (uint32_t)ext + 11;
+	tot[1] = (uint32_t)ext;
+	tot[2] = 0;
+	tot[3] = (uint32_t)ext + 12;
+	for (k = 0; k < 4; k++)
+	{
+		put32(b, ext, tot[k]);
+		code = read_code(b, len, &off);
+		if (k < 3)
+		{
+			CHECK(code == RSC_ECICON && off == ext);
+			CHECK(strncmp(read_err.msg, "bad file length", 15) == 0);
+		}
+		else
+			CHECK(code == RSC_OK);
+	}
+	put32(b, ext, (uint32_t)len + 1);
+	CHECK(read_code(b, len, &off) == RSC_ECICON && off == ext);
+}
+
 /* ---- the header version -------------------------------------------------------- */
 
 /* A version with both low bits set is the extended RSXHDR header, refused
@@ -1756,6 +1788,7 @@ int main(int argc, char **argv)
 	test_mutations();
 	test_version();
 	test_unreferenced_truncated();
+	test_ext_total();
 	test_alloc_failures();
 	printf("rsc-test (reader): %ld checks, %ld failed\n", checks, failures);
 	return failures ? 1 : 0;
