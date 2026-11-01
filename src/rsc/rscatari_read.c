@@ -124,9 +124,10 @@
  * offsets of the blocks, which only holds for files written by pTOS's
  * generator, the old RCS writer and this writer, whose entries happen to
  * equal the sequential positions.  A real file with zero entries
- * (TeraDesk's cicons.rsc) lost its colour icons in the old reader (it
- * stopped at the first entry that is not a block).  Here the blocks are
- * found as the AES finds them.
+ * (TeraDesk's cicons.rsc) was refused as a whole by the previous version
+ * of this reader (RSC_ECICON, "bad colour icon block offset": it checked
+ * the block at the offset in table entry 0, which is 0).  Here the blocks
+ * are found as the AES finds them.
  */
 #include <string.h>
 #include "rscatari.h"

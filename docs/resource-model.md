@@ -267,8 +267,8 @@ of the file could possibly hold is refused before any block is looked at, so
 the work stays linear.
 
 Refused: a root listed twice in the tree index (the runs of objects of two
-trees cannot overlap); negative ICONBLK and BITBLK sizes (`RSC_EOFFSET`); a cell size above 127
-(`RSC_EARG`); a `te_ptext` or template of 32767 characters or more
+trees cannot overlap); negative ICONBLK and BITBLK sizes (`RSC_EOFFSET`); a
+cell size above 127 (`RSC_EARG`); a `te_ptext` or template of 32767 characters or more
 (`RSC_ETOOBIG`). Objects that a root does not reach are kept without their
 specs being decoded, so a bad spec there does not fail the read. The reader
 sets the root's `ob_next` to -1, drops NULL entries of the free tables and
@@ -332,7 +332,9 @@ All deliberate.
   found one after the other, as the AES does. The old reader (and pTOS's
   portable loader) took them as offsets, which holds only for files written
   by RCS or pTOS's generator; a file with zero entries, such as TeraDesk's
-  `cicons.rsc`, lost its colour icons.
+  `cicons.rsc`, was refused as a whole (`RSC_ECICON`, "bad colour icon block
+  offset"), because the old reader checked the block at the offset in table
+  entry 0, which is 0.
 - `rsh_frstr` and `rsh_frimg` are 0 for empty lists.
 - Alert-shaped free strings are not moved to the end.
 - Names (`.DEF`, `.RSD`, `.DFN`) are not handled here.
