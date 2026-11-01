@@ -49,7 +49,10 @@ use `src/host/gem.h`.
 - `test_write` is the acceptance test: each of `tests/golden/{rcs,rcslow,cicon}.rsc`
   read and written again equals the matching `.out.rsc` byte for byte, with
   cell 8x16 and in file form. It also tests stability (write, read, write),
-  the limits and errors, colour icons and a mini-fuzz of edits.
+  the limits and errors, colour icons and a mini-fuzz of edits. With
+  `RSC_TEST_EXTERNAL` set to a directory it also reads, writes, reads back
+  and rewrites every `*.rsc` in it (real files are not part of the tree, and
+  CI does not set it).
 
 ## The model
 
@@ -248,9 +251,23 @@ checking of colour icon blocks) against a budget of `4 * len + 65536` bytes
 and fails with `RSC_ETOOBIG` when it is exceeded. `rcs.rsc` uses 1.89 times
 its length.
 
+Colour icons are found as the AES and EmuTOS find them (pTOS's
+`aes/rsload_legacy.c`): the extension at `rsh_rssize` gives the total length
+(at most the buffer length) and the offset of the colour icon table (0 or
+`0xFFFFFFFF`: none); the longs after it are ignored (TeraDesk's files have a
+colour palette offset there, which is not kept; the writer writes 0). There
+is one block per table entry before the `0xFFFFFFFF` terminator, the first
+right after the terminator, each next right after the previous, as long as
+its own head says; a `G_CICON` object's spec is the index of its block. The
+values of the entries are ignored: real files have zeros, the writer (like
+pTOS's resource generator) puts the real offsets. Bytes after the last block
+are ignored. A table without its terminator, or with more entries than the
+file holds blocks, is `RSC_ECICON`; a table with more entries than the rest
+of the file could possibly hold is refused before any block is looked at, so
+the work stays linear.
+
 Refused: a root listed twice in the tree index (the runs of objects of two
-trees cannot overlap); a colour icon block listed twice (`RSC_ECICON`);
-negative ICONBLK and BITBLK sizes (`RSC_EOFFSET`); a cell size above 127
+trees cannot overlap); negative ICONBLK and BITBLK sizes (`RSC_EOFFSET`); a cell size above 127
 (`RSC_EARG`); a `te_ptext` or template of 32767 characters or more
 (`RSC_ETOOBIG`). Objects that a root does not reach are kept without their
 specs being decoded, so a bad spec there does not fail the read. The reader
@@ -285,8 +302,13 @@ The classic part may not exceed 65535 bytes (16-bit offsets; since every
 section ends even, the largest is 65534): that is
 `RSC_ETOOBIG` at the offset of the first item that ends beyond it, not a
 silent wrap. Colour icons follow it, after a pad to an even offset, with
-32-bit offsets (`rsh_rssize` is then the offset of the extension). The whole
-file may not exceed 4 GB.
+32-bit offsets (`rsh_rssize` is then the offset of the extension): the
+extension (total length, table offset, 0), the table, then the blocks one
+after the other from the byte after the terminator, the last ending the file.
+The table entries are the real offsets of the blocks, so a loader that takes
+them as offsets (pTOS's portable loader) and one that ignores them (the AES,
+EmuTOS, this reader) find the same blocks. The whole file may not exceed
+4 GB.
 
 Coordinates in pixel form are converted back so that the reader reads them
 as the same value: every value from -127 to `255 * cell + 128` is writable.
@@ -306,6 +328,11 @@ All deliberate.
 - A bad colour icon or a bad offset is an error with a position, not a silent
   loss (the old reader turned a bad colour icon into a box).
 - More than 254 colour icons are allowed.
+- The colour icon table's entries are not taken as offsets: the blocks are
+  found one after the other, as the AES does. The old reader (and pTOS's
+  portable loader) took them as offsets, which holds only for files written
+  by RCS or pTOS's generator; a file with zero entries, such as TeraDesk's
+  `cicons.rsc`, lost its colour icons.
 - `rsh_frstr` and `rsh_frimg` are 0 for empty lists.
 - Alert-shaped free strings are not moved to the end.
 - Names (`.DEF`, `.RSD`, `.DFN`) are not handled here.
