@@ -25,55 +25,13 @@ static long checks, failures;
 
 /* ---- helpers ------------------------------------------------------------------ */
 
-/* The objects of the tree in preorder (the AES walk from the root) into
- * out[]; returns their count, or -1 when the links leave the array or do
- * not end. */
-static int preorder(const OBJECT *o, int n, int *out)
-{
-	int	cur = 0, nx, cnt = 0, steps = 0;
-
-	out[cnt++] = 0;
-	for (;;)
-	{
-		if (++steps > 3 * n)
-			return -1;
-		nx = o[cur].ob_head;
-		if (nx != -1)
-		{
-			if (nx < 0 || nx >= n || cnt >= n)
-				return -1;
-			out[cnt++] = cur = nx;
-			continue;
-		}
-		for (;;)
-		{
-			if (++steps > 3 * n)
-				return -1;
-			nx = o[cur].ob_next;
-			if (nx == -1)
-				return cnt;
-			if (nx < 0 || nx >= n)
-				return -1;
-			if (o[nx].ob_tail == cur)
-			{
-				cur = nx;
-				continue;
-			}
-			if (cnt >= n)
-				return -1;
-			out[cnt++] = cur = nx;
-			break;
-		}
-	}
-}
-
-/* The links of tree t are an AES tree: root ob_next -1, every reachable
- * parent's children chain from ob_head to ob_tail and back to the parent,
- * and OF_LASTOB on the last array element only. */
+/* The links of tree t are an AES tree (rsc_tree_preorder accepts them),
+ * the root's ob_next is -1 and OF_LASTOB is on the last array element
+ * only. */
 static int tree_ok(struct rsc *r, int t)
 {
 	OBJECT	*o;
-	int	n, i, k, c, last, steps, *order;
+	int	n, i;
 
 	o = rsc_tree_objects(r, t, &n);
 	if (!o || n < 1 || o[0].ob_next != -1)
@@ -81,46 +39,38 @@ static int tree_ok(struct rsc *r, int t)
 	for (i = 0; i < n; i++)
 		if (!(o[i].ob_flags & OF_LASTOB) != (i != n - 1))
 			return 0;
-	order = malloc(sizeof *order * (size_t)n);
-	if (!order)
-		return 0;
-	k = preorder(o, n, order);
-	for (i = 0; k > 0 && i < k; i++)
-	{
-		const OBJECT	*p = &o[order[i]];
-
-		if ((p->ob_head == -1) != (p->ob_tail == -1))
-			k = -1;
-		if (p->ob_head == -1)
-			continue;
-		last = -1;
-		for (c = p->ob_head, steps = 0; c != order[i] && steps <= n; c = o[c].ob_next, steps++)
-		{
-			if (c < 0 || c >= n)
-				break;
-			last = c;
-		}
-		if (c != order[i] || last != p->ob_tail)
-			k = -1;
-	}
-	free(order);
-	return k > 0;
+	return rsc_tree_preorder(o, n, NULL) > 0;
 }
 
-/* The preorder of tree t as a list "0 1 3 2"; the buffer is static. */
-static const char *walk(struct rsc *r, int t)
+/* The preorder of the n objects at o as a list "0 1 3 2", or the error
+ * code as "E-3"; the buffer is static. */
+static const char *walk_objs(const OBJECT *o, int n)
 {
 	static char	buf[512];
-	int	order[100], n, k, i;
-	OBJECT	*o = rsc_tree_objects(r, t, &n);
+	int	order[100], k, i;
 	size_t	len = 0;
 
 	buf[0] = '\0';
-	if (!o || n > 100 || (k = preorder(o, n, order)) < 0)
+	if (!o || n > 100)
 		return "?";
+	k = rsc_tree_preorder(o, n, order);
+	if (k < 0)
+	{
+		snprintf(buf, sizeof buf, "E%d", k);
+		return buf;
+	}
 	for (i = 0; i < k; i++)
 		len += (size_t)snprintf(buf + len, sizeof buf - len, i ? " %d" : "%d", order[i]);
 	return buf;
+}
+
+/* The preorder of tree t (see walk_objs). */
+static const char *walk(struct rsc *r, int t)
+{
+	int	n;
+	OBJECT	*o = rsc_tree_objects(r, t, &n);
+
+	return walk_objs(o, n);
 }
 
 static short	icon_data[32], icon_mask[32];	/* a plane of 32x16 */
@@ -800,6 +750,491 @@ static void test_alloc_failures(void)
 	CHECK(rsc_test_live_blocks() == 0);
 }
 
+/* n objects linked by hand: all links -1, then the edits of the test */
+static void unlinked(OBJECT *o, int n)
+{
+	int	i;
+
+	memset(o, 0, sizeof *o * (size_t)n);
+	for (i = 0; i < n; i++)
+		o[i].ob_next = o[i].ob_head = o[i].ob_tail = -1;
+}
+
+/* 0 { 1 { 3 4 } 2 }, 5 unreachable */
+static void sample(OBJECT *o)
+{
+	unlinked(o, 6);
+	o[0].ob_head = 1;
+	o[0].ob_tail = 2;
+	o[1].ob_next = 2;
+	o[1].ob_head = 3;
+	o[1].ob_tail = 4;
+	o[3].ob_next = 4;
+	o[4].ob_next = 1;
+	o[2].ob_next = 0;
+	o[5].ob_next = 77;	/* not looked at: unreachable */
+}
+
+static void test_preorder(void)
+{
+	struct rsc	*r = rsc_new();
+	OBJECT	o[6];
+	int	order[6];
+
+	CHECK(build_all(r) == 0);
+	CHECK_STR(walk(r, 0), "0 1 2 3 4 5 6 7 8 9 10 11 12 13");
+	rsc_free(r);
+
+	sample(o);
+	CHECK_STR(walk_objs(o, 6), "0 1 3 4 2");
+	CHECK(rsc_tree_preorder(o, 6, NULL) == 5);
+	o[0].ob_next = 1234;		/* the root's ob_next is ignored */
+	CHECK_STR(walk_objs(o, 6), "0 1 3 4 2");
+	CHECK(rsc_tree_preorder(o, 0, order) == RSC_WALK_EARG);
+	CHECK(rsc_tree_preorder(NULL, 6, order) == RSC_WALK_EARG);
+	unlinked(o, 1);
+	o[0].ob_next = 3;
+	CHECK(rsc_tree_preorder(o, 1, order) == 1 && order[0] == 0);	/* the root alone */
+	o[0].ob_head = 1;
+	CHECK(rsc_tree_preorder(o, 1, order) == RSC_WALK_ERANGE);	/* head past n */
+
+	/* out of range */
+	sample(o);
+	o[1].ob_head = 6;
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ERANGE);
+	sample(o);
+	o[1].ob_head = -2;
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ERANGE);
+	sample(o);
+	o[3].ob_next = 32000;
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ERANGE);
+	sample(o);
+	o[1].ob_tail = 99;
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ERANGE);
+	sample(o);
+	o[2].ob_tail = 6;		/* a leaf with a bad ob_tail */
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ERANGE);
+	/* a cycle: a child's head is the root */
+	sample(o);
+	o[3].ob_head = o[3].ob_tail = 0;
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ESHARED);
+	/* a sibling chain looping on itself */
+	sample(o);
+	o[4].ob_next = 3;
+	o[1].ob_tail = 5;		/* so that no ob_tail is in the loop */
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ESHARED);
+	/* one object under two parents: 3 is also the only child of 2 */
+	sample(o);
+	o[2].ob_head = o[2].ob_tail = 3;
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ESHARED);
+	/* malformed chains */
+	sample(o);
+	o[1].ob_tail = 3;		/* ob_tail is not the last child */
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ECHAIN);
+	sample(o);
+	o[4].ob_next = -1;		/* the chain does not return to the parent */
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ECHAIN);
+	sample(o);
+	o[3].ob_next = 1;		/* back at the parent before its ob_tail */
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ECHAIN);
+	sample(o);
+	o[4].ob_next = 0;		/* the chain returns to another object */
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ECHAIN);
+	sample(o);
+	o[1].ob_tail = -1;		/* head without tail */
+	CHECK(rsc_tree_preorder(o, 6, order) == RSC_WALK_ECHAIN);
+	CHECK(rsc_test_live_blocks() == 0);
+}
+
+static void test_compact(void)
+{
+	struct rsc	*r = rsc_new();
+	OBJECT	*o;
+	char	*s5;
+	TEDINFO	*te4;
+	int	map[14], n, k;
+
+	CHECK(build_all(r) == 0);
+	o = rsc_tree_objects(r, 0, &n);
+	te4 = o[4].ob_spec.tedinfo;
+	s5 = o[5].ob_spec.tedinfo->te_ptext;
+	CHECK(rsc_obj_delete(r, 0, 2) == 0);
+	CHECK(rsc_obj_delete(r, 0, 10) == 0);	/* 10 with 11 and 12 */
+	CHECK(rsc_obj_delete(r, 0, 13) == 0);	/* the last array element */
+	/* failures leave the tree as it is */
+	for (k = 0; k < 2; k++)
+	{
+		rsc_test_fail_alloc_after(k);
+		CHECK(rsc_tree_compact(r, 0, map) == RSC_WALK_ENOMEM);
+		rsc_test_fail_alloc_after(-1);
+		o = rsc_tree_objects(r, 0, &n);
+		CHECK(n == 14 && o[4].ob_spec.tedinfo == te4);
+		CHECK_STR(walk(r, 0), "0 1 3 4 5 6 7 8 9");
+	}
+	CHECK(rsc_tree_compact(r, 5, NULL) == RSC_WALK_EARG);
+	CHECK(rsc_tree_compact(r, 0, map) == 9);
+	o = rsc_tree_objects(r, 0, &n);
+	CHECK(n == 9);
+	CHECK(tree_ok(r, 0));
+	CHECK_STR(walk(r, 0), "0 1 2 3 4 5 6 7 8");
+	CHECK(map[0] == 0 && map[1] == 1 && map[2] == -1 && map[3] == 2 && map[9] == 8);
+	CHECK(map[10] == -1 && map[11] == -1 && map[12] == -1 && map[13] == -1);
+	CHECK(o[map[4]].ob_spec.tedinfo == te4);		/* the records move along */
+	CHECK(o[map[5]].ob_spec.tedinfo->te_ptext == s5);
+	CHECK(o[8].ob_flags == OF_LASTOB && o[8].ob_type == G_IMAGE);
+	CHECK(o[0].ob_head == 1 && o[0].ob_tail == 8 && o[8].ob_next == 0);
+	/* the freed slots can be used again */
+	CHECK(rsc_obj_add(r, 0, 0, G_BOX) == 9);
+	CHECK(tree_ok(r, 0));
+	/* compacting a compact tree changes nothing */
+	CHECK(rsc_tree_compact(r, 0, NULL) == 10);
+	CHECK_STR(walk(r, 0), "0 1 2 3 4 5 6 7 8 9");
+	/* broken links: an error, the tree unchanged */
+	o = rsc_tree_objects(r, 0, &n);
+	o[3].ob_head = o[3].ob_tail = 0;
+	CHECK(rsc_tree_compact(r, 0, NULL) == RSC_WALK_ESHARED);
+	CHECK(rsc_tree_objects(r, 0, &n) == o && n == 10);
+	o[3].ob_head = o[3].ob_tail = -1;
+	/* unreachable objects of a file: the root's ob_next is reset too */
+	o[0].ob_next = 5;
+	CHECK(rsc_tree_compact(r, 0, NULL) == 10);
+	o = rsc_tree_objects(r, 0, &n);
+	CHECK(o[0].ob_next == -1);
+	rsc_free(r);
+	CHECK(rsc_test_live_blocks() == 0);
+}
+
+static void test_resize(void)
+{
+	struct rsc	*r = rsc_new();
+	OBJECT	*o;
+	ICONBLK	ib;
+	BITBLK	bb;
+	short	data[4] = { 0x1111, 0x2222, 0x3333, 0x4444 };	/* 32x2: 2 words a row */
+	short	*p;
+	int	n, k;
+	long	live;
+
+	memset(&ib, 0, sizeof ib);
+	memset(&bb, 0, sizeof bb);
+	CHECK(rsc_tree_add(r, 1) == 0);
+	CHECK(rsc_obj_add(r, 0, 0, G_ICON) == 1);
+	CHECK(rsc_obj_add(r, 0, 0, G_IMAGE) == 2);
+	CHECK(rsc_obj_resize_icon(r, 0, 1, 16, 16) == -1);	/* no record */
+	ib.ib_wicon = 32;
+	ib.ib_hicon = 2;
+	ib.ib_pdata = data;
+	CHECK(rsc_obj_set_iconblk(r, 0, 1, &ib) == 0);
+	o = rsc_tree_objects(r, 0, &n);
+	CHECK(rsc_obj_resize_icon(r, 0, 1, -1, 2) == -1);
+	CHECK(rsc_obj_resize_icon(r, 0, 2, 16, 2) == -1);	/* not an icon */
+	/* wider and taller: kept top left, zero elsewhere; NULL mask stays NULL */
+	CHECK(rsc_obj_resize_icon(r, 0, 1, 48, 3) == 0);
+	p = o[1].ob_spec.iconblk->ib_pdata;
+	CHECK(o[1].ob_spec.iconblk->ib_wicon == 48 && o[1].ob_spec.iconblk->ib_hicon == 3);
+	CHECK(o[1].ob_spec.iconblk->ib_pmask == NULL);
+	CHECK(p[0] == 0x1111 && p[1] == 0x2222 && p[2] == 0 && p[3] == 0x3333 && p[4] == 0x4444);
+	CHECK(p[5] == 0 && p[6] == 0 && p[7] == 0 && p[8] == 0);
+	/* narrower */
+	CHECK(rsc_obj_resize_icon(r, 0, 1, 1, 2) == 0);
+	p = o[1].ob_spec.iconblk->ib_pdata;
+	CHECK(p[0] == 0x1111 && p[1] == 0x3333);
+	/* failures change nothing: an icon with mask and data, two allocations */
+	ib.ib_wicon = 32;
+	ib.ib_hicon = 2;
+	ib.ib_pmask = ib.ib_pdata = data;
+	CHECK(rsc_obj_set_iconblk(r, 0, 1, &ib) == 0);
+	for (k = 0; k < 2; k++)
+	{
+		ICONBLK	*old = o[1].ob_spec.iconblk;
+		short	*od = old->ib_pdata, *om = old->ib_pmask;
+
+		live = rsc_test_live_blocks();
+		rsc_test_fail_alloc_after(k);
+		CHECK(rsc_obj_resize_icon(r, 0, 1, 16, 8) == -1);
+		rsc_test_fail_alloc_after(-1);
+		CHECK(old->ib_pdata == od && old->ib_pmask == om);
+		CHECK(old->ib_wicon == 32 && old->ib_hicon == 2);
+		CHECK(rsc_test_live_blocks() == live);
+	}
+	CHECK(rsc_obj_resize_icon(r, 0, 1, 16, 8) == 0);
+	p = o[1].ob_spec.iconblk->ib_pmask;
+	CHECK(p[0] == 0x1111 && p[1] == 0x3333 && p[2] == 0);
+	/* BITBLK and free image */
+	bb.bi_pdata = data;
+	bb.bi_wb = 4;
+	bb.bi_hl = 2;
+	CHECK(rsc_obj_set_bitblk(r, 0, 2, &bb) == 0);
+	CHECK(rsc_obj_resize_bitblk(r, 0, 2, 2, 3) == 0);
+	p = o[2].ob_spec.bitblk->bi_pdata;
+	CHECK(o[2].ob_spec.bitblk->bi_wb == 2 && o[2].ob_spec.bitblk->bi_hl == 3);
+	CHECK(p[0] == 0x1111 && p[1] == 0x3333 && p[2] == 0);
+	rsc_test_fail_alloc_after(0);
+	CHECK(rsc_obj_resize_bitblk(r, 0, 2, 8, 8) == -1);
+	rsc_test_fail_alloc_after(-1);
+	CHECK(o[2].ob_spec.bitblk->bi_pdata == p && o[2].ob_spec.bitblk->bi_wb == 2);
+	CHECK(rsc_obj_resize_bitblk(r, 0, 2, 2, 40000) == -1);
+	CHECK(rsc_frimg_add(r, &bb) == 0);
+	CHECK(rsc_frimg_resize(r, 0, 6, 1) == 0);
+	p = rsc_frimg(r, 0)->bi_pdata;
+	CHECK(p[0] == 0x1111 && p[1] == 0x2222 && p[2] == 0);
+	CHECK(rsc_frimg_resize(r, 1, 6, 1) == -1);
+	bb.bi_pdata = NULL;
+	CHECK(rsc_frimg_add(r, &bb) == 1);
+	CHECK(rsc_frimg_resize(r, 1, 6, 6) == 0 && rsc_frimg(r, 1)->bi_pdata == NULL);
+	CHECK(rsc_bitblk_bytes(rsc_frimg(r, 1)) == 36);
+	rsc_free(r);
+	CHECK(rsc_test_live_blocks() == 0);
+}
+
+static void test_indirect(void)
+{
+	struct rsc	*r = rsc_new();
+	OBJECT	*o;
+	TEDINFO	te;
+	uint32_t	v = 1;
+	int	n;
+
+	memset(&te, 0, sizeof te);
+	te.te_ptext = "x";
+	CHECK(rsc_tree_add(r, 1) == 0);
+	CHECK(rsc_obj_add(r, 0, 0, G_TEXT) == 1);
+	CHECK(rsc_obj_set_tedinfo(r, 0, 1, &te) == 0);
+	o = rsc_tree_objects(r, 0, &n);
+	CHECK(rsc_obj_spec_kind(&o[1]) == RSC_SPEC_TEDINFO);
+	/* setting OF_INDIRECT releases the TEDINFO: the spec is a value now */
+	CHECK(rsc_obj_set_flags(r, 0, 1, OF_INDIRECT | OF_EDITABLE) == 0);
+	CHECK(rsc_obj_spec_kind(&o[1]) == RSC_SPEC_VALUE && o[1].ob_spec.index == 0);
+	CHECK(rsc_obj_set_tedinfo(r, 0, 1, &te) == -1);
+	CHECK(rsc_obj_set_value(r, 0, 1, 0x12345678UL) == 0);
+	CHECK(rsc_obj_get_value(r, 0, 1, &v) == 0 && v == 0x12345678UL);
+	/* other flags and type changes keep the value */
+	CHECK(rsc_obj_set_flags(r, 0, 1, OF_INDIRECT) == 0);
+	CHECK(rsc_obj_set_type(r, 0, 1, G_STRING) == 0);
+	CHECK(rsc_obj_value(r, 0, 1) == 0x12345678UL);
+	CHECK(rsc_obj_set_str(r, 0, 1, RSC_STR_SPEC, "no") == -1);
+	/* clearing it empties the spec: the value is no pointer */
+	CHECK(rsc_obj_set_flags(r, 0, 1, 0) == 0);
+	CHECK(o[1].ob_spec.free_string == NULL);
+	CHECK(rsc_obj_get_value(r, 0, 1, &v) == -1);
+	CHECK(rsc_obj_set_str(r, 0, 1, RSC_STR_SPEC, "yes") == 0);
+	/* a value-kind type is not affected by the flag */
+	CHECK(rsc_obj_set_type(r, 0, 1, G_BOX) == 0 && rsc_obj_set_value(r, 0, 1, 7) == 0);
+	CHECK(rsc_obj_set_flags(r, 0, 1, OF_INDIRECT) == 0 && rsc_obj_value(r, 0, 1) == 7);
+	CHECK(rsc_obj_set_flags(r, 0, 1, 0) == 0 && rsc_obj_value(r, 0, 1) == 7);
+	CHECK(rsc_obj_get_value(r, 0, 2, &v) == -1);
+	/* an indirect object is freed without touching its value */
+	CHECK(rsc_obj_add(r, 0, 0, G_ICON) == 2);
+	CHECK(rsc_obj_set_flags(r, 0, 2, OF_INDIRECT) == 0);
+	CHECK(rsc_obj_set_value(r, 0, 2, 0xdeadbeefUL) == 0);
+	CHECK(rsc_obj_add(r, 0, 0, G_CICON) == 3);
+	CHECK(rsc_obj_set_flags(r, 0, 3, OF_INDIRECT) == 0);
+	CHECK(rsc_obj_set_value(r, 0, 3, 0x1UL) == 0);
+	CHECK(rsc_obj_cicon(r, 0, 3) == NULL);
+	CHECK(rsc_obj_delete(r, 0, 3) == 0);
+	rsc_free(r);
+	CHECK(rsc_test_live_blocks() == 0);
+}
+
+static void test_planes(void)
+{
+	struct rsc	*r = rsc_new();
+	ICONBLK	ib;
+	struct rsc_cicon	*c;
+	short	col[RSC_MAX_PLANES * 16], mask[16];
+
+	memset(&ib, 0, sizeof ib);
+	memset(col, 0, sizeof col);
+	memset(mask, 0, sizeof mask);
+	ib.ib_wicon = ib.ib_hicon = 16;
+	CHECK(rsc_tree_add(r, 1) == 0);
+	CHECK(rsc_obj_add(r, 0, 0, G_CICON) == 1);
+	CHECK(rsc_obj_set_cicon(r, 0, 1, &ib, NULL) == 0);
+	c = rsc_obj_cicon(r, 0, 1);
+	CHECK(RSC_MAX_PLANES == 16);
+	CHECK(rsc_cicon_add_version(c, 0, col, mask, NULL, NULL) == -1);
+	CHECK(rsc_cicon_add_version(c, 1, col, mask, NULL, NULL) == 0);
+	CHECK(rsc_cicon_add_version(c, 16, col, mask, col, mask) == 1);
+	CHECK(rsc_cicon_add_version(c, 17, col, mask, NULL, NULL) == -1);
+	CHECK(rsc_cicon_nversions(c) == 2);
+	rsc_free(r);
+	CHECK(rsc_test_live_blocks() == 0);
+}
+
+/* ---- failure injection for calls that replace something ------------------------ */
+
+/* The ops run on a build_all resource. */
+static int op_iconblk(struct rsc *r)
+{
+	OBJECT	*o = rsc_tree_objects(r, 0, NULL);
+	ICONBLK	ib = *o[8].ob_spec.iconblk;
+
+	return rsc_obj_set_iconblk(r, 0, 8, &ib);
+}
+
+static int op_bitblk(struct rsc *r)
+{
+	OBJECT	*o = rsc_tree_objects(r, 0, NULL);
+	BITBLK	bb = *o[9].ob_spec.bitblk;
+
+	return rsc_obj_set_bitblk(r, 0, 9, &bb);
+}
+
+static int op_cicon(struct rsc *r)
+{
+	return rsc_obj_set_cicon(r, 0, 13, &rsc_obj_cicon(r, 0, 13)->blk.monoblk, "new");
+}
+
+static int op_str(struct rsc *r)
+{
+	return rsc_obj_set_str(r, 0, 1, RSC_STR_SPEC, "replaced");
+}
+
+static int op_te_str(struct rsc *r)
+{
+	return rsc_obj_set_str(r, 0, 4, RSC_STR_TE_VALID, "replaced");
+}
+
+static int op_ib_str(struct rsc *r)
+{
+	return rsc_obj_set_str(r, 0, 8, RSC_STR_IB_TEXT, "replaced");
+}
+
+static int op_frstr(struct rsc *r)
+{
+	return rsc_frstr_set(r, 1, "replaced");
+}
+
+static int op_version(struct rsc *r)
+{
+	static short	words[16 * 16];
+
+	return rsc_cicon_add_version(rsc_obj_cicon(r, 0, 13), 16, words, words, words, words) < 0 ? -1 : 0;
+}
+
+static int op_tedinfo(struct rsc *r)
+{
+	OBJECT	*o = rsc_tree_objects(r, 0, NULL);
+	TEDINFO	te = *o[4].ob_spec.tedinfo;
+
+	return rsc_obj_set_tedinfo(r, 0, 4, &te);
+}
+
+/* A fingerprint of everything op_* may change. */
+static unsigned long state(struct rsc *r)
+{
+	OBJECT	*o = rsc_tree_objects(r, 0, NULL);
+	struct rsc_cicon	*c = rsc_obj_cicon(r, 0, 13);
+	unsigned long	h = 0;
+
+	h = h * 31 + (unsigned long)(uintptr_t)o[1].ob_spec.free_string;
+	h = h * 31 + (unsigned long)(uintptr_t)o[4].ob_spec.tedinfo;
+	h = h * 31 + (unsigned long)(uintptr_t)o[4].ob_spec.tedinfo->te_pvalid;
+	h = h * 31 + (unsigned long)(uintptr_t)o[8].ob_spec.iconblk;
+	h = h * 31 + (unsigned long)(uintptr_t)o[8].ob_spec.iconblk->ib_ptext;
+	h = h * 31 + (unsigned long)(uintptr_t)o[9].ob_spec.bitblk;
+	h = h * 31 + (unsigned long)(uintptr_t)c;
+	h = h * 31 + (unsigned long)rsc_cicon_nversions(c);
+	h = h * 31 + (unsigned long)(uintptr_t)rsc_frstr(r, 1);
+	return h;
+}
+
+/* Fails the n-th allocation of op for n = 0, 1, ... until op succeeds:
+ * every failure must leave the model and the live block count as they
+ * were.  Returns the number of failures seen, -1 on a broken promise. */
+static int fail_each(int (*op)(struct rsc *))
+{
+	struct rsc	*r = rsc_new();
+	unsigned long	before;
+	long	live, n;
+	int	fails = 0, rc;
+
+	if (!r || build_all(r))
+		return -1;
+	for (n = 0; n < 100; n++)
+	{
+		before = state(r);
+		live = rsc_test_live_blocks();
+		rsc_test_fail_alloc_after(n);
+		rc = op(r);
+		rsc_test_fail_alloc_after(-1);
+		if (rc == 0)
+			break;
+		if (state(r) != before || rsc_test_live_blocks() != live || !all_trees_ok(r))
+		{
+			fails = -1;
+			break;
+		}
+		fails++;
+	}
+	rsc_free(r);
+	return n == 100 ? -1 : fails;
+}
+
+static void test_replace_failures(void)
+{
+	CHECK(fail_each(op_iconblk) == 4);	/* record, mask, data, text */
+	CHECK(fail_each(op_bitblk) == 2);
+	CHECK(fail_each(op_cicon) == 3);
+	CHECK(fail_each(op_str) == 1);
+	CHECK(fail_each(op_te_str) == 1);
+	CHECK(fail_each(op_ib_str) == 1);
+	CHECK(fail_each(op_frstr) == 1);
+	CHECK(fail_each(op_version) == 5);
+	CHECK(fail_each(op_tedinfo) == 4);
+	CHECK(rsc_test_live_blocks() == 0);
+}
+
+static void test_limits_and_broken_links(void)
+{
+	struct rsc	*r = rsc_new();
+	OBJECT	*o, *old;
+	int	n;
+
+	/* RSC_MAX_OBJECTS through rsc_obj_add */
+	CHECK(rsc_tree_add(r, RSC_MAX_OBJECTS - 1) == 0);
+	CHECK(rsc_obj_add(r, 0, 0, G_BOX) == RSC_MAX_OBJECTS - 1);
+	old = rsc_tree_objects(r, 0, &n);
+	CHECK(n == RSC_MAX_OBJECTS && old[0].ob_head == RSC_MAX_OBJECTS - 1);
+	CHECK(rsc_obj_add(r, 0, 0, G_BOX) == -1);
+	o = rsc_tree_objects(r, 0, &n);
+	CHECK(o == old && n == RSC_MAX_OBJECTS && o[0].ob_tail == RSC_MAX_OBJECTS - 1);
+	CHECK(o[n - 1].ob_flags == OF_LASTOB && o[n - 1].ob_next == 0);
+	CHECK(rsc_tree_add(r, RSC_MAX_OBJECTS) == 1);
+	CHECK(rsc_tree_delete(r, 1) == 0);
+	CHECK(rsc_tree_delete(r, 0) == 0);
+
+	/* hand-linked trees with links out of range */
+	CHECK(rsc_tree_add(r, 3) == 0);
+	o = rsc_tree_objects(r, 0, &n);
+	o[0].ob_head = 1;
+	o[0].ob_tail = 7;
+	o[1].ob_next = 2;
+	o[2].ob_next = 0;
+	CHECK(rsc_obj_add(r, 0, 0, G_BOX) == -1);
+	o = rsc_tree_objects(r, 0, &n);
+	CHECK(n == 3 && o[0].ob_tail == 7 && o[2].ob_next == 0);
+	o[0].ob_tail = 2;
+	CHECK(tree_ok(r, 0));
+	o[1].ob_head = 9;		/* head without tail, and out of range */
+	CHECK(rsc_obj_add(r, 0, 1, G_BOX) == -1);
+	CHECK(rsc_obj_delete(r, 0, 1) == -1);
+	o = rsc_tree_objects(r, 0, &n);
+	CHECK(n == 3 && o[0].ob_head == 1 && o[1].ob_next == 2 && o[1].ob_head == 9);
+	o[1].ob_tail = 9;
+	CHECK(rsc_obj_add(r, 0, 1, G_BOX) == -1);
+	CHECK(rsc_obj_delete(r, 0, 1) == -1);
+	CHECK(rsc_tree_compact(r, 0, NULL) == RSC_WALK_ERANGE);
+	o = rsc_tree_objects(r, 0, &n);
+	CHECK(n == 3 && o[0].ob_head == 1 && o[1].ob_head == 9 && o[1].ob_tail == 9);
+	o[2].ob_next = 40;		/* a broken chain: the parent of 2 cannot be found */
+	o[1].ob_head = o[1].ob_tail = -1;
+	CHECK(rsc_obj_delete(r, 0, 1) == -1);
+	CHECK(o[0].ob_head == 1 && o[1].ob_next == 2);
+	rsc_free(r);
+	CHECK(rsc_test_live_blocks() == 0);
+}
+
 int main(void)
 {
 	test_new_free();
@@ -811,6 +1246,13 @@ int main(void)
 	test_free_lists();
 	test_cicon_versions();
 	test_alloc_failures();
+	test_preorder();
+	test_compact();
+	test_resize();
+	test_indirect();
+	test_planes();
+	test_replace_failures();
+	test_limits_and_broken_links();
 	printf("rsc-test: %ld checks, %ld failed\n", checks, failures);
 	return failures ? 1 : 0;
 }
