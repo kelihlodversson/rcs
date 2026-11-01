@@ -213,16 +213,11 @@ static int bb_eq(const BITBLK *a, const BITBLK *b)
 	       && data_eq(a->bi_pdata, b->bi_pdata, rsc_bitblk_bytes(a));
 }
 
-static uint32_t flag_field(uint32_t stored, int yes)
-{
-	return yes ? (stored ? stored : 1) : 0;
-}
-
 static int cicon_eq(const struct rsc_cicon *a, const struct rsc_cicon *b)
 {
 	const ICONBLK	*ma = &a->blk.monoblk, *mb = &b->blk.monoblk;
 	size_t	pb = rsc_plane_bytes(ma->ib_wicon, ma->ib_hicon);
-	int	v, n = rsc_cicon_nversions(a), k;
+	int	v, n = rsc_cicon_nversions(a);
 
 	if (!ib_words_eq(ma, mb) || !data_eq(ma->ib_pdata, mb->ib_pdata, pb)
 	    || !data_eq(ma->ib_pmask, mb->ib_pmask, pb) || memcmp(a->text, b->text, 12) != 0
@@ -240,17 +235,17 @@ static int cicon_eq(const struct rsc_cicon *a, const struct rsc_cicon *b)
 		    || (sel && (!data_eq(x->c.sel_data, y->c.sel_data, pb * np)
 				|| !data_eq(x->c.sel_mask, y->c.sel_mask, pb))))
 			return 0;
-		for (k = 0; k < 5; k++)
-		{
-			uint32_t	f = x->file_ptr[k];
-
-			if (k == 2)
-				f = flag_field(f, sel);
-			if (k == 4)
-				f = flag_field(f, v + 1 < n);
-			if (f != y->file_ptr[k])
-				return 0;
-		}
+		/* col_data, col_mask, sel_mask: opaque, as stored */
+		if (y->file_ptr[0] != x->file_ptr[0] || y->file_ptr[1] != x->file_ptr[1]
+		    || y->file_ptr[3] != x->file_ptr[3])
+			return 0;
+		/* sel_data: non-zero exactly when the selected planes exist, and
+		 * then the stored value if there was one */
+		if ((y->file_ptr[2] != 0) != sel || (sel && x->file_ptr[2] && y->file_ptr[2] != x->file_ptr[2]))
+			return 0;
+		/* next_res: 1 when another version follows, 0 on the last */
+		if (y->file_ptr[4] != (rsc_cicon_version(a, v + 1) ? 1U : 0U))
+			return 0;
 	}
 	return 1;
 }
@@ -1327,7 +1322,7 @@ static void test_cicons(void)
 	v->file_ptr[1] = 0xffffffff;
 	v->file_ptr[2] = 0x55555555;
 	v->file_ptr[3] = 7;
-	v->file_ptr[4] = 0x99;
+	v->file_ptr[4] = 0x99;		/* another version follows: written 1 */
 	v = rsc_cicon_version(c, 1);
 	v->file_ptr[2] = 0x1234;	/* no selected planes: written 0 */
 	v->file_ptr[4] = 0x5678;	/* the last: written 0 */
@@ -1338,7 +1333,7 @@ static void test_cicons(void)
 		CHECK(rd32(o, blk) == 0xdeadbeef && rd32(o, blk + 8) == 0xffffffff);
 		blk += 38 + 8 + 12;
 		CHECK(rd32(o, blk + 2) == 0x01020304 && rd32(o, blk + 6) == 0xffffffff);
-		CHECK(rd32(o, blk + 10) == 0x55555555 && rd32(o, blk + 14) == 7 && rd32(o, blk + 18) == 0x99);
+		CHECK(rd32(o, blk + 10) == 0x55555555 && rd32(o, blk + 14) == 7 && rd32(o, blk + 18) == 1);
 		blk += 22 + 2 * 4 * 3;
 		CHECK(rd32(o, blk + 10) == 0 && rd32(o, blk + 18) == 0);
 	}

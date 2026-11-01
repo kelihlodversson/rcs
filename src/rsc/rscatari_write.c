@@ -89,9 +89,11 @@
  *    file_ptr fields are written as the model has them, except two
  *    fields of a version header that the file format gives a meaning:
  *    sel_data must be non-zero exactly when selected planes follow (the
- *    reader decides by it) and next_res is made non-zero exactly when
- *    another version follows (pTOS's loader checks that): a stored value
- *    that already says so is kept, otherwise 1 or 0 is written.  The 12
+ *    reader decides by it): a stored value that already says so is kept,
+ *    otherwise 1 or 0 is written; next_res is always written 1 when
+ *    another version follows and 0 on the last (pTOS's legacy loader
+ *    chains only on 1, aes/rsload_legacy.c), so other stored values are
+ *    normalised.  The 12
  *    text bytes are written as stored.  A version with NULL planes writes
  *    zero words; selected planes are written when sel_data or sel_mask is
  *    set.  A version with a number of planes outside 1..RSC_MAX_PLANES, or
@@ -442,11 +444,11 @@ static int nversions(const struct rsc_cicon *c, size_t *n)
 	return 0;
 }
 
-/* A pointer field of a version header that says yes or no: the stored
- * value when it says what is true, else 1 or 0. */
-static uint32_t flag_field(uint32_t stored, int yes)
+/* sel_data of a version header: the stored value when it says what is
+ * true (non-zero exactly when selected planes follow), else 1 or 0. */
+static uint32_t sel_field(uint32_t stored, int sel)
 {
-	return yes ? (stored ? stored : 1) : 0;
+	return sel ? (stored ? stored : 1) : 0;
 }
 
 /* One colour version of a block whose planes have pb bytes. */
@@ -468,9 +470,9 @@ static int put_version(struct wr *w, int t, int i, const CICON *v, size_t pb)
 	{
 		f = cv->file_ptr[k];
 		if (k == 2)
-			f = flag_field(f, sel);
+			f = sel_field(f, sel);
 		else if (k == 4)
-			f = flag_field(f, v->next_res != NULL);
+			f = v->next_res ? 1 : 0;
 		put32(w, at + 2 + 4 * (size_t)k, f);
 	}
 	if (put_words(w, S_CBLK, v->col_data, pb * (size_t)planes, &d)
