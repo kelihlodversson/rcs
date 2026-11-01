@@ -20,6 +20,20 @@
 #include "rcswrite.h"
 #include "rcsread.h"
 #include "rcscicon.h"
+#include "rcsaddr.h"
+
+#ifdef RCS_HOST
+/* dmcopy() takes an RCS address; this reads into a buffer of the host */
+static short dmcopy_host(FILE *stream, long msrc, void *buf, long mln)
+{
+	if (fseek(stream, msrc, SEEK_SET))
+		return (0);
+	return (fread(buf, 1, mln, stream) == (size_t)mln && mln != 0);
+}
+#define DMCOPY_HOST(f, src, buf, n)	dmcopy_host(f, src, buf, n)
+#else
+#define DMCOPY_HOST(f, src, buf, n)	dmcopy(f, src, (long)(buf), n)
+#endif
 
 #define ROB_TYPE (psubstruct + 6)	/* Long pointer in OBJECT	*/
 #define ROB_FLAGS (psubstruct + 8)	/* Long pointer in OBJECT	*/
@@ -204,7 +218,7 @@ static long get_sub(unsigned short rsindex, short rtype, short rsize)
 {
 	unsigned short		offset;
 
-	offset = (*(short *)(rs_hdr + ((short)(rtype*2))));
+	offset = (*(short *)RP(rs_hdr + ((short)(rtype*2))));
 	/* get base of objects	*/
 	/*   and then index in	*/
 	return( rs_hdr + offset + (unsigned short)(rsize * rsindex) );
@@ -258,16 +272,16 @@ static long get_addr(short rstype, short rsindex)
 			else
 				return( RIB_PTEXT );
 		case R_STRING:
-			return( (*(long *)(get_sub(rsindex, RT_FREESTR, (short)sizeof(long)))) );
+			return( (RGET(get_sub(rsindex, RT_FREESTR, (short)RS_ENTRY))) );
 		case R_IMAGEDATA:
-			return( (*(long *)(get_sub(rsindex, RT_FREEIMG, (short)sizeof(long)))) );
+			return( (RGET(get_sub(rsindex, RT_FREEIMG, (short)RS_ENTRY))) );
 		case R_FRSTR:
 			rt = RT_FREESTR;
-			size = (short)sizeof(long);
+			size = (short)RS_ENTRY;
 			break;
 		case R_FRIMG:
 			rt = RT_FREEIMG;
-			size = (short)sizeof(long);
+			size = (short)RS_ENTRY;
 			break;
 		default:
 			valid = false;
@@ -283,10 +297,10 @@ static short fix_long(long plong)
 {
 	long		lngval;
 
-	lngval = (*(long *)(plong));
+	lngval = RGET(plong);
 	if (lngval != -1L)
 	{
-		(*(long *)(plong) = (rs_hdr + lngval));
+		(RFIELD(plong) = (rs_hdr + lngval));
 		return(true);
 	}
 	else
@@ -298,7 +312,7 @@ static void fix_trindex(void)
 	short		ii;
 	long		ptreebase;
 
-	ptreebase = get_sub(0, RT_TRINDEX, (short)sizeof(long));
+	ptreebase = get_sub(0, RT_TRINDEX, (short)RS_ENTRY);
 
 	for (ii = NUM_TREE-1; ii >= 0; ii--)
 		fix_long(ptreebase + ((short)(ii*4)));
@@ -370,7 +384,7 @@ static void fix_objects(void)
 	{
 		psubstruct = get_addr(R_OBJECT, ii);
 		rs_obfix(psubstruct, 0);
-		obtype = (((*(short *)(ROB_TYPE))) & 0xff);
+		obtype = (((*(short *)RP(ROB_TYPE))) & 0xff);
 		switch (obtype)
 		{
 			case G_TEXT:
@@ -388,23 +402,23 @@ static void fix_objects(void)
 				/* the spec is the number of its CICONBLK; RCS shows and
 				   edits the mono icon, and keeps the rest for saving */
 				ciconblk = cicon_store_ok ?
-					cicon_iconblk(*(unsigned long *)(ROB_SPEC)) : 0;
+					cicon_iconblk((unsigned long)RFIELD(ROB_SPEC)) : 0;
 				if (ciconblk)
 				{
-					*(unsigned long *)(ROB_SPEC) = ciconblk;
-					*(short *)(ROB_TYPE) = G_ICON;
+					RFIELD(ROB_SPEC) = ciconblk;
+					*(short *)RP(ROB_TYPE) = G_ICON;
 				}
 				else
 				{
-					*(unsigned long *)(ROB_SPEC) = 0x00ff1100UL;
-					*(short *)(ROB_TYPE) = G_BOX;
+					RFIELD(ROB_SPEC) = 0x00ff1100UL;
+					*(short *)RP(ROB_TYPE) = G_BOX;
 				}
 				break;
 			default:
 				break;
 		}
-		obflags = (*(short *)(ROB_FLAGS));	/* zap LASTOB's */
-		(*(short *)(ROB_FLAGS) = (obflags & ~LASTOB));
+		obflags = (*(short *)RP(ROB_FLAGS));	/* zap LASTOB's */
+		(*(short *)RP(ROB_FLAGS) = (obflags & ~LASTOB));
 	}
 }
 
@@ -430,7 +444,7 @@ static void fix_tedinfo(void)
 		for(i=0; i<2; i++)
 		{
 			if (tl[i])
-				(*(short *)(tl[i]) = (strlen((char *)((*(long *)(ls[i])))) + 1));
+				(*(short *)RP(tl[i]) = (strlen((char *)RP(RGET(ls[i]))) + 1));
 		}
 		fix_ptr(R_TEPVALID, ii);
 	}
@@ -480,10 +494,10 @@ static void fix_roots(void)
 	short		ii;
 	long		ptreebase;
 
-	ptreebase = get_sub(0, RT_TRINDEX, (short)sizeof(long));
+	ptreebase = get_sub(0, RT_TRINDEX, (short)RS_ENTRY);
 
 	for (ii = NUM_TREE-1; ii >= 0; ii--)
-		*(short *)(*(long *)(ptreebase + ((short)(ii*4)))) = -1;
+		*(short *)RP(RGET(ptreebase + ((short)(ii*4)))) = -1;
 }
 
 static void fix_all(void)
@@ -504,10 +518,10 @@ static void comp_str(long hdr)
 	short	istr, nstr, lstr, w, h, obj, ndex;
 	char	name[9];
 
-	nstr = (*(unsigned short *)(RSH_NSTRING(hdr)));
+	nstr = (*(unsigned short *)RP(RSH_NSTRING(hdr)));
 	if ( nstr )
 	{
-		frstr = hdr + ((unsigned short)((*(unsigned short *)(RSH_FRSTR(hdr)))));
+		frstr = hdr + ((unsigned short)((*(unsigned short *)RP(RSH_FRSTR(hdr)))));
 
 		ini_tree(&maddr, NEWPANEL);
 		tree = copy_tree(maddr, ROOT, true);
@@ -516,12 +530,12 @@ static void comp_str(long hdr)
 
 		for (istr = 0; istr < nstr; istr++)
 		{
-			where = (*(long *)(frstr + (long) (istr * sizeof(long))));
+			where = (RGET(frstr + (long) (istr * RS_ENTRY)));
 			if (where != -1L)
 			{
-				lstr = (short)strlen((char *)(where));
+				lstr = (short)strlen((char *)RP(where));
 				obj = copy_objs(maddr, PBXSTR, tree, false);
-				objc_add((OBJECT  *)tree, ROOT, obj);
+				objc_add((OBJECT  *)RP(tree), ROOT, obj);
 				SET_SPEC(tree, obj, where);
 				SET_WIDTH(tree, obj, gl_wchar * lstr);
 				if ((ndex = find_value((char *) where)) != NIL)
@@ -538,7 +552,7 @@ static void comp_str(long hdr)
 		SET_WIDTH(tree, ROOT, max(w, 20 * gl_wchar));
 		unique_name(&name[0], "FRSTR%d", 1);	/* make up a name */
 		new_index((char *)tree, FREE, name);
-		(*(unsigned short *)(RSH_NSTRING(hdr)) = (0));
+		(*(unsigned short *)RP(RSH_NSTRING(hdr)) = (0));
 	}
 }
 
@@ -548,10 +562,10 @@ static void comp_img(long hdr)
 	short	iimg, nimg, w, h, obj, ndex;
 	char	name[9];
 
-	nimg = (*(unsigned short *)(RSH_NIMAGES(hdr)));
+	nimg = (*(unsigned short *)RP(RSH_NIMAGES(hdr)));
 	if ( nimg )
 	{
-		frimg = hdr + ((unsigned short)((*(unsigned short *)(RSH_FRIMG(hdr)))));
+		frimg = hdr + ((unsigned short)((*(unsigned short *)RP(RSH_FRIMG(hdr)))));
 
 		ini_tree(&maddr, NEWPANEL);
 		tree = copy_tree(maddr, ROOT, true);
@@ -560,12 +574,12 @@ static void comp_img(long hdr)
 
 		for (iimg = 0; iimg < nimg; iimg++)
 		{
-			where = (*(long *)(frimg + (unsigned short) (iimg * sizeof(long))));
+			where = (RGET(frimg + (unsigned short) (iimg * RS_ENTRY)));
 			obj = copy_objs(maddr, PBXIMG, tree, false);
-			objc_add((OBJECT  *)tree, ROOT, obj);
+			objc_add((OBJECT  *)RP(tree), ROOT, obj);
 			SET_SPEC(tree, obj, where);
-			SET_HEIGHT(tree, obj, (*(short *)(BI_HL(where))));
-			SET_WIDTH(tree, obj, (*(short *)(BI_WB(where))) << 3);
+			SET_HEIGHT(tree, obj, (*(short *)RP(BI_HL(where))));
+			SET_WIDTH(tree, obj, (*(short *)RP(BI_WB(where))) << 3);
 			if ((ndex = find_value((char *) where)) != NIL)
 			{
 				set_value(ndex, (char *) (tree + 
@@ -580,7 +594,7 @@ static void comp_img(long hdr)
 		map_tree(tree, ROOT, NIL, (fkt_parm)trans_obj);
 		unique_name(&name[0], "FRIMG%d", 1);	/* make up a name */
 		new_index((char *)tree, FREE, name);
-		(*(unsigned short *)(RSH_NIMAGES(hdr)) = (0));
+		(*(unsigned short *)RP(RSH_NIMAGES(hdr)) = (0));
 	}
 }
 
@@ -595,13 +609,13 @@ short read_files(void)
 	/* the file is big-endian: the header is read as it is on disk, and the
 	   whole image is turned into the host's form when it is all there */
 	if ( !dmcopy(rcs_rhndl, 0x0L, head, DISK_RSHDR_SIZE) ||
-		rd_be16((void *)RSH_RSSIZE(head)) < DISK_RSHDR_SIZE)
+		rd_be16(RP(RSH_RSSIZE(head))) < DISK_RSHDR_SIZE)
 	{
 		fclose(rcs_rhndl);
 		ini_buff();
 		return (false);
 	}
-	else if (avail_mem() < (long)rd_be16((void *)RSH_RSSIZE(head))) 
+	else if (avail_mem() < (long)rd_be16(RP(RSH_RSSIZE(head)))) 
 	{
 		fclose(rcs_rhndl);
 		hndl_alert(1, string_addr(STNROOM) );
@@ -610,10 +624,10 @@ short read_files(void)
 	}
 	else
 	{
-		long	disksize = rd_be16((void *)RSH_RSSIZE(head));
+		long	disksize = rd_be16(RP(RSH_RSSIZE(head)));
 		unsigned char	ext[12];
 		unsigned long	cicon_table = 0, cicon_total = 0;
-		unsigned char	*full = 0;
+		raddr	full = 0;
 
 		if (!dmcopy(rcs_rhndl, DISK_RSHDR_SIZE,
 				head + DISK_RSHDR_SIZE, disksize - DISK_RSHDR_SIZE))
@@ -626,8 +640,8 @@ short read_files(void)
 		{
 			/* the extension of a new format file: the table of colour icons */
 			cicon_reset();
-			if ((rd_be16((void *)RSH_VRSN(head)) & RCS_NEW_FORMAT) &&
-					dmcopy(rcs_rhndl, disksize, (long)ext, 12))
+			if ((rd_be16(RP(RSH_VRSN(head))) & RCS_NEW_FORMAT) &&
+					DMCOPY_HOST(rcs_rhndl, disksize, ext, 12))
 			{
 				cicon_table = rd_be32(ext + 4);
 				cicon_total = rd_be32(ext);
@@ -635,18 +649,18 @@ short read_files(void)
 				   be larger than the 16 bits of rsh_rssize */
 				if (cicon_total >= (unsigned long)disksize + 12 &&
 						cicon_total <= 0x1000000UL &&
-						(full = malloc(cicon_total)) != 0 &&
-						!dmcopy(rcs_rhndl, 0x0L, (long)full, (long)cicon_total))
+						(full = rcs_alloc(cicon_total)) != 0 &&
+						!dmcopy(rcs_rhndl, 0x0L, full, (long)cicon_total))
 				{
-					free(full);
+					rcs_release(full);
 					full = 0;
 				}
 			}
 			fclose(rcs_rhndl);
 			if (full)
 			{
-				cicon_scan((long)full, (long)cicon_total, cicon_table);
-				free(full);
+				cicon_scan(full, (long)cicon_total, cicon_table);
+				rcs_release(full);
 			}
 			cicon_store_ok = true;
 			rcs_free = head + (unsigned short)disksize;
@@ -707,11 +721,11 @@ short read_files(void)
 			comp_str(head);	/* scavenge all other freestrs	*/
 			comp_img(head);	/* and likewise for free images */
 			/* make sure all trees are indexed */
-			for (ii = 0; ii < (*(unsigned short *)(RSH_NTREE(head))); ii++)
+			for (ii = 0; ii < (*(unsigned short *)RP(RSH_NTREE(head))); ii++)
 				if (find_tree(ii) == NIL)
 					index_guessed_tree(ii);
 
-			return (*(unsigned short *)(RSH_RSSIZE(head)));
+			return (*(unsigned short *)RP(RSH_RSSIZE(head)));
 		}
 	}
 }
@@ -723,7 +737,7 @@ static short native_image(long merge, long size)
 	rcs_free = merge + size;
 	if (rcs_free & 1)
 		rcs_free++;
-	return rsc_to_native(merge, head + (*(unsigned short *)(RSH_OBJECT(head))));
+	return rsc_to_native(merge, head + (*(unsigned short *)RP(RSH_OBJECT(head))));
 }
 
 short merge_files(void)
@@ -742,8 +756,8 @@ short merge_files(void)
 		fclose(rcs_rhndl);
 		return(false);
 	}
-	size = rd_be16((void *)RSH_RSSIZE(merge));
-	objoff = rd_be16((void *)RSH_OBJECT(merge));
+	size = rd_be16(RP(RSH_RSSIZE(merge)));
+	objoff = rd_be16(RP(RSH_OBJECT(merge)));
 	if (size < DISK_RSHDR_SIZE)
 	{
 		fclose(rcs_rhndl);
@@ -752,7 +766,7 @@ short merge_files(void)
 	{
 		/* synchronize objects: the objects of the file go to an address
 		   that is a multiple of an OBJECT away from the ones of this file */
-		foo_l = ((merge + objoff) - (head + (*(unsigned short *)(RSH_OBJECT(head)))))
+		foo_l = ((merge + objoff) - (head + (*(unsigned short *)RP(RSH_OBJECT(head)))))
 			% (long)sizeof(OBJECT);
 		if (foo_l)
 			merge += (long)sizeof(OBJECT) - foo_l;
@@ -783,26 +797,26 @@ short merge_files(void)
 				cicon_store_ok = false;
 				fix_all();
 
-				old_ntree = (*(unsigned short *)(RSH_NTREE(head)));
-				if ((*(unsigned short *)(RSH_NTREE(merge))))
+				old_ntree = (*(unsigned short *)RP(RSH_NTREE(head)));
+				if ((*(unsigned short *)RP(RSH_NTREE(merge))))
 				{
-					total = (*(unsigned short *)(RSH_NTREE(head))) + (*(unsigned short *)(RSH_NTREE(merge)));
-					newndx = get_mem((short)(sizeof(long) * total));
+					total = (*(unsigned short *)RP(RSH_NTREE(head))) + (*(unsigned short *)RP(RSH_NTREE(merge)));
+					newndx = get_mem((short)(RS_ENTRY * total));
 					indoff = (unsigned short) (newndx - head);		
-					for (i = 0; i < (*(unsigned short *)(RSH_NTREE(head))); i++)
+					for (i = 0; i < (*(unsigned short *)RP(RSH_NTREE(head))); i++)
 					{
-						(*(long *)(newndx) = (tree_addr(i)));
-						newndx += sizeof(long);
+						(RFIELD(newndx) = (tree_addr(i)));
+						newndx += RS_ENTRY;
 					}
-					oldndx = merge + ((unsigned short)((*(unsigned short *)(RSH_TRINDEX(merge)))));
-					for (i = 0; i < (*(unsigned short *)(RSH_NTREE(merge))); i++)
+					oldndx = merge + ((unsigned short)((*(unsigned short *)RP(RSH_TRINDEX(merge)))));
+					for (i = 0; i < (*(unsigned short *)RP(RSH_NTREE(merge))); i++)
 					{
-						(*(long *)(newndx) = ((*(long *)(oldndx))));
-						newndx += sizeof(long);
-						oldndx += sizeof(long);
+						(RFIELD(newndx) = (RFIELD(oldndx)));
+						newndx += RS_ENTRY;
+						oldndx += RS_ENTRY;
 					}
-					(*(unsigned short *)(RSH_NTREE(head)) = (total));
-					(*(unsigned short *)(RSH_TRINDEX(head)) = (indoff));
+					(*(unsigned short *)RP(RSH_NTREE(head)) = (total));
+					(*(unsigned short *)RP(RSH_TRINDEX(head)) = (indoff));
 				}
 
 				if (rcs_dhndl)
@@ -831,14 +845,14 @@ short merge_files(void)
 								break;
 							case ALRT:
 							case FRSTR:
-								frstr = merge +	((unsigned short)((*(unsigned short *)(RSH_FRSTR(merge)))));
-								rcs_index[ii].val = (char *) (*(long *)(frstr + 
-								(unsigned short) (sizeof(long) * (short) rcs_index[ii].val)));
+								frstr = merge +	((unsigned short)((*(unsigned short *)RP(RSH_FRSTR(merge)))));
+								rcs_index[ii].val = (char *) (RGET(frstr + 
+								(unsigned short) (RS_ENTRY * (short) rcs_index[ii].val)));
 								break;
 							case FRIMG:
-								frimg = merge + ((unsigned short)((*(unsigned short *)(RSH_FRIMG(merge)))));
-								rcs_index[ii].val = (char *) (*(long *)(frimg +
-									(unsigned short) (sizeof(long) * (short)rcs_index[ii].val)));
+								frimg = merge + ((unsigned short)((*(unsigned short *)RP(RSH_FRIMG(merge)))));
+								rcs_index[ii].val = (char *) (RGET(frimg +
+									(unsigned short) (RS_ENTRY * (short)rcs_index[ii].val)));
 								break;
 							case OBJKIND:
 								nobj = (short) (((unsigned short) rcs_index[ii].val) & 0xff) & 0xff;
@@ -855,7 +869,7 @@ short merge_files(void)
 					fclose(rcs_dhndl);
 				}
 
-				for (i = old_ntree; i < (*(unsigned short *)(RSH_NTREE(head))); i++)
+				for (i = old_ntree; i < (*(unsigned short *)RP(RSH_NTREE(head))); i++)
 				{
 					map_tree(tree_addr(i), ROOT, NIL, (fkt_parm)trans_obj); 
 					if (find_tree(i) == NIL)

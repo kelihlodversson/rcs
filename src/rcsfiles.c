@@ -94,6 +94,25 @@ short get_file(short label)
 		return (false);
 } /* get_file */
 
+#ifdef RCS_ROUNDTRIP
+/* test builds: write what was loaded to C:\OUT.RSC (and C:\OUT.DFN), to compare
+   with the golden file. Called after a load from the command line (ok_rvrt_files)
+   and from File/Open (opn_rsc); each load takes one of those paths only. The
+   file names are put back afterwards. */
+static void rt_dump(void)
+{
+	char	saved[80], saved_d[80];
+
+	strcpy(saved, rcs_rfile);
+	strcpy(saved_d, rcs_dfile);
+	strcpy(rcs_rfile, "C:\\OUT.RSC");
+	strcpy(rcs_dfile, "C:\\OUT.DFN");
+	write_files();
+	strcpy(rcs_rfile, saved);
+	strcpy(rcs_dfile, saved_d);
+}
+#endif
+
 short rvrt_files(void)
 {
 	if (!open_files(true))
@@ -113,6 +132,9 @@ short ok_rvrt_files(void)   /* kluge routine to allow calls between sibling over
 	{
 		new_state( FILE_STATE );
 		rsc_title(); 
+#ifdef RCS_ROUNDTRIP
+		rt_dump();
+#endif
 	}
 	else
 		view_trees();
@@ -183,6 +205,9 @@ static short opn_rsc(void)
 	{
 		if (read_files())
 		{  
+#ifdef RCS_ROUNDTRIP
+			rt_dump();
+#endif
 			new_state(FILE_STATE);
 			rsc_title();
 		}

@@ -13,6 +13,7 @@
 #include "rcs.h"
 #include "rcslib.h"
 #include "rcsdata.h"
+#include "rcsaddr.h"
 #include "rcsintf.h"
 #include "rcsmain.h"
 #include "rcsfiles.h"
@@ -263,9 +264,9 @@ short rcs_init(void)
 					/* set to 0c10700 for if statement */
 					buff_size = 0x10700L;
 					if ( buff_size < 0x10700L )
-						head = (long)malloc( buff_size -= 0x700L);
+						head = rcs_alloc( buff_size -= 0x700L);
 					else
-						head = (long)malloc( buff_size = 0x10000L); 
+						head = rcs_alloc( buff_size = 0x10000L); 
 					buff_size -= 2500L;	/* Reserve a panic buffer */
 					if (buff_size < 1000L)
 					{
@@ -309,7 +310,7 @@ void rcs_exit(short term_type)
 	switch (term_type)
 	{
 		case 0:
-			free((void *)head);
+			rcs_release(head);
 		case 1:
 			wind_close( rcs_view );
 			wind_delete( rcs_view );

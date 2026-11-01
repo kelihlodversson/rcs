@@ -98,9 +98,14 @@ $(LIBCMINI_A): $(LIBCMINI_REV)
 
 $(LIBCMINI_CRT): $(LIBCMINI_A)
 
+# Extra compiler flags for the round trip test hook only (tests/roundtrip/
+# gen-golden.sh passes -DRCS_ROUNDTRIP on the command line).  Empty here, so an
+# environment variable of this name does not reach the build.
+RCS_TEST_CFLAGS =
+
 # ---- m68k --------------------------------------------------------------
 
-M68K_CFLAGS = $(STD) $(WARN) -O2 -m68000 -fomit-frame-pointer $(INCLUDES)
+M68K_CFLAGS = $(STD) $(WARN) $(RCS_TEST_CFLAGS) -O2 -m68000 -fomit-frame-pointer $(INCLUDES)
 M68K_OBJ    = $(patsubst %.c,build/m68k/%.o,$(PRG_SRC))
 
 build/m68k/%.o: %.c $(GEMLIB_H)
@@ -124,7 +129,7 @@ ARM_LIBCMINI  = build/arm/lib/libcmini.a
 ARM_CRT       = build/arm/lib/minicrt0.o
 
 # gemlib's own include/arm directory has the compiler.h its headers need
-ARM_CFLAGS = $(STD) $(WARN) -O2 -ffreestanding $(ARM_ABI) \
+ARM_CFLAGS = $(STD) $(WARN) $(RCS_TEST_CFLAGS) -O2 -ffreestanding $(ARM_ABI) \
     -Isrc -I$(GEMLIB)/include/arm -I$(GEMLIB) -I$(LIBCMINI)/include -D__GEMLIB_OLDNAMES
 ARM_OBJ    = $(patsubst %.c,build/arm/%.o,$(PRG_SRC))
 
@@ -157,3 +162,25 @@ libs: $(GEMLIB_A) $(LIBCMINI_A) $(ARM_LIBGEM) $(ARM_LIBCMINI)
 
 clean:
 	rm -rf build
+
+# ---- host -----------------------------------------------------------------
+#
+#   make host-test   the load/save round trip on this machine: the sources
+#                    compiled as 64 bit host code, without the Atari GUI
+#
+# The host build does not use gemlib or libcmini: src/host has its own gem.h
+# and the GUI and OS calls the sources make are stubbed in hoststubs.c.
+
+HOST_CC    ?= cc
+HOST_SRC    = src/rcsread.c src/rcswrite.c src/rcsdata.c src/rcslib.c src/rcsdisk.c \
+              src/rcscicon.c src/host/hostmem.c src/host/hoststubs.c tests/host/roundtrip.c
+HOST_FLAGS  = -std=gnu99 -fno-strict-aliasing -Wall -DRCS_HOST -D__GEMLIB_OLDNAMES \
+              -Isrc/host -Isrc -g
+
+.PHONY: host-test
+host-test: build/host/roundtrip
+	sh tests/roundtrip/run.sh
+
+build/host/roundtrip: $(HOST_SRC) $(wildcard src/*.h src/host/*.h src/host/mint/*.h)
+	@mkdir -p build/host
+	$(HOST_CC) $(HOST_FLAGS) -o $@ $(HOST_SRC)

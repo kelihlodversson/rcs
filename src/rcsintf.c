@@ -1013,6 +1013,9 @@ void safe_dial(void)
 
 void ini_prog(void)
 {
+#ifdef RCS_ROUNDTRIP
+	return;	/* test builds: no progress dialog, nobody to click it */
+#endif
 	GRECT 	p;
 
 	ini_tree(&ad_prog, PROGRESS);	/* set up progress indicator */
@@ -1025,6 +1028,9 @@ void ini_prog(void)
 
 void show_prog(short strno)
 {
+#ifdef RCS_ROUNDTRIP
+	return;	/* test builds: no progress dialog, nobody to click it */
+#endif
 	long	taddr;
 
 	SET_SPEC(ad_prog, WRITING, taddr = string_addr(strno));

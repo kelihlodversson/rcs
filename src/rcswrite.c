@@ -21,6 +21,43 @@
 #include "rcsvdi.h"
 #include "rcswrite.h"
 #include "rcscicon.h"
+#include "rcsaddr.h"
+
+#ifdef RCS_HOST
+#include <stdlib.h>
+/* gsx_untrans() and rsc_fwrite_words() take an RCS address.  On m68k and ARM
+ * the scratch area for the standard form of an image is the array wr_obndx[];
+ * on the host that array is not in the arena, so the scratch area is a buffer
+ * of the arena, as large as the largest image asked for (a file has at most
+ * 64 KiB, so it is one allocation in practice). */
+static raddr wr_scratch;
+static unsigned long wr_scratch_size;
+
+static raddr wr_scratch_buf(unsigned long bytes)
+{
+	if (bytes > wr_scratch_size)
+	{
+		wr_scratch_size = bytes < 0x10000UL ? 0x10000UL : bytes;
+		wr_scratch = rcs_alloc(wr_scratch_size);
+		if (!wr_scratch)
+		{
+			fprintf(stderr, "rcswrite: out of memory for the image buffer\n");
+			exit(1);
+		}
+	}
+	return wr_scratch;
+}
+#define WR_OBNDX(bytes)	wr_scratch_buf((unsigned long)(bytes))
+/* the 4 byte fields of a record, as a long (an address or -1) */
+#define HPTR(t)		(rentry)
+#define HV(x)		((long)(int)(x))
+#define HSPEC(x)	((unsigned long)(x) & 0xffffffffUL)
+#else
+#define WR_OBNDX(bytes)	((long)((long)(wr_obndx)))
+#define HPTR(t)		(t *)
+#define HV(x)		((long)(x))
+#define HSPEC(x)	(x)
+#endif
 
 typedef	struct	outobj
 {
@@ -49,7 +86,7 @@ static void do_tally(void)
 	clr_tally();
 	map_all((fkt_parm)tally_obj);
 	tally_free();
-	rcs_tally.nbytes += (*(unsigned short *)(RSH_NTREE(head))) * sizeof(long);
+	rcs_tally.nbytes += (*(unsigned short *)RP(RSH_NTREE(head))) * RS_ENTRY;
 	rcs_tally.nbytes += sizeof(RSHDR);
 }
 
@@ -58,11 +95,18 @@ static long get_dspace(short drv)
 	long	dsk_avail;
 	_DISKINFO dsk_free_buf;
 
+#ifdef RCS_HOST
+	(void)drv;
+	(void)dsk_avail;
+	(void)dsk_free_buf;
+	return 0x7fffffffL;		/* the host disk always has room */
+#else
 	Dfree(&dsk_free_buf, drv);
 	dsk_avail = dsk_free_buf.b_free *
 		dsk_free_buf.b_secsiz *
 		dsk_free_buf.b_clsiz;
 	return ( dsk_avail );
+#endif
 }
 
 static short dspace(short drv, unsigned short nbytes)
@@ -70,6 +114,13 @@ static short dspace(short drv, unsigned short nbytes)
 	long	dsk_avail;
 	_DISKINFO dsk_free_buf;
 
+#ifdef RCS_HOST
+	(void)drv;
+	(void)nbytes;
+	(void)dsk_avail;
+	(void)dsk_free_buf;
+	return (false);			/* the host disk always has room */
+#else
 	Dfree(&dsk_free_buf, drv);
 	dsk_avail = dsk_free_buf.b_free *
 		dsk_free_buf.b_secsiz *
@@ -78,6 +129,7 @@ static short dspace(short drv, unsigned short nbytes)
 		return (false);
 	else
 		return (true);
+#endif
 }
 
 /* the "*.def" files keep the structure of the IBM PC: little-endian */
@@ -191,7 +243,7 @@ static void c_bases(void)
 	if (rcs_cflag)
 	{
 		clr_tally();
-		for (i = 0; i < (*(unsigned short *)(RSH_NTREE(head))); i++)
+		for (i = 0; i < (*(unsigned short *)RP(RSH_NTREE(head))); i++)
 		{
 			c_baseline(i, "OBJ", rcs_tally.nobj);
 /*			c_baseline(i, "IB", rcs_tally.nib);	*/
@@ -230,7 +282,7 @@ static void c_string(long addr)
 		hsub = 1;
 
 		do {
-			hchar = (*(char *)(addr++));
+			hchar = (*(char *)RP(addr++));
 			if (hchar == '"')
 				hline[hsub++] = '\\';
 			else if (hchar == '\\')
@@ -277,13 +329,13 @@ static void wr_str(long where)
 	long	staddr;
 	short	stlen;
 
-	staddr = (*(long *)(where));
+	staddr = RGET(where);
 	if ( staddr != -1L)
 	{
 		c_string(staddr);
-		(*(long *)(where) = ((long) rcs_wraddr & 0xffff));
-		stlen = 1 + (short)strlen((char *)(staddr));
-		fwrite((void *)staddr, 1, stlen, rcs_rhndl);
+		(RFIELD(where) = ((long) rcs_wraddr & 0xffff));
+		stlen = 1 + (short)strlen((char *)RP(staddr));
+		fwrite(RP(staddr), 1, stlen, rcs_rhndl);
 		rcs_wraddr += stlen;
 	}
 }
@@ -319,7 +371,7 @@ static void map_frstr(void)
 	short	ifree, nfree;
 
 	c_frstr = c_nstring;
-	nfree = (*(unsigned short *)(RSH_NSTRING(head)));
+	nfree = (*(unsigned short *)RP(RSH_NSTRING(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; ifree++)
@@ -353,14 +405,14 @@ static void wr_freestr(void)
 {
 	short	ifree, nfree;
 
-	nfree = (*(unsigned short *)(RSH_NSTRING(head)));
+	nfree = (*(unsigned short *)RP(RSH_NSTRING(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; c_freestr(ifree++))
 			;
-		nfree *= (short)sizeof(long);
-		rsc_fwrite_longs(rcs_rhndl, str_ptr(0), nfree / (short)sizeof(long));
-		(*(unsigned short *)(RSH_FRSTR(head)) = (rcs_wraddr));
+		nfree *= (short)RS_ENTRY;
+		rsc_fwrite_longs(rcs_rhndl, str_ptr(0), nfree / (short)RS_ENTRY);
+		(*(unsigned short *)RP(RSH_FRSTR(head)) = (rcs_wraddr));
 		rcs_wraddr += nfree;
 	}
 }
@@ -386,7 +438,7 @@ static void c_imdata(long addr, short size)
 				strcpy(hline, "\n");
 				c_wrlin();
 			}
-			vwd = (*(short *)(addr + iwd));
+			vwd = (*(short *)RP(addr + iwd));
 			sprintf(hline, "0x%X", (unsigned short)vwd);
 			c_wrlin();
 		}
@@ -401,14 +453,14 @@ static void wr_imdata(long where, short w, short h)
 	short	size;
 	long	imaddr;
 
-	imaddr = (*(long *)(where));
+	imaddr = RGET(where);
 	if ( imaddr != -1L)
 	{
 		size = w * h;
-		gsx_untrans(imaddr, w, (long)((long)(wr_obndx)), w, h);
-		imaddr = (long)((long)(wr_obndx));
+		gsx_untrans(imaddr, w, WR_OBNDX(size), w, h);
+		imaddr = WR_OBNDX(size);
 		c_imdata(imaddr, size);
-		(*(long *)(where) = ((long) rcs_wraddr & 0xffff));
+		(RFIELD(where) = ((long) rcs_wraddr & 0xffff));
 		rsc_fwrite_words(rcs_rhndl, imaddr, size);
 		rcs_wraddr += size;
 	}
@@ -425,8 +477,8 @@ static void wr_image(long tree, short which)
 		bitblk = GET_SPEC(tree, which);
 		if ( bitblk != -1L)
 		{
-			w = (*(short *)(BI_WB(bitblk)));
-			h = (*(short *)(BI_HL(bitblk)));
+			w = (*(short *)RP(BI_WB(bitblk)));
+			h = (*(short *)RP(BI_HL(bitblk)));
 			wr_imdata(BI_PDATA(bitblk), w, h);
 		}
 	}
@@ -435,8 +487,8 @@ static void wr_image(long tree, short which)
 		iconblk = GET_SPEC(tree, which);
 		if ( iconblk != -1L && !wr_kept(tree, which))
 		{
-			w = ((*(short *)(IB_WICON(iconblk))) + 7) / 8;
-			h = (*(short *)(IB_HICON(iconblk)));
+			w = ((*(short *)RP(IB_WICON(iconblk))) + 7) / 8;
+			h = (*(short *)RP(IB_HICON(iconblk)));
 			wr_imdata(IB_PMASK(iconblk), w, h);
 			wr_imdata(IB_PDATA(iconblk), w, h);
 		}
@@ -448,15 +500,15 @@ static void map_frimg(void)
 	short	ifree, nfree, w, h;
 	long	bitblk;
 
-	nfree = (*(unsigned short *)(RSH_NIMAGES(head)));
+	nfree = (*(unsigned short *)RP(RSH_NIMAGES(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; ifree++)
 		{
 			if ( (bitblk = img_addr(ifree)) == -1L)
 				break;
-			w = (*(short *)(BI_WB(bitblk)));
-			h = (*(short *)(BI_HL(bitblk)));
+			w = (*(short *)RP(BI_WB(bitblk)));
+			h = (*(short *)RP(BI_HL(bitblk)));
 			wr_imdata(bitblk, w, h);
 		}
 	}
@@ -500,13 +552,13 @@ static void c_iconblk(long addr)
 
 	if (rcs_cflag)
 	{
-		memmove((void *)(((long)(&here))), (void *)(addr), sizeof(ICONBLK));
-		here.ib_pdata = (short  *) c_imgno((long)here.ib_pdata);
-		here.ib_pmask = (short  *) c_imgno((long)here.ib_pmask);
-		here.ib_ptext = (char  *) c_strno((long)here.ib_ptext);
+		memmove((void *)(&here), RP(addr), sizeof(ICONBLK));
+		here.ib_pdata = HPTR(short) c_imgno(HV(here.ib_pdata));
+		here.ib_pmask = HPTR(short) c_imgno(HV(here.ib_pmask));
+		here.ib_ptext = HPTR(char) c_strno(HV(here.ib_ptext));
 		c_comma(c_nib);
 		sprintf(hline, "%ldL, %ldL, %ldL, %d,%d,%d, %d,%d,%d,%d, %d,%d,%d,%d",
-			(long)here.ib_pmask, (long)here.ib_pdata, (long)here.ib_ptext,
+			HV(here.ib_pmask), HV(here.ib_pdata), HV(here.ib_ptext),
 			here.ib_char, here.ib_xchar, here.ib_ychar,
 			here.ib_xicon, here.ib_yicon, here.ib_wicon, here.ib_hicon,
 			here.ib_xtext, here.ib_ytext, here.ib_wtext, here.ib_htext );
@@ -549,11 +601,11 @@ static void c_bitblk(long addr)
 
 	if (rcs_cflag)
 	{
-		memmove((void *)((long)((long)(&here))), (void *)(addr), sizeof(BITBLK));
-		here.bi_pdata = (short *) c_imgno((long)here.bi_pdata);
+		memmove((void *)(&here), RP(addr), sizeof(BITBLK));
+		here.bi_pdata = HPTR(short) c_imgno(HV(here.bi_pdata));
 		c_comma(c_nbb);
 		sprintf(hline, "%ldL, %d, %d, %d, %d, %d",
-			(long)here.bi_pdata, here.bi_wb, here.bi_hl,
+			HV(here.bi_pdata), here.bi_wb, here.bi_hl,
 			here.bi_x, here.bi_y, here.bi_color );
 		c_wrlin();
 		c_nbb++;
@@ -583,14 +635,14 @@ static void map_frbit(void)
 	short	ifree, nfree;
 	long	bitblk;
 
-	nfree = (*(unsigned short *)(RSH_NIMAGES(head)));
+	nfree = (*(unsigned short *)RP(RSH_NIMAGES(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; ifree++)
 		{
 			if ( (bitblk = img_addr(ifree)) == -1L)
 				break;
-			(*(long *)(img_ptr(ifree)) = ((long) rcs_wraddr & 0xffff));
+			(RFIELD(img_ptr(ifree)) = ((long) rcs_wraddr & 0xffff));
 			rsc_fwrite_bitblk(rcs_rhndl, bitblk);
 			rcs_wraddr += DISK_BITBLK_SIZE;
 			LWINC(RSH_NBB(head));
@@ -615,7 +667,7 @@ static void c_frb(long addr)
 
 	if (rcs_cflag)
 	{
-		blkno = (short) ((addr - (*(unsigned short *)(RSH_BITBLK(head)))) / DISK_BITBLK_SIZE);
+		blkno = (short) ((addr - (*(unsigned short *)RP(RSH_BITBLK(head)))) / DISK_BITBLK_SIZE);
 		c_comma(c_nfrbit);
 		sprintf(hline, "%dL", blkno);
 		c_wrlin();
@@ -627,14 +679,14 @@ static void wr_frbit(void)
 {
 	short	ifree, nfree;
 
-	nfree = (*(unsigned short *)(RSH_NIMAGES(head)));
+	nfree = (*(unsigned short *)RP(RSH_NIMAGES(head)));
 	if ( nfree )
 	{
 		for (ifree = 0; ifree < nfree; ifree++)
 			c_frb(img_addr(ifree));
-		nfree *= (short)sizeof(long);
-		rsc_fwrite_longs(rcs_rhndl, img_ptr(0), nfree / (short)sizeof(long));
-		(*(unsigned short *)(RSH_FRIMG(head)) = (rcs_wraddr));
+		nfree *= (short)RS_ENTRY;
+		rsc_fwrite_longs(rcs_rhndl, img_ptr(0), nfree / (short)RS_ENTRY);
+		(*(unsigned short *)RP(RSH_FRIMG(head)) = (rcs_wraddr));
 		rcs_wraddr += nfree;
 	}
 } 
@@ -655,13 +707,13 @@ static void c_tedinfo(long addr)
 
 	if (rcs_cflag)
 	{
-		memmove((void *)(((long)(&here))), (void *)(addr), sizeof(TEDINFO));
-		here.te_ptext = (char *) c_strno((long)here.te_ptext);
-		here.te_pvalid = (char *) c_strno((long)here.te_pvalid);
-		here.te_ptmplt = (char *) c_strno((long)here.te_ptmplt);
+		memmove((void *)(&here), RP(addr), sizeof(TEDINFO));
+		here.te_ptext = HPTR(char) c_strno(HV(here.te_ptext));
+		here.te_pvalid = HPTR(char) c_strno(HV(here.te_pvalid));
+		here.te_ptmplt = HPTR(char) c_strno(HV(here.te_ptmplt));
 		c_comma(c_nted);
 		sprintf(hline, "%ldL, %ldL, %ldL, %d, %d, %d, 0x%X, 0x%X, %d, %d,%d",
-			(long)here.te_ptext, (long)here.te_ptmplt, (long)here.te_pvalid,
+			HV(here.te_ptext), HV(here.te_ptmplt), HV(here.te_pvalid),
 			here.te_font, here.te_fontid, here.te_just, (unsigned short)here.te_color,
 			(unsigned short)here.te_fontsize, here.te_thickness, here.te_txtlen, here.te_tmplen );
 		c_wrlin();
@@ -707,8 +759,14 @@ static void c_object(long tree)
 
 	if (rcs_cflag)
 	{
-		memmove((void *)(((long)(&here.next))), (void *)(OB_NEXT(ROOT)), 3 * sizeof(short));
-		memmove((void *)(((long)(&here.spec))), (void *)(OB_SPEC(ROOT)), sizeof(long) + 4 * sizeof(unsigned short));
+		memmove((void *)(&here.next), RP(OB_NEXT(ROOT)), 3 * sizeof(short));
+#ifdef RCS_HOST
+		/* the spec of the record has 4 bytes, the long of OUTOBJ 8 */
+		here.spec = RGET(OB_SPEC(ROOT));
+		memmove((void *)(&here.x), RP(OB_SPEC(ROOT) + RS_ENTRY), 4 * sizeof(unsigned short));
+#else
+		memmove((void *)(&here.spec), RP(OB_SPEC(ROOT)), sizeof(long) + 4 * sizeof(unsigned short));
+#endif
 
 		switch (((GET_TYPE(tree, ROOT)) & 0xff))
 		{
@@ -721,15 +779,15 @@ static void c_object(long tree)
 			case G_FTEXT:
 			case G_BOXTEXT:
 			case G_FBOXTEXT:
-				here.spec = ( (short) here.spec - (*(unsigned short *)(RSH_TEDINFO(head))) )
+				here.spec = ( (short) here.spec - (*(unsigned short *)RP(RSH_TEDINFO(head))) )
 					/ sizeof(TEDINFO);
 				break;
 			case G_IMAGE:
-				here.spec = ( (short) here.spec - (*(unsigned short *)(RSH_BITBLK(head))) )
+				here.spec = ( (short) here.spec - (*(unsigned short *)RP(RSH_BITBLK(head))) )
 					/ DISK_BITBLK_SIZE;
 				break;
 			case G_ICON:
-				here.spec = ( (short) here.spec - (*(unsigned short *)(RSH_ICONBLK(head))) )
+				here.spec = ( (short) here.spec - (*(unsigned short *)RP(RSH_ICONBLK(head))) )
 					/ DISK_ICONBLK_SIZE;
 				break;
 			default:
@@ -745,7 +803,7 @@ static void c_object(long tree)
 		sprintf(hline, "%d, %d, %d, %s, %s, %s, 0x%lX, %d,%d, %d, %d",
 			here.next, here.head, here.tail,
 			here.type, here.flags, here.state,
-			here.spec, here.x, here.y, here.w, here.h );
+			HSPEC(here.spec), here.x, here.y, here.w, here.h );
 		c_wrlin();
 		c_nobs++;
 	}
@@ -781,7 +839,7 @@ static void wr_obj(short itree, long tree, short iobj)
 		obtype = G_CICON;
 	}
 	if(obtype == G_ICON || obtype == G_IMAGE || obtype == G_CICON) /*0 hi byte*/
-		(*(short *)(OB_TYPE(where)) = (obtype));
+		(*(short *)RP(OB_TYPE(where)) = (obtype));
 	unfix_chpos(OB_X(where), 0);
 	unfix_chpos(OB_WIDTH(where), 0);
 	unfix_chpos(OB_Y(where), 1);
@@ -797,17 +855,17 @@ static void wr_trees(void)
 	long	tree;
 	short	ntree, itree, iobj, where, flags;
 
-	ntree = (*(unsigned short *)(RSH_NTREE(head)));
+	ntree = (*(unsigned short *)RP(RSH_NTREE(head)));
 
 	for (itree = 0; itree < ntree; itree++)
 	{
 		where = find_tree(itree);
 		set_value(where, (char *) itree);
 		tree = tree_addr(itree);
-		(*(long *)(tree_ptr(itree)) = ((long) rcs_wraddr & 0xffff));
+		(RFIELD(tree_ptr(itree)) = ((long) rcs_wraddr & 0xffff));
 		wr_obnum = 0;
 		map_tree(tree, 0, -1, (fkt_parm)indx_obs);
-		(*(unsigned short *)(RSH_NOBS(head)) = (wr_obnum + (*(unsigned short *)(RSH_NOBS(head)))));
+		(*(unsigned short *)RP(RSH_NOBS(head)) = (wr_obnum + (*(unsigned short *)RP(RSH_NOBS(head)))));
 		iobj = wr_obndx[wr_obnum - 1];
 		flags = GET_FLAGS(tree, iobj);
 		SET_FLAGS(tree, iobj, flags | LASTOB);
@@ -832,7 +890,7 @@ static void c_tree(long addr)
 
 	if (rcs_cflag)
 	{
-		objno = (short) (addr - (*(unsigned short *)(RSH_OBJECT(head))) / sizeof(OBJECT));
+		objno = (short) (addr - (*(unsigned short *)RP(RSH_OBJECT(head))) / sizeof(OBJECT));
 		c_comma(c_ntree);
 		sprintf(hline, "%dL", objno);
 		c_wrlin();
@@ -844,14 +902,14 @@ static void wr_trindex(void)
 {
 	short	ntree, itree;
 
-	ntree = (*(unsigned short *)(RSH_NTREE(head)));
+	ntree = (*(unsigned short *)RP(RSH_NTREE(head)));
 	rsc_fwrite_longs(rcs_rhndl, tree_ptr(0), ntree);
 
 	for (itree = 0; itree < ntree; itree++)
 		c_tree(tree_addr(itree));
 
-	(*(unsigned short *)(RSH_TRINDEX(head)) = (rcs_wraddr));	/* Don't move this line! */
-	rcs_wraddr += ntree * (short)sizeof(long);
+	(*(unsigned short *)RP(RSH_TRINDEX(head)) = (rcs_wraddr));	/* Don't move this line! */
+	rcs_wraddr += ntree * (short)RS_ENTRY;
 }
 
 static void c_defs(void)
@@ -863,14 +921,14 @@ static void c_defs(void)
 		strcpy(hline, "\n");
 		c_wrlin();
 		c_defline("NUM_STRINGS", c_nstring);
-		c_defline("NUM_FRSTR", (*(unsigned short *)(RSH_NSTRING(head))));
+		c_defline("NUM_FRSTR", (*(unsigned short *)RP(RSH_NSTRING(head))));
 		c_defline("NUM_IMAGES", c_nimage);
-		c_defline("NUM_BB", (*(unsigned short *)(RSH_NBB(head))));
-		c_defline("NUM_FRIMG", (*(unsigned short *)(RSH_NIMAGES(head))));
-		c_defline("NUM_IB", (*(unsigned short *)(RSH_NIB(head))));
-		c_defline("NUM_TI", (*(unsigned short *)(RSH_NTED(head))));
-		c_defline("NUM_OBS", (*(unsigned short *)(RSH_NOBS(head))));
-		c_defline("NUM_TREE", (*(unsigned short *)(RSH_NTREE(head))));
+		c_defline("NUM_BB", (*(unsigned short *)RP(RSH_NBB(head))));
+		c_defline("NUM_FRIMG", (*(unsigned short *)RP(RSH_NIMAGES(head))));
+		c_defline("NUM_IB", (*(unsigned short *)RP(RSH_NIB(head))));
+		c_defline("NUM_TI", (*(unsigned short *)RP(RSH_NTED(head))));
+		c_defline("NUM_OBS", (*(unsigned short *)RP(RSH_NOBS(head))));
+		c_defline("NUM_TREE", (*(unsigned short *)RP(RSH_NTREE(head))));
 		for (sptr = rptr = &rcs_rfile[0]; *sptr; sptr++)
 			if (*sptr == '\\' || *sptr == '\:')
 				rptr = sptr + 1;
@@ -947,11 +1005,11 @@ static void wrsrt_inclfile(char *ext, char *ptns[])
 		else if (!form_error(errno))
 			return;
 	}
-	wr_include( UNKN,  (*(unsigned short *)(RSH_NTREE(head))), 0, ptns,true );
-	obj_include( (*(unsigned short *)(RSH_NTREE(head))), (*(unsigned short *)(RSH_NOBS(head))), ptns );
-	wr_include(ALRT, (*(unsigned short *)(RSH_NSTRING(head))), 1, ptns, false);
-	wr_include(FRSTR,(*(unsigned short *)(RSH_NSTRING(head))), 3, ptns, false);
-	wr_include(FRIMG,(*(unsigned short *)(RSH_NIMAGES(head))), 4, ptns, false);
+	wr_include( UNKN,  (*(unsigned short *)RP(RSH_NTREE(head))), 0, ptns,true );
+	obj_include( (*(unsigned short *)RP(RSH_NTREE(head))), (*(unsigned short *)RP(RSH_NOBS(head))), ptns );
+	wr_include(ALRT, (*(unsigned short *)RP(RSH_NSTRING(head))), 1, ptns, false);
+	wr_include(FRSTR,(*(unsigned short *)RP(RSH_NSTRING(head))), 3, ptns, false);
+	wr_include(FRIMG,(*(unsigned short *)RP(RSH_NIMAGES(head))), 4, ptns, false);
 	fclose(rcs_hhndl);
 }
 
@@ -1007,8 +1065,20 @@ static void write_inclfile(char *ext, char *ptns[])
 
 static void wr_mono(long where, short w, short h)
 {
-	gsx_untrans(where, w, (long)((long)(wr_obndx)), w, h);
-	rsc_fwrite_words(rcs_rhndl, (long)((long)(wr_obndx)), w * h);
+#ifdef RCS_HOST
+	/* a mono icon without data (-1): write zeros, so the sizes still add up */
+	if (HV(where) == -1L)
+	{
+		static const unsigned char	zero[2];
+		long	n;
+
+		for (n = w * h; n > 1; n -= 2)
+			fwrite(zero, 1, 2, rcs_rhndl);
+		return;
+	}
+#endif
+	gsx_untrans(where, w, WR_OBNDX(w * h), w, h);
+	rsc_fwrite_words(rcs_rhndl, WR_OBNDX(w * h), w * h);
 }
 
 /* the table of the CICONBLKs and the CICONBLKs: the 38 bytes of the
@@ -1042,7 +1112,7 @@ static void wr_cicons(void)
 	fwrite(b, 1, 4, rcs_rhndl);
 	for (i = 0; i < wr_ncic; i++)
 	{
-		ib = (ICONBLK *)wr_cic_ib[i];
+		ib = (ICONBLK *)RP(wr_cic_ib[i]);
 		memcpy(b, wr_cic[i]->head, 38);
 		wr_be16(b + 12, ib->ib_char);
 		wr_be16(b + 14, ib->ib_xchar);
@@ -1061,7 +1131,12 @@ static void wr_cicons(void)
 		wr_mono((long)ib->ib_pdata, w, h);
 		wr_mono((long)ib->ib_pmask, w, h);
 		memset(b, 0, 12);
+#ifdef RCS_HOST
+		strncpy((char *)b, ib->ib_ptext && HV(ib->ib_ptext) != -1L ?
+			(char *)RP(ib->ib_ptext) : "", 12);
+#else
 		strncpy((char *)b, ib->ib_ptext ? ib->ib_ptext : "", 12);
+#endif
 		fwrite(b, 1, 12, rcs_rhndl);
 		fwrite(wr_cic[i]->versions, 1, wr_cic[i]->vlen, rcs_rhndl);
 	}
@@ -1117,7 +1192,7 @@ short write_files(void)
 	show_prog(STHDR);
 	wr_header();
 	rcs_wraddr = (short)sizeof(RSHDR);
-	(*(unsigned short *)(RSH_STRING(head)) = (rcs_wraddr));
+	(*(unsigned short *)RP(RSH_STRING(head)) = (rcs_wraddr));
 	c_bases();
 
 	show_prog(STSTR);
@@ -1128,7 +1203,7 @@ short write_files(void)
 	wr_sync();
 
 	show_prog(STIMG);
-	(*(unsigned short *)(RSH_IMDATA(head)) = (rcs_wraddr));
+	(*(unsigned short *)RP(RSH_IMDATA(head)) = (rcs_wraddr));
 	c_nimage = 0;
 	map_all((fkt_parm)wr_image);
 	c_frimg = c_nimage;
@@ -1140,8 +1215,8 @@ short write_files(void)
 	c_tail(c_nfrstr);
 
 	show_prog(STBB);
-	(*(unsigned short *)(RSH_BITBLK(head)) = (rcs_wraddr));
-	(*(unsigned short *)(RSH_NBB(head)) = (0));
+	(*(unsigned short *)RP(RSH_BITBLK(head)) = (rcs_wraddr));
+	(*(unsigned short *)RP(RSH_NBB(head)) = (0));
 	c_bithead();
 	map_all((fkt_parm)wr_bitblk);
 	map_frbit();	
@@ -1153,22 +1228,22 @@ short write_files(void)
 	c_tail(c_nfrbit);
 
 	show_prog(STIB);
-	(*(unsigned short *)(RSH_ICONBLK(head)) = (rcs_wraddr));
-	(*(unsigned short *)(RSH_NIB(head)) = (0));
+	(*(unsigned short *)RP(RSH_ICONBLK(head)) = (rcs_wraddr));
+	(*(unsigned short *)RP(RSH_NIB(head)) = (0));
 	c_iconhead();
 	map_all((fkt_parm)wr_iconblk);
 	c_tail(c_nib);
 
 	show_prog(STTI);
-	(*(unsigned short *)(RSH_TEDINFO(head)) = (rcs_wraddr));
-	(*(unsigned short *)(RSH_NTED(head)) = (0));
+	(*(unsigned short *)RP(RSH_TEDINFO(head)) = (rcs_wraddr));
+	(*(unsigned short *)RP(RSH_NTED(head)) = (0));
 	c_tedhead();
 	map_all((fkt_parm)wr_tedinfo);
 	c_tail(c_nted);
 
 	show_prog(STOBJ);
-	(*(unsigned short *)(RSH_OBJECT(head)) = (rcs_wraddr));
-	(*(unsigned short *)(RSH_NOBS(head)) = (0));
+	(*(unsigned short *)RP(RSH_OBJECT(head)) = (rcs_wraddr));
+	(*(unsigned short *)RP(RSH_NOBS(head)) = (0));
 	c_objhead();
 	wr_trees();
 	c_tail(c_nobs);
@@ -1180,11 +1255,11 @@ short write_files(void)
 	wr_cicons();
 
 	show_prog(STHDR);
-	(*(unsigned short *)(RSH_RSSIZE(head)) = (rcs_wraddr));
+	(*(unsigned short *)RP(RSH_RSSIZE(head)) = (rcs_wraddr));
 	if (wr_ncic)
-		*(unsigned short *)(RSH_VRSN(head)) |= RCS_NEW_FORMAT;
+		*(unsigned short *)RP(RSH_VRSN(head)) |= RCS_NEW_FORMAT;
 	else
-		*(unsigned short *)(RSH_VRSN(head)) &= ~RCS_NEW_FORMAT;
+		*(unsigned short *)RP(RSH_VRSN(head)) &= ~RCS_NEW_FORMAT;
 	wr_header();		/* rewrite updated header	  */
 	if (wr_ncic)
 	{

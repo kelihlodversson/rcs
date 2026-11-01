@@ -5,6 +5,14 @@
 #include "rcsdefs.h"
 #include "rcsdata.h"
 #include "rcsdisk.h"
+#include "rcsaddr.h"
+
+/* an unsigned rentry: the type the longs of a record had here before */
+#ifdef RCS_HOST
+typedef unsigned int	urentry __attribute__((aligned(2)));
+#else
+typedef unsigned long	urentry;
+#endif
 
 unsigned short rd_be16(const void *p)
 {
@@ -59,7 +67,7 @@ void wr_le16(void *p, unsigned short v)
 /* a 16 or 32 bit field at addr, big-endian to the host's order, in place */
 static void fix16(long addr)
 {
-	*(unsigned short *)addr = rd_be16((void *)addr);
+	*(unsigned short *)RP(addr) = rd_be16(RP(addr));
 }
 
 /* the longs of a record at the start, then words: as src (disk) to dst
@@ -71,13 +79,13 @@ static void fix_record(long dst, long src, short nlongs, short firstword, short 
 	unsigned short	w[16];
 
 	for (i = 0; i < nlongs; i++)
-		l[i] = rd_be32((void *)(src + 4 * i));
+		l[i] = rd_be32(RP(src + 4 * i));
 	for (i = 0; i < nwords; i++)
-		w[i] = rd_be16((void *)(src + firstword + 2 * i));
+		w[i] = rd_be16(RP(src + firstword + 2 * i));
 	for (i = 0; i < nlongs; i++)
-		*(unsigned long *)(dst + 4 * i) = l[i];
+		*(urentry *)RP(dst + 4 * i) = l[i];
 	for (i = 0; i < nwords; i++)
-		*(unsigned short *)(dst + firstword + 2 * i) = w[i];
+		*(unsigned short *)RP(dst + firstword + 2 * i) = w[i];
 }
 
 static void fix_object(long dst, long src)
@@ -87,15 +95,15 @@ static void fix_object(long dst, long src)
 	short	i;
 
 	for (i = 0; i < 6; i++)
-		w[i] = rd_be16((void *)(src + 2 * i));
-	spec = rd_be32((void *)(src + 12));
+		w[i] = rd_be16(RP(src + 2 * i));
+	spec = rd_be32(RP(src + 12));
 	for (i = 0; i < 4; i++)
-		w[6 + i] = rd_be16((void *)(src + 16 + 2 * i));
+		w[6 + i] = rd_be16(RP(src + 16 + 2 * i));
 	for (i = 0; i < 6; i++)
-		*(unsigned short *)(dst + 2 * i) = w[i];
-	*(unsigned long *)(dst + 12) = spec;
+		*(unsigned short *)RP(dst + 2 * i) = w[i];
+	RFIELD(dst + 12) = spec;
 	for (i = 0; i < 4; i++)
-		*(unsigned short *)(dst + 16 + 2 * i) = w[6 + i];
+		*(unsigned short *)RP(dst + 16 + 2 * i) = w[6 + i];
 }
 
 static void fix_tedinfo(long dst, long src)
@@ -115,7 +123,7 @@ static void fix_bitblk(long dst, long src)
 
 static void fix_longs(long dst, long src)
 {
-	*(unsigned long *)dst = rd_be32((void *)src);
+	RFIELD(dst) = rd_be32(RP(src));
 }
 
 /* room for bytes at a multiple of align; at a multiple of OBJECT from ref
@@ -136,7 +144,7 @@ static long place(long bytes, long align, long ref)
 	return p;
 }
 
-#define H(x)	(*(unsigned short *)(hdr + (x)))
+#define H(x)	(*(unsigned short *)RP(hdr + (x)))
 
 /* convert (and move when needed) one table of count records; field is the
  * offset of its offset in the header */
@@ -178,7 +186,7 @@ static void words_to_native(long addr, long words)
 {
 	while (words-- > 0)
 	{
-		*(unsigned short *)addr = rd_be16((void *)addr);
+		*(unsigned short *)RP(addr) = rd_be16(RP(addr));
 		addr += 2;
 	}
 }
@@ -213,18 +221,18 @@ static void images_to_native(long hdr)
 	for (i = 0; i < (short)H(26); i++)
 	{
 		rec = hdr + H(6) + (long)i * sizeof(ICONBLK);
-		image_data(hdr, *(unsigned long *)rec,
-			(((long)*(unsigned short *)(rec + 22) + 15) / 16) * *(short *)(rec + 24),
+		image_data(hdr, (unsigned long)RFIELD(rec),
+			(((long)*(unsigned short *)RP(rec + 22) + 15) / 16) * *(short *)RP(rec + 24),
 			seen, &nseen);
-		image_data(hdr, *(unsigned long *)(rec + 4),
-			(((long)*(unsigned short *)(rec + 22) + 15) / 16) * *(short *)(rec + 24),
+		image_data(hdr, (unsigned long)RFIELD(rec + 4),
+			(((long)*(unsigned short *)RP(rec + 22) + 15) / 16) * *(short *)RP(rec + 24),
 			seen, &nseen);
 	}
 	for (i = 0; i < (short)H(28); i++)
 	{
 		rec = hdr + H(8) + (long)i * sizeof(BITBLK);
-		image_data(hdr, *(unsigned long *)rec,
-			(long)*(short *)(rec + 4) * *(short *)(rec + 6) / 2, seen, &nseen);
+		image_data(hdr, (unsigned long)RFIELD(rec),
+			(long)*(short *)RP(rec + 4) * *(short *)RP(rec + 6) / 2, seen, &nseen);
 	}
 }
 
@@ -269,11 +277,11 @@ short rsc_to_native(long hdr, long ref)
 	if (!fix_table(hdr, 8, H(28), DISK_BITBLK_SIZE, sizeof(BITBLK),
 			__alignof__(BITBLK), 0, fix_bitblk))
 		return false;
-	if (!fix_table(hdr, 10, H(30), 4, sizeof(long), __alignof__(long), 0, fix_longs))
+	if (!fix_table(hdr, 10, H(30), 4, RS_ENTRY, __alignof__(rentry), 0, fix_longs))
 		return false;
-	if (!fix_table(hdr, 16, H(32), 4, sizeof(long), __alignof__(long), 0, fix_longs))
+	if (!fix_table(hdr, 16, H(32), 4, RS_ENTRY, __alignof__(rentry), 0, fix_longs))
 		return false;
-	if (!fix_table(hdr, 18, H(22), 4, sizeof(long), __alignof__(long), 0, fix_longs))
+	if (!fix_table(hdr, 18, H(22), 4, RS_ENTRY, __alignof__(rentry), 0, fix_longs))
 		return false;
 
 	n_obj = H(2);
@@ -290,7 +298,7 @@ short rsc_to_native(long hdr, long ref)
 		{
 			long	tr = hdr + H(18) + 4L * i;
 
-			*(unsigned long *)tr = remap(*(unsigned long *)tr, o_obj, n_obj,
+			*(urentry *)RP(tr) = remap(*(urentry *)RP(tr), o_obj, n_obj,
 				H(20), DISK_OBJECT_SIZE, sizeof(OBJECT));
 		}
 	if (n_ted != o_ted || sizeof(TEDINFO) != DISK_TEDINFO_SIZE ||
@@ -299,11 +307,11 @@ short rsc_to_native(long hdr, long ref)
 	{
 		for (i = 0; i < (short)H(20); i++)
 		{
-			unsigned long	*spec;
+			urentry	*spec;
 
 			obj = hdr + H(2) + (long)i * sizeof(OBJECT);
-			spec = (unsigned long *)(obj + 12);
-			switch (*(unsigned short *)(obj + 6) & 0xff)
+			spec = (urentry *)RP(obj + 12);
+			switch (*(unsigned short *)RP(obj + 6) & 0xff)
 			{
 				case G_TEXT:
 				case G_BOXTEXT:
@@ -328,7 +336,7 @@ short rsc_to_native(long hdr, long ref)
 		{
 			long	fr = hdr + H(16) + 4L * i;
 
-			*(unsigned long *)fr = remap(*(unsigned long *)fr, o_bb, n_bb,
+			*(urentry *)RP(fr) = remap(*(urentry *)RP(fr), o_bb, n_bb,
 				H(28), DISK_BITBLK_SIZE, sizeof(BITBLK));
 		}
 	}
@@ -356,7 +364,7 @@ short rsc_fwrite_header(FILE *f, long hdr)
 	short	i;
 
 	for (i = 0; i < DISK_RSHDR_SIZE; i += 2)
-		wr_be16(b + i, *(unsigned short *)(hdr + i));
+		wr_be16(b + i, *(unsigned short *)RP(hdr + i));
 	return put(f, b, DISK_RSHDR_SIZE);
 }
 
@@ -366,10 +374,10 @@ short rsc_fwrite_object(FILE *f, long obj)
 	short	i;
 
 	for (i = 0; i < 6; i++)
-		wr_be16(b + 2 * i, *(unsigned short *)(obj + 2 * i));
-	wr_be32(b + 12, *(unsigned long *)(obj + 12));
+		wr_be16(b + 2 * i, *(unsigned short *)RP(obj + 2 * i));
+	wr_be32(b + 12, (unsigned long)RFIELD(obj + 12));
 	for (i = 0; i < 4; i++)
-		wr_be16(b + 16 + 2 * i, *(unsigned short *)(obj + 16 + 2 * i));
+		wr_be16(b + 16 + 2 * i, *(unsigned short *)RP(obj + 16 + 2 * i));
 	return put(f, b, DISK_OBJECT_SIZE);
 }
 
@@ -380,9 +388,9 @@ static short fwrite_record(FILE *f, long rec, short size, short nlongs,
 	short	i;
 
 	for (i = 0; i < nlongs; i++)
-		wr_be32(b + 4 * i, *(unsigned long *)(rec + 4 * i));
+		wr_be32(b + 4 * i, (unsigned long)RFIELD(rec + 4 * i));
 	for (i = 0; i < nwords; i++)
-		wr_be16(b + firstword + 2 * i, *(unsigned short *)(rec + firstword + 2 * i));
+		wr_be16(b + firstword + 2 * i, *(unsigned short *)RP(rec + firstword + 2 * i));
 	return put(f, b, size);
 }
 
@@ -407,7 +415,7 @@ short rsc_fwrite_words(FILE *f, long first, long bytes)
 
 	for (; bytes > 1; bytes -= 2, first += 2)
 	{
-		wr_be16(b, *(unsigned short *)first);
+		wr_be16(b, *(unsigned short *)RP(first));
 		if (!put(f, b, 2))
 			return false;
 	}
@@ -421,7 +429,7 @@ short rsc_fwrite_longs(FILE *f, long first, short count)
 
 	for (i = 0; i < count; i++)
 	{
-		wr_be32(b, *(unsigned long *)(first + 4L * i));
+		wr_be32(b, (unsigned long)RFIELD(first + 4L * i));
 		if (!put(f, b, 4))
 			return false;
 	}

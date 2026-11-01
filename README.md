@@ -57,6 +57,48 @@ when editing those resource files with RCS. The build is the one of
 [TypeShelf](https://github.com/kelihlodversson/TypeShelf), and CI
 (`.github/workflows/build.yml`) builds both targets on every pull request.
 
+## Building on the host
+
+    gmake host-test
+
+builds `build/host/roundtrip` with the host compiler and, for each of
+`tests/golden/rcs.rsc`, `rcslow.rsc` and `cicon.rsc`, loads the file, writes it
+and compares the result with `tests/golden/NAME.out.rsc`. These golden files
+are what the Atari program writes after loading the same input. They were made
+by `tests/roundtrip/gen-golden.sh` on the pTOS `virt-arm` image in the emulator,
+with the program built with `-DRCS_ROUNDTRIP` (it writes `C:\OUT.RSC` straight
+after loading). Only ARM is used: the m68k build with that hook panics in
+`write_files()` (Line F exception, not understood yet).
+
+The host build compiles the load and save sources (`rcsread.c`, `rcswrite.c`,
+`rcsdata.c`, `rcslib.c`, `rcsdisk.c`, `rcscicon.c`), the same sources as the
+Atari build and not a host copy of the code, against a shim in `src/host/`: an
+arena for the resource data, and stubs for the GEM and GEMDOS calls (alerts
+print to stderr and answer the alert's default button). The files of the
+GUI are not part of it. On a 64-bit host addresses of resource data are 32-bit
+offsets into the arena; `docs/addresses.md` explains the rules for editing the
+sources. `rcs-cli`, a command line tool on top of this, is the next stage.
+
+On m68k and ARM the code is meant to behave as before.
+`tests/roundtrip/cmp-objs.sh BASE_DIR NEW_DIR [OBJDUMP]` compares the objects
+of a baseline build with those of the current tree and requires the
+disassembly of every function that existed before to be identical (and the
+data sections), with three exceptions that differ on purpose: `rcs_init` and
+`rcs_exit` (`src/rcsinit.c`) and `read_files` (`src/rcsread.c`) call
+`rcs_alloc`/`rcs_release` where they called `malloc`/`free`. The new function
+`rcs_alloc` itself is plain `malloc` on m68k and ARM. The comparison has to be
+run for both targets after a change. It was run on the final tree of this stage
+for both: identical apart from the above. On m68k the script also reports
+`comp_img`, `index_guessed_tree` and `merge_files` in `rcsread.o`, which only
+moved after `read_files` changed size (the script does not mask the absolute
+addresses in their relocation lines); with those masked they are identical.
+
+`make host-test` compares only the `.rsc` output with the golden files. The
+`.DFN` and `.H` files that the host run writes to `build/host` are not
+compared, and the golden files of `rcs` and `rcslow` were made with a `.dfn`
+file while the host run has none (the `.rsc` is equal anyway). So the reading
+and writing of `.DFN` files is not tested on the host.
+
 ## State of the port
 
 The sources include `<gem.h>` of gemlib and the C headers of libcmini; the

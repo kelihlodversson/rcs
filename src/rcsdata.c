@@ -6,6 +6,8 @@
  *************************************************************/
 #include <gem.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include "rcsdefs.h"
@@ -14,6 +16,22 @@
 #include "rcslib.h"
 #include "rcsintf.h"
 #include "rcsdata.h"
+#include "rcsaddr.h"
+
+/* the OB_ macros of rcsdefs.h give the offsets the records have on the
+ * Atari, which is the layout the host structs keep too */
+_Static_assert(sizeof(OBJECT) == 24, "OBJECT size");
+_Static_assert(offsetof(OBJECT, ob_next) == 0, "OBJECT ob_next");
+_Static_assert(offsetof(OBJECT, ob_head) == 2, "OBJECT ob_head");
+_Static_assert(offsetof(OBJECT, ob_tail) == 4, "OBJECT ob_tail");
+_Static_assert(offsetof(OBJECT, ob_type) == 6, "OBJECT ob_type");
+_Static_assert(offsetof(OBJECT, ob_flags) == 8, "OBJECT ob_flags");
+_Static_assert(offsetof(OBJECT, ob_state) == 10, "OBJECT ob_state");
+_Static_assert(offsetof(OBJECT, ob_spec) == 12, "OBJECT ob_spec");
+_Static_assert(offsetof(OBJECT, ob_x) == 16, "OBJECT ob_x");
+_Static_assert(offsetof(OBJECT, ob_y) == 18, "OBJECT ob_y");
+_Static_assert(offsetof(OBJECT, ob_width) == 20, "OBJECT ob_width");
+_Static_assert(offsetof(OBJECT, ob_height) == 22, "OBJECT ob_height");
 
 /* variables used in icon edit mode */
 unsigned short	loword, hiword;
@@ -303,7 +321,7 @@ void ini_buff(void)
 	short	ii;
 
 	for (ii = 0; ii < sizeof(RSHDR); ii++)
-		(*(char *)(head + ii) = ('\0'));
+		(*(char *)RP(head + ii) = ('\0'));
 	rcs_low = false;
 	rcs_panic = false;
 	rcs_free = head + sizeof(RSHDR);
@@ -311,32 +329,32 @@ void ini_buff(void)
 
 long tree_ptr(short n)
 {
-	return (head + ((unsigned short)((*(unsigned short *)(RSH_TRINDEX(head))))) + (long) (n * sizeof(long)));
+	return (head + ((unsigned short)((*(unsigned short *)RP(RSH_TRINDEX(head))))) + (long) (n * RS_ENTRY));
 }  
 
 long str_ptr(short n)
 {
-	return (head + ((unsigned short)((*(unsigned short *)(RSH_FRSTR(head))))) + (long) (n * sizeof(long)));
+	return (head + ((unsigned short)((*(unsigned short *)RP(RSH_FRSTR(head))))) + (long) (n * RS_ENTRY));
 }
 
 long img_ptr(short n)
 {
-	return (head + ((unsigned short)((*(unsigned short *)(RSH_FRIMG(head))))) + (long) (n * sizeof(long)));
+	return (head + ((unsigned short)((*(unsigned short *)RP(RSH_FRIMG(head))))) + (long) (n * RS_ENTRY));
 }
 
 long tree_addr(short n)
 {
-	return (*(long *)(tree_ptr(n)));
+	return (RGET(tree_ptr(n)));
 }  
 
 long str_addr(short n)
 {
-	return (*(long *)(str_ptr(n)));
+	return (RGET(str_ptr(n)));
 }
 
 long img_addr(short n)
 {
-	return (*(long *)(img_ptr(n)));
+	return (RGET(img_ptr(n)));
 }
 
 void set_value(short key, char *val)
@@ -494,17 +512,29 @@ short set_obname(long tree, short obj, char *name, long ntree, short nobj)
 {
 	long	taddr;
 	short	where;
+#ifdef RCS_HOST
+	long	nbuf;
+#endif
 
 	taddr = GET_SPEC(tree, obj);
-	(*(long *)(taddr) = (((long)(name))));
-	(*(short *)(TE_TXTLEN(taddr)) = (9));
-	(*(short *)(TE_TMPLEN(taddr)) = (9));
+#ifdef RCS_HOST
+	/* the field must hold an arena address, not the address of name */
+	nbuf = get_mem(9);
+	RFIELD(taddr) = nbuf;
+#else
+	(*(long *)RP(taddr) = (((long)(name))));
+#endif
+	(*(short *)RP(TE_TXTLEN(taddr)) = (9));
+	(*(short *)RP(TE_TMPLEN(taddr)) = (9));
 
 	where = find_value((char *) (ntree + nobj * sizeof(OBJECT)) );
 	if (where == NIL)
 		strcpy(name, "@");
 	else
 		strcpy(name, get_name(where));
+#ifdef RCS_HOST
+	strcpy((char *)RP(nbuf), name);
+#endif
 	return (where);
 }
 
@@ -557,8 +587,10 @@ long get_mem(unsigned short bytes)
 	long	ret;
 	long	left;
 
-	/* what is put here may be a structure the host wants aligned (ARM: 4) */
-	while (rcs_free % __alignof__(long))
+	/* what is put here may be a structure the host wants aligned (ARM: 4);
+	   on the host the records are 2-aligned and the OBJECTs have to stay on
+	   their 24 byte grid, so it is the alignment of an entry of a table */
+	while (rcs_free % __alignof__(rentry))
 		rcs_free++;
 	ret = rcs_free;
 	if (bytes & 0x1)
@@ -582,7 +614,7 @@ long  get_obmem(void)
 {
 	unsigned short	foo;
 
-	foo = (unsigned short) (rcs_free - ( head + ((unsigned short)((*(unsigned short *)(RSH_OBJECT(head)))))));
+	foo = (unsigned short) (rcs_free - ( head + ((unsigned short)((*(unsigned short *)RP(RSH_OBJECT(head)))))));
 	
 	foo %= (unsigned short) sizeof(OBJECT);
  	/* synchronize to even OBJECT	*/
@@ -594,11 +626,20 @@ long  get_obmem(void)
 
 void update_if(long taddr, char *naddr)
 {
-	if (!LLSTRCMP((*(long *)(taddr)), (long)((long)(naddr))))
+#ifdef RCS_HOST
+	/* naddr is a host pointer, LLSTRCMP/LLSTRCPY take arena addresses */
+	if (strcmp((char *)RP(RGET(taddr)), naddr))
 	{
-		(*(long *)(taddr) = (get_mem( (unsigned short) strlen(naddr)+1)));
-		LLSTRCPY((long)((long)(naddr)), (*(long *)(taddr)));
+		RFIELD(taddr) = (get_mem( (unsigned short) strlen(naddr)+1));
+		strcpy((char *)RP(RGET(taddr)), naddr);
 	}
+#else
+	if (!LLSTRCMP((*(long *)RP(taddr)), (long)((long)(naddr))))
+	{
+		(*(long *)RP(taddr) = (get_mem( (unsigned short) strlen(naddr)+1)));
+		LLSTRCPY((long)((long)(naddr)), (*(long *)RP(taddr)));
+	}
+#endif
 }
 
 static long copy_ti(long source)
@@ -606,7 +647,7 @@ static long copy_ti(long source)
 	long	dest;
 
 	dest = get_mem((unsigned short) sizeof(TEDINFO));
-	memmove((void *)(dest), (void *)(source), sizeof(TEDINFO));
+	memmove((void *)RP(dest), (void *)RP(source), sizeof(TEDINFO));
 	return (dest);
 }
 
@@ -615,7 +656,7 @@ static long copy_ib(long source)
 	long	dest;
 
 	dest = get_mem((unsigned short) sizeof(ICONBLK));
-	memmove((void *)(dest), (void *)(source), sizeof(ICONBLK));
+	memmove((void *)RP(dest), (void *)RP(source), sizeof(ICONBLK));
 	return (dest);
 }
 
@@ -624,7 +665,7 @@ static long copy_bb(long source)
 	long	dest;
 
 	dest = get_mem((unsigned short) sizeof(BITBLK));
-	memmove((void *)(dest), (void *)(source), sizeof(BITBLK));
+	memmove((void *)RP(dest), (void *)RP(source), sizeof(BITBLK));
 	return (dest);
 }
 
@@ -683,7 +724,7 @@ short copy_objs(long stree, short obj, long dtree, short specopy)
 	for (iobj = 0; iobj < wr_obnum; iobj++)
 	{
 		here = get_obmem();
-		memmove((void *)(here), (void *)(stree + (unsigned short) (wr_obndx[iobj] * sizeof(OBJECT))), sizeof(OBJECT));
+		memmove((void *)RP(here), (void *)RP(stree + (unsigned short) (wr_obndx[iobj] * sizeof(OBJECT))), sizeof(OBJECT));
 		thisobj = (unsigned short) ((here - tree) / sizeof(OBJECT));
 		if (!iobj)
 		{
@@ -719,19 +760,19 @@ long mak_trindex(short nentry)
 	short	nobj, iobj;
 	unsigned short	indoff;
 
-	nobj = (*(unsigned short *)(RSH_NTREE(head)));
-	(*(unsigned short *)(RSH_NTREE(head)) = (nobj + nentry));
+	nobj = (*(unsigned short *)RP(RSH_NTREE(head)));
+	(*(unsigned short *)RP(RSH_NTREE(head)) = (nobj + nentry));
 
-	trindex = get_mem((unsigned short) sizeof(long) * (nobj + nentry));
+	trindex = get_mem((unsigned short) RS_ENTRY * (nobj + nentry));
 	indoff = (unsigned short) (trindex - head);
 
 	for (iobj = 0; iobj < nobj; iobj++)
 	{
-		(*(long *)(trindex) = (tree_addr(iobj)));
-		trindex += (unsigned short) sizeof(long);
+		(RFIELD(trindex) = (tree_addr(iobj)));
+		trindex += (unsigned short) RS_ENTRY;
 	}
 
-	(*(unsigned short *)(RSH_TRINDEX(head)) = (indoff));
+	(*(unsigned short *)RP(RSH_TRINDEX(head)) = (indoff));
 	return (trindex);
 }
 
@@ -740,7 +781,7 @@ void add_trindex(long tree)
 	long	trindex;
 
 	trindex = mak_trindex(1);
-	(*(long *)(trindex) = (tree));
+	(RFIELD(trindex) = (tree));
 }
 
 long mak_frstr(short nentry)
@@ -749,19 +790,19 @@ long mak_frstr(short nentry)
 	short	nobj, iobj;
 	unsigned short	indoff;
 
-	nobj = (*(unsigned short *)(RSH_NSTRING(head)));
-	(*(unsigned short *)(RSH_NSTRING(head)) = (nobj + nentry));
+	nobj = (*(unsigned short *)RP(RSH_NSTRING(head)));
+	(*(unsigned short *)RP(RSH_NSTRING(head)) = (nobj + nentry));
 
-	frstr = get_mem((unsigned short) sizeof(long) * (nobj + nentry));
+	frstr = get_mem((unsigned short) RS_ENTRY * (nobj + nentry));
 	indoff = (unsigned short) (frstr - head);
 
 	for (iobj = 0; iobj < nobj; iobj++)
 	{		
-		(*(long *)(frstr) = (str_addr(iobj)));
-		frstr += (unsigned short) sizeof(long);
+		(RFIELD(frstr) = (str_addr(iobj)));
+		frstr += (unsigned short) RS_ENTRY;
 	}
 
-	(*(unsigned short *)(RSH_FRSTR(head)) = (indoff));
+	(*(unsigned short *)RP(RSH_FRSTR(head)) = (indoff));
 	return (frstr);
 }
 
@@ -771,19 +812,19 @@ static long mak_frimg(short nentry)
 	short	nobj, iobj;
 	unsigned short	indoff;
 
-	nobj = (*(unsigned short *)(RSH_NIMAGES(head)));
-	(*(unsigned short *)(RSH_NIMAGES(head)) = (nobj + nentry));
+	nobj = (*(unsigned short *)RP(RSH_NIMAGES(head)));
+	(*(unsigned short *)RP(RSH_NIMAGES(head)) = (nobj + nentry));
 
-	frimg = get_mem((unsigned short) sizeof(long) * (nobj + nentry));
+	frimg = get_mem((unsigned short) RS_ENTRY * (nobj + nentry));
 	indoff = (unsigned short) (frimg - head);
 
 	for (iobj = 0; iobj < nobj; iobj++)
 	{
-		(*(long *)(frimg) = (img_addr(iobj)));
-		frimg += (unsigned short) sizeof(long);
+		(RFIELD(frimg) = (img_addr(iobj)));
+		frimg += (unsigned short) RS_ENTRY;
 	}
 
-	(*(unsigned short *)(RSH_FRIMG(head)) = (indoff));
+	(*(unsigned short *)RP(RSH_FRIMG(head)) = (indoff));
 	return (frimg);
 }
 
@@ -813,8 +854,8 @@ void dcomp_tree(long tree, short obj)
 	switch (GET_TYPE(tree, obj) & 0xff)
 	{
 		case G_STRING:
-			(*(long *)(d_frstr) = (taddr));
-			d_frstr += (unsigned short) sizeof(long);
+			(RFIELD(d_frstr) = (taddr));
+			d_frstr += (unsigned short) RS_ENTRY;
 			d_nfrstr++;
 			if (ndex == NIL)
 				break;
@@ -822,8 +863,8 @@ void dcomp_tree(long tree, short obj)
 			set_value(ndex, (char *) (d_nfrstr - 1));
 			break;
 		case G_IMAGE:
-			(*(long *)(d_frimg) = (taddr));
-			d_frimg += (unsigned short) sizeof(long);
+			(RFIELD(d_frimg) = (taddr));
+			d_frimg += (unsigned short) RS_ENTRY;
 			d_nfrimg++;
 			if (ndex == NIL)
 				break;
@@ -840,7 +881,7 @@ void dcomp_free(void)
 	long	tree;
 	short	ntrind, nfrstr, nfrimg, itree, ndex, ntree;
 
-	ntrind = (*(unsigned short *)(RSH_NTREE(head)));
+	ntrind = (*(unsigned short *)RP(RSH_NTREE(head)));
 	for (d_nfrimg = d_nfrstr = itree = 0; itree < ntrind; itree++ )
 	{
 		tree = tree_addr(itree);
@@ -850,13 +891,13 @@ void dcomp_free(void)
 	}
 	if (d_nfrstr)
 	{
-		nfrstr = (*(unsigned short *)(RSH_NSTRING(head)));
+		nfrstr = (*(unsigned short *)RP(RSH_NSTRING(head)));
 		d_frstr = mak_frstr(d_nfrstr);
 		d_nfrstr = nfrstr;
 	}
 	if (d_nfrimg)
 	{
-		nfrimg = (*(unsigned short *)(RSH_NIMAGES(head)));
+		nfrimg = (*(unsigned short *)RP(RSH_NIMAGES(head)));
 		d_frimg = mak_frimg(d_nfrimg);
 		d_nfrimg = nfrimg;
 	} 
@@ -872,12 +913,12 @@ void dcomp_free(void)
 		else
 		{
 			if (ntree != itree)
-				(*(long *)(tree_ptr(ntree)) = (tree_addr(itree)));
+				(RFIELD(tree_ptr(ntree)) = (tree_addr(itree)));
 			ntree++;
 		}
 	}
 
-	(*(unsigned short *)(RSH_NTREE(head)) = (ntree));
+	(*(unsigned short *)RP(RSH_NTREE(head)) = (ntree));
 }
 
 char *c_lookup(unsigned short what, LOOKUP *where, unsigned short n, char *punt)
@@ -897,7 +938,7 @@ void map_all(short (*routine)())
 {
 	short	ntree, itree;
 
-	ntree = (*(unsigned short *)(RSH_NTREE(head)));
+	ntree = (*(unsigned short *)RP(RSH_NTREE(head)));
 
 	for (itree = 0; itree < ntree; itree++)
 		map_tree( tree_addr(itree), 0, -1, routine);
@@ -919,7 +960,7 @@ static void tally_str(long addr)
 	if (addr != -1L)
 	{
 		rcs_tally.nstr++;
-		rcs_tally.nbytes += (unsigned short) (strlen((char *)(addr)) + 1);
+		rcs_tally.nbytes += (unsigned short) (strlen((char *)RP(addr)) + 1);
 	}
 }
 
@@ -927,30 +968,30 @@ static void tally_bb(long addr)
 {
 	rcs_tally.nbb++;
 	rcs_tally.nbytes += (unsigned short) DISK_BITBLK_SIZE;
-	if ((*(long *)(BI_PDATA(addr))) != -1L)
+	if ((RGET(BI_PDATA(addr))) != -1L)
 	{
 		rcs_tally.nimg++;
-		rcs_tally.nbytes += (unsigned short) ((*(short *)(BI_WB(addr))) * (*(short *)(BI_HL(addr))));
+		rcs_tally.nbytes += (unsigned short) ((*(short *)RP(BI_WB(addr))) * (*(short *)RP(BI_HL(addr))));
 	}
 }
 
 void tally_free(void)
 {
-	long	*free;
+	rentry	*free;
 	short	i;
 
-	rcs_tally.nstr += (*(unsigned short *)(RSH_NSTRING(head)));
-	rcs_tally.nbytes += (unsigned short) ((*(unsigned short *)(RSH_NSTRING(head))) * sizeof(long));
-	free = (long *) ( head + ((unsigned short)((*(unsigned short *)(RSH_FRSTR(head))))) );
-	for (i = 0; i < (*(unsigned short *)(RSH_NSTRING(head))); i++)
-		tally_str( *(free + i));
+	rcs_tally.nstr += (*(unsigned short *)RP(RSH_NSTRING(head)));
+	rcs_tally.nbytes += (unsigned short) ((*(unsigned short *)RP(RSH_NSTRING(head))) * RS_ENTRY);
+	free = (rentry *) RP( head + ((unsigned short)((*(unsigned short *)RP(RSH_FRSTR(head))))) );
+	for (i = 0; i < (*(unsigned short *)RP(RSH_NSTRING(head))); i++)
+		tally_str((long)(int)*(free + i));
 
-	rcs_tally.nbb += (*(unsigned short *)(RSH_NIMAGES(head)));
-	rcs_tally.nbytes += (unsigned short) ((*(unsigned short *)(RSH_NIMAGES(head))) * 
-		(sizeof(long) + DISK_BITBLK_SIZE));
-  	free = (long *) ( head + ((unsigned short)((*(unsigned short *)(RSH_FRIMG(head))))) );
-	for (i = 0; i < (*(unsigned short *)(RSH_NIMAGES(head))); i++)
-		tally_bb( *(free + i));
+	rcs_tally.nbb += (*(unsigned short *)RP(RSH_NIMAGES(head)));
+	rcs_tally.nbytes += (unsigned short) ((*(unsigned short *)RP(RSH_NIMAGES(head))) * 
+		(RS_ENTRY + DISK_BITBLK_SIZE));
+  	free = (rentry *) RP( head + ((unsigned short)((*(unsigned short *)RP(RSH_FRIMG(head))))) );
+	for (i = 0; i < (*(unsigned short *)RP(RSH_NIMAGES(head))); i++)
+		tally_bb((long)(int)*(free + i));
 }
 
 void tally_obj(long tree, short obj)
@@ -978,9 +1019,9 @@ void tally_obj(long tree, short obj)
 				return;
 			rcs_tally.nti++;
 			rcs_tally.nbytes += (unsigned short) sizeof(TEDINFO);
-			tally_str((*(long *)(TE_PTEXT(taddr))));
-			tally_str((*(long *)(TE_PVALID(taddr))));
-			tally_str((*(long *)(TE_PTMPLT(taddr))));
+			tally_str((RGET(TE_PTEXT(taddr))));
+			tally_str((RGET(TE_PVALID(taddr))));
+			tally_str((RGET(TE_PTMPLT(taddr))));
 			return;
 		case G_IMAGE:
 			if (taddr == -1L)
@@ -992,21 +1033,33 @@ void tally_obj(long tree, short obj)
 				return;
 			rcs_tally.nib++;
 			rcs_tally.nbytes += (unsigned short) DISK_ICONBLK_SIZE;
-			size = ((*(short *)(IB_WICON(taddr))) + 7) / 8;
-			size *= (*(short *)(IB_HICON(taddr)));
-			if ((*(long *)(IB_PDATA(taddr))) != -1L)
+			size = ((*(short *)RP(IB_WICON(taddr))) + 7) / 8;
+			size *= (*(short *)RP(IB_HICON(taddr)));
+			if ((RGET(IB_PDATA(taddr))) != -1L)
 			{
 				rcs_tally.nimg++;
 				rcs_tally.nbytes += (unsigned short) size;
 			}
-			if ((*(long *)(IB_PMASK(taddr))) != -1L)
+			if ((RGET(IB_PMASK(taddr))) != -1L)
 			{
 				rcs_tally.nimg++;
 				rcs_tally.nbytes += (unsigned short) size;
 			}
-			tally_str((*(long *)(IB_PTEXT(taddr))));
+			tally_str((RGET(IB_PTEXT(taddr))));
 			return;
 		default:
 			return;
 	}
 }
+
+#ifndef RCS_HOST
+raddr rcs_alloc(unsigned long bytes)
+{
+	return (raddr)malloc(bytes);
+}
+
+void rcs_release(raddr a)
+{
+	free((void *)a);
+}
+#endif

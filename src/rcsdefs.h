@@ -8,6 +8,8 @@
 
 #define RCSDEFS_H
 
+#include <stddef.h>
+#include "rcsaddr.h"
 #include <stdio.h>
 
 /* variables used in icon edit mode */
@@ -139,13 +141,13 @@ extern  short    fgcolor, bgcolor;
 #define R_NSTRING	15
 #define R_IMAGES	16
 
-#define NUM_OBS		(*(short *)(rs_hdr + 2*R_NOBS))
-#define NUM_TREE	(*(short *)(rs_hdr + 2*R_NTREE))
-#define NUM_TI		(*(short *)(rs_hdr + 2*R_NTED))
-#define NUM_IB		(*(short *)(rs_hdr + 2*R_NICON))
-#define NUM_BB		(*(short *)(rs_hdr + 2*R_NBITBLK))
-#define NUM_FRSTR	(*(short *)(rs_hdr + 2*R_NSTRING))
-#define NUM_FRIMG	(*(short *)(rs_hdr + 2*R_IMAGES))
+#define NUM_OBS		(*(short *)RP(rs_hdr + 2*R_NOBS))
+#define NUM_TREE	(*(short *)RP(rs_hdr + 2*R_NTREE))
+#define NUM_TI		(*(short *)RP(rs_hdr + 2*R_NTED))
+#define NUM_IB		(*(short *)RP(rs_hdr + 2*R_NICON))
+#define NUM_BB		(*(short *)RP(rs_hdr + 2*R_NBITBLK))
+#define NUM_FRSTR	(*(short *)RP(rs_hdr + 2*R_NSTRING))
+#define NUM_FRIMG	(*(short *)RP(rs_hdr + 2*R_IMAGES))
 
 #define NUM_RN 7
 #define RS_SIZE 17				/* NUM_RTYPES + NUM_RN	*/
@@ -174,17 +176,17 @@ extern  short    fgcolor, bgcolor;
 #define	RSH_NIMAGES(x)	(x + 32)
 #define	RSH_RSSIZE(x)	(x + 34)
 
-#define OB_NEXT(x)		(tree + (x) * sizeof(OBJECT) + 0)
-#define OB_HEAD(x)		(tree + (x) * sizeof(OBJECT) + 2)
-#define OB_TAIL(x)		(tree + (x) * sizeof(OBJECT) + 4)
-#define OB_TYPE(x)		(tree + (x) * sizeof(OBJECT) + 6)
-#define OB_FLAGS(x)		(tree + (x) * sizeof(OBJECT) + 8)
-#define OB_STATE(x)		(tree + (x) * sizeof(OBJECT) + 10)
-#define OB_SPEC(x)		(tree + (x) * sizeof(OBJECT) + 12)
-#define OB_X(x)			(tree + (x) * sizeof(OBJECT) + 16)
-#define OB_Y(x)			(tree + (x) * sizeof(OBJECT) + 18)
-#define OB_WIDTH(x)		(tree + (x) * sizeof(OBJECT) + 20)
-#define OB_HEIGHT(x)	(tree + (x) * sizeof(OBJECT) + 22)
+#define OB_NEXT(x)		(tree + (x) * sizeof(OBJECT) + offsetof(OBJECT, ob_next))
+#define OB_HEAD(x)		(tree + (x) * sizeof(OBJECT) + offsetof(OBJECT, ob_head))
+#define OB_TAIL(x)		(tree + (x) * sizeof(OBJECT) + offsetof(OBJECT, ob_tail))
+#define OB_TYPE(x)		(tree + (x) * sizeof(OBJECT) + offsetof(OBJECT, ob_type))
+#define OB_FLAGS(x)		(tree + (x) * sizeof(OBJECT) + offsetof(OBJECT, ob_flags))
+#define OB_STATE(x)		(tree + (x) * sizeof(OBJECT) + offsetof(OBJECT, ob_state))
+#define OB_SPEC(x)		(tree + (x) * sizeof(OBJECT) + offsetof(OBJECT, ob_spec))
+#define OB_X(x)			(tree + (x) * sizeof(OBJECT) + offsetof(OBJECT, ob_x))
+#define OB_Y(x)			(tree + (x) * sizeof(OBJECT) + offsetof(OBJECT, ob_y))
+#define OB_WIDTH(x)		(tree + (x) * sizeof(OBJECT) + offsetof(OBJECT, ob_width))
+#define OB_HEIGHT(x)	(tree + (x) * sizeof(OBJECT) + offsetof(OBJECT, ob_height))
 
 
 extern   short 	gl_mode;

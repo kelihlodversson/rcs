@@ -7,6 +7,8 @@
 
 #define RCSIEXT_H
 
+#include <stddef.h>
+
 extern	     short       flags;
 extern	     short       out1;
 extern	     short       xwait;
@@ -128,6 +130,6 @@ extern	     short	invert4[16];
 #define	     IB_XICON(x)  (x + 18)
 #define      IB_WICON(x)  (x + 22)   
 #define      IB_HICON(x)  (x + 24)
-#define      OB_STATE(x) (tree + (x) * sizeof(OBJECT) + 10)
+#define      OB_STATE(x) (tree + (x) * sizeof(OBJECT) + offsetof(OBJECT, ob_state))
 
 #endif
