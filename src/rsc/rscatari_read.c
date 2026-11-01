@@ -114,7 +114,12 @@
 #define CTEXT_SIZE	12
 #define CICON_SIZE	22	/* the header of a colour version */
 
-/* What one allocation costs in the budget beyond its size. */
+/* What one allocation costs in the budget beyond its size.  The densest
+ * file the writer can make (13099 empty free strings: 5 bytes of file and
+ * 25 charged each) reads back with about 200 bytes of the budget to spare:
+ * raising this or adding a charge per table entry or string can make the
+ * reader refuse what the writer writes.  test_densest (tests/rsc/
+ * test_write.c) checks it; change it consciously. */
 #define BLOCK_COST	8
 
 /* positions of the header words */

@@ -1222,6 +1222,39 @@ static void test_limits(void)
 	rsc_free(r);
 }
 
+/* The densest file the writer can make, the largest number of empty free
+ * strings (5 bytes of file each: the NUL and the table entry), reads back
+ * within the reader's budget (25 bytes charged each on a 64-bit host,
+ * against 4 * len + 65536: about 200 bytes to spare).  A new per-entry
+ * charge in the reader can break this write-then-read; see BLOCK_COST in
+ * rscatari_read.c. */
+static void test_densest(void)
+{
+	struct rsc_error	e;
+	struct rsc	*r = rsc_new(), *r2;
+	uint8_t	*o = NULL;
+	size_t	len;
+	int	n;
+
+	for (n = 0; n < 13200; n++)
+		rsc_frstr_add(r, "");
+	while (wr(r, 0, 0, &o, &len, &e) != 0)
+	{
+		CHECK(e.code == RSC_ETOOBIG);
+		rsc_frstr_delete(r, rsc_nfrstr(r) - 1);
+	}
+	n = rsc_nfrstr(r);
+	CHECK(n == 13099 && len == 65532);	/* 36 + 13099 + 1 (pad) + 4 * 13099 */
+	r2 = rd(o, len, 0, 0, &e);
+	CHECK(r2 != NULL);
+	if (!r2)
+		fprintf(stderr, "densest file (%d free strings): %s\n", n, e.msg);
+	CHECK(r2 && same_model(r, r2));
+	rsc_free(r2);
+	rsc_mfree(o);
+	rsc_free(r);
+}
+
 static void test_errors(void)
 {
 	struct rsc	*r = rsc_new();
@@ -2022,6 +2055,7 @@ int main(int argc, char **argv)
 	test_null_data();
 	test_tedinfo_lengths();
 	test_odd_images();
+	test_densest();
 	test_limits();
 	test_errors();
 	test_negative();
