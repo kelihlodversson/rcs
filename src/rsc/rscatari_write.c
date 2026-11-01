@@ -852,6 +852,8 @@ static int finish(struct wr *w)
 	for (s = 0; s < S_N; s++)
 		if (w->cur[s] != w->base[s] + w->size[s])
 			return fail(w, RSC_EARG, w->cur[s], "the passes disagree");
+	if ((rsc_vrsn(w->r) & 3) == 3)	/* the reader refuses it: RSXHDR */
+		return fail(w, RSC_EARG, 0, "version 3 (RSXHDR) is not supported yet");
 	h[H_VRSN] = (rsc_vrsn(w->r) & 0xffff & ~(unsigned)RSC_VRSN_FORMAT_BITS)
 		    | (w->ncicon ? RSC_VRSN_FORMAT_BITS : 0);
 	h[H_OBJECT] = (unsigned)w->base[S_OBJ];

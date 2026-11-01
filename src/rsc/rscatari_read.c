@@ -18,6 +18,10 @@
  *		free strings (nstring longs) and the free images (nimages
  *		longs: offsets of BITBLKs)
  *
+ * A vrsn with both low bits set (rsh_vrsn & 3 == 3) is the extended RSXHDR
+ * header of phase 3 of #29 (32-bit fields, as XaAES detects it); it is
+ * refused with RSC_EHEADER at offset 0 before any table is used.
+ *
  * With bit 2 of vrsn set, longs at rssize extend the file: the total
  * file length, the offset of the colour icon table, then more longs that
  * this library ignores (the writer writes a third long of 0; TeraDesk's
@@ -333,6 +337,9 @@ static int header(struct rd *d)
 		return fail(d, RSC_ETRUNC, d->len, "header truncated");
 	for (k = 0; k < H_WORDS; k++)
 		d->h[k] = be16(d, 2 * (size_t)k);
+	if ((d->h[H_VRSN] & 3) == 3)
+		return fail(d, RSC_EHEADER, 0,
+			    "version 3 (RSXHDR) resource files are not supported yet");
 	rsc_set_vrsn(d->r, d->h[H_VRSN]);
 	return table(d, &d->obj, H_OBJECT, H_NOBS, OBJ_SIZE)
 	       || table(d, &d->ted, H_TEDINFO, H_NTED, TED_SIZE)

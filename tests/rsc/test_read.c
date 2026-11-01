@@ -1661,6 +1661,48 @@ static void test_alloc_failures(void)
 	free(f.b);
 }
 
+/* ---- the header version -------------------------------------------------------- */
+
+/* A version with both low bits set is the extended RSXHDR header, refused
+ * explicitly; the other versions behave as before. */
+static void test_version(void)
+{
+	static const char	*names[3] = { "rcs.rsc", "rcslow.rsc", "cicon.rsc" };
+	static const unsigned	bad[3] = { 3, 7, 0xfff3 };
+	static const unsigned	good[4] = { 0, 1, 2, 4 };
+	static const char	msg[] = "version 3 (RSXHDR) resource files are not supported yet";
+	int	n, k;
+
+	for (n = 0; n < 3; n++)
+	{
+		struct file	f = load(names[n]);
+		unsigned	orig = rd16(f.b, 0);
+		size_t	off;
+		int	code;
+
+		for (k = 0; k < 3; k++)
+		{
+			put16(f.b, 0, bad[k]);
+			off = 99;
+			code = read_code(f.b, f.len, &off);
+			CHECK(code == RSC_EHEADER && off == 0);
+			CHECK(strncmp(read_err.msg, msg, sizeof msg - 1) == 0);
+			CHECK(rsc_atari_read(f.b, f.len, 0, 0, NULL) == NULL);
+		}
+		for (k = 0; k < 4; k++)
+		{
+			put16(f.b, 0, good[k]);
+			code = read_code(f.b, f.len, &off);
+			CHECK(code != RSC_EHEADER);
+			if (n < 2 && good[k] != 4)	/* no colour table */
+				CHECK(code == RSC_OK);
+		}
+		put16(f.b, 0, orig);
+		CHECK(read_code(f.b, f.len, &off) == RSC_OK);
+		free(f.b);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	if (argc > 1)
@@ -1677,6 +1719,7 @@ int main(int argc, char **argv)
 	test_charges();
 	test_truncation();
 	test_mutations();
+	test_version();
 	test_alloc_failures();
 	printf("rsc-test (reader): %ld checks, %ld failed\n", checks, failures);
 	return failures ? 1 : 0;

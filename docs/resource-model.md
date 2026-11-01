@@ -225,9 +225,9 @@ NULL. The offset is a position in the file (reader) or in the output
 | Code | Meaning |
 |---|---|
 | `RSC_ENOMEM` | an allocation failed |
-| `RSC_EARG` | bad argument: NULL buffer, bad or mismatched cell size, negative icon size (writer) |
+| `RSC_EARG` | bad argument: NULL buffer, bad or mismatched cell size, negative icon size, a version with both low bits set (writer: the reader would take it for `RSXHDR`) |
 | `RSC_ETRUNC` | the file ends early (a header field that points past it is `RSC_EOFFSET` or `RSC_ETRUNC`) |
-| `RSC_EHEADER` | reserved for the `RSXHDR` reader of phase 3; not returned yet |
+| `RSC_EHEADER` | a version 3 (`RSXHDR`) header, which is not supported yet (the rest is reserved for the `RSXHDR` reader of phase 3) |
 | `RSC_EOFFSET`, `RSC_ESTRING` | an offset or count is outside the file, negative record size; a string has no NUL in the file |
 | `RSC_ELINK`, `RSC_ECYCLE` | an object link is out of range, a root is listed twice; the links of a tree form a cycle |
 | `RSC_ECICON` | a colour icon block or its table is bad |
@@ -266,7 +266,10 @@ file holds blocks, is `RSC_ECICON`; a table with more entries than the rest
 of the file could possibly hold is refused before any block is looked at, so
 the work stays linear.
 
-Refused: a root listed twice in the tree index (the runs of objects of two
+Refused: a header version with both low bits set (`rsh_vrsn & 3 == 3`, the
+extended `RSXHDR` header of phase 3, detected as XaAES does), as `RSC_EHEADER`
+at offset 0 ("version 3 (RSXHDR) resource files are not supported yet"); a
+root listed twice in the tree index (the runs of objects of two
 trees cannot overlap); negative ICONBLK and BITBLK sizes (`RSC_EOFFSET`); a
 cell size above 127 (`RSC_EARG`); a `te_ptext` or template of 32767 characters or more
 (`RSC_ETOOBIG`). Objects that a root does not reach are kept without their

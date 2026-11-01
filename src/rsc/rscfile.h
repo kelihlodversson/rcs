@@ -22,9 +22,11 @@ enum rsc_errcode
 	RSC_ENOMEM,		/* an allocation failed */
 	RSC_EARG,		/* a bad argument (NULL buffer, bad cell size, ...) */
 	RSC_ETRUNC,		/* the file ends before the data it describes */
-	RSC_EHEADER,		/* reserved for phase 3 of #29 (an inconsistent
-				 * RSXHDR); the classic reader reports a bad
-				 * header field as RSC_EOFFSET or RSC_ETRUNC */
+	RSC_EHEADER,		/* the reader refuses a version 3 (RSXHDR) header,
+				 * not supported yet; otherwise reserved for phase
+				 * 3 of #29 (an inconsistent RSXHDR); the classic
+				 * reader reports a bad header field as
+				 * RSC_EOFFSET or RSC_ETRUNC */
 	RSC_EOFFSET,		/* an offset or count points outside the file */
 	RSC_ESTRING,		/* a string has no NUL inside the file */
 	RSC_ELINK,		/* an object link is out of range */

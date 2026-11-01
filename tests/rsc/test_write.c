@@ -1321,6 +1321,15 @@ static void test_errors(void)
 	CHECK(rsc_set_cell(r, RSC_MAX_CELL + 1, 16) == 0);
 	EXPECT_FAIL(r, RSC_MAX_CELL + 1, 16, RSC_EARG, 0);
 	CHECK(rsc_set_cell(r, 0, 0) == 0);
+	/* a version with both low bits set would be read as RSXHDR */
+	rsc_set_vrsn(r, 3);
+	EXPECT_FAIL(r, 0, 0, RSC_EARG, 0);
+	rsc_set_vrsn(r, 0xfff7);
+	EXPECT_FAIL(r, 0, 0, RSC_EARG, 0);
+	rsc_set_vrsn(r, 0xfff5);
+	CHECK(wr(r, 0, 0, &o, &len, &e) == 0);
+	rsc_mfree(o);
+	rsc_set_vrsn(r, 0);
 	/* an empty resource: the header alone */
 	CHECK(wr(r, 0, 0, &o, &len, &e) == 0 && len == 36 && hw(o, H_RSSIZE) == 36
 	      && hw(o, H_OBJECT) == 36 && hw(o, H_TRINDEX) == 36 && hw(o, H_NTREE) == 0);
@@ -2037,7 +2046,7 @@ static void edit(struct rsc *r)
 		if (nt && rnd(2))
 			rsc_tree_compact(r, t, NULL);
 		else
-			rsc_set_vrsn(r, rnd(0x10000));
+			rsc_set_vrsn(r, rnd(0x10000) & ~(rnd(2) ? 2u : 1u));	/* not 3: RSXHDR */
 		break;
 	}
 }
