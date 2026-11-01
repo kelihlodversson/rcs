@@ -35,7 +35,7 @@ RES_FILES = RCS.RSC RCSLOW.RSC RCS.DFN RCSLOW.DFN
 
 # The resource library (src/rsc, #29) is compiled for both targets so that
 # it keeps building there, but not linked into RCS.PRG yet.
-RSC_LIB_SRC = src/rsc/rscmodel.c src/rsc/rscatari_read.c
+RSC_LIB_SRC = src/rsc/rscmodel.c src/rsc/rscatari_read.c src/rsc/rscatari_write.c
 RSC_LIB_H   = $(wildcard src/rsc/*.h)
 
 m68k: build/m68k/$(PRG_NAME) $(addprefix build/m68k/,$(RES_FILES)) \
@@ -205,7 +205,7 @@ build/host/roundtrip: $(HOST_SRC) $(wildcard src/*.h src/host/*.h src/host/mint/
 # reader tests read the files of tests/golden.
 
 RSC_SAN        =
-RSC_TESTS      = test_rsc test_read
+RSC_TESTS      = test_rsc test_read test_write
 RSC_TEST_FLAGS = -std=gnu99 -fno-strict-aliasing -Wall -Wextra -DRSC_HOST -DRSC_TEST \
                  -Isrc/rsc -g
 ifeq ($(RSC_SAN),1)
