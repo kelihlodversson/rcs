@@ -15,7 +15,10 @@
  * BITBLK, struct rsc_cicon) belongs to that object alone, and every string
  * and image block is a separate malloc'd block belonging to one record:
  * nothing is shared.  Which member of ob_spec is a pointer the model owns
- * depends only on the low byte of ob_type, through rsc_spec_kind().
+ * depends only on the low byte of ob_type, through rsc_spec_kind(), and on
+ * one flag: with OF_INDIRECT set the spec is an opaque value whatever the
+ * type (kind RSC_SPEC_VALUE, never owned); rsc_obj_spec_kind() combines the
+ * two and is what every ownership decision of the model uses.
  *
  * Every pointer passed in is copied, never adopted: the caller keeps what
  * it passes.  Every pointer handed out (an OBJECT array, a record, a
@@ -25,10 +28,13 @@
  * Direct access.  The caller may read everything and may write, through
  * the pointers it gets, the links (ob_next, ob_head, ob_tail), ob_state,
  * the coordinates and the non-pointer fields of the records.  It must not
- * write ob_type, ob_spec or any pointer field of a record (use the
- * setters: they keep ownership right) and should not write ob_flags (use
- * rsc_obj_set_flags: OF_LASTOB is the model's).  A caller that writes the
- * links must keep them in range or -1; the model does not check them again.
+ * write ob_type, ob_spec, ob_flags or any pointer field of a record (use
+ * the setters: they keep ownership right; OF_INDIRECT changes the kind of
+ * spec and OF_LASTOB is the model's), nor the size fields of image data
+ * (see Image data).  A caller that writes the links should keep them in
+ * range or -1: rsc_tree_preorder checks them, and the calls that follow
+ * links (rsc_obj_add, rsc_obj_delete, rsc_tree_compact) fail cleanly on
+ * broken ones.
  *
  * Errors.  A call that can fail returns -1 (or NULL) and leaves the model
  * as it was: nothing half built, nothing leaked.  Nothing aborts.  A bad
@@ -43,6 +49,20 @@
  *
  * Image data is in the byte order of the machine, as the AES draws it.
  * An icon plane is rsc_plane_bytes(w, h) bytes, a BITBLK bi_wb * bi_hl.
+ * The size fields (ib_wicon and ib_hicon of an ICONBLK or of the mono icon
+ * of a colour icon, bi_wb and bi_hl of a BITBLK) define how many bytes the
+ * owned blocks have, for the colour versions too: the writer and
+ * rsc_cicon_add_version compute sizes from them.  They are changed only
+ * through the setters (rsc_obj_resize_icon, rsc_obj_resize_bitblk,
+ * rsc_frimg_resize, or a new record); a colour icon is resized by setting
+ * a new one.  A data pointer (ib_pmask, ib_pdata, bi_pdata, the mono data
+ * and mask of a colour icon) may be NULL with a non-zero size: that is a
+ * blank image of that size (all zero words), and the writer writes zero
+ * words for it.
+ *
+ * Free strings and free images.  Their lists have no NULL entries (a free
+ * image may have NULL data, see above); the reader drops entries of the
+ * file that are NULL (0xFFFFFFFF), as the old reader effectively did.
  */
 #ifndef RSCMODEL_H
 #define RSCMODEL_H
@@ -259,6 +279,11 @@ enum rsc_spec_kind
 /* The kind of spec of an object of type ob_type (only the low byte counts).
  * A pointer kind may be NULL: no record (written as 0xFFFFFFFF). */
 enum rsc_spec_kind rsc_spec_kind(unsigned ob_type);
+/* The kind of spec of object o: rsc_spec_kind(o->ob_type), but
+ * RSC_SPEC_VALUE when o has OF_INDIRECT (as far as the model is concerned
+ * that is just a flag: the spec is then an opaque value it never owns).
+ * This, not rsc_spec_kind, says which ob_spec member is valid. */
+enum rsc_spec_kind rsc_obj_spec_kind(const OBJECT *o);
 
 /* Bytes of one icon plane of w x h pixels, by the AES rule
  * ((w + 15) / 16) * 2 * h; 0 for a negative size. */
@@ -310,6 +335,40 @@ int rsc_tree_delete(struct rsc *r, int t);
  * read; writing through the result is subject to "Direct access" above. */
 OBJECT *rsc_tree_objects(const struct rsc *r, int t, int *nobj);
 
+/* Errors of rsc_tree_preorder and rsc_tree_compact (all negative). */
+enum rsc_walk_error
+{
+	RSC_WALK_EARG = -1,	/* objs NULL, n < 1 or n > RSC_MAX_OBJECTS, bad tree */
+	RSC_WALK_ENOMEM = -2,	/* the scratch memory could not be allocated */
+	RSC_WALK_ERANGE = -3,	/* a link of a reachable object is not -1 nor in 0..n-1 */
+	RSC_WALK_ESHARED = -4,	/* an object is reached twice: a cycle, or two parents */
+	RSC_WALK_ECHAIN = -5	/* a sibling chain is malformed: ob_head and ob_tail
+				 * not both -1 or both set, the chain does not end
+				 * back at the parent, or ends there at another
+				 * object than the parent's ob_tail */
+};
+
+/* The objects reachable from the root (index 0) of the n objects at objs,
+ * in preorder (an object, then its children in sibling order), following
+ * ob_head, ob_next and ob_tail as the AES does: a child whose ob_next is
+ * its parent is the last child, and must be the parent's ob_tail.  The
+ * root's ob_next is ignored (the file may have anything there; the reader
+ * sets it to -1).  Fills order[] (room for n ints; NULL to only check) and
+ * returns the number of objects visited, or an enum rsc_walk_error.
+ * Unreachable objects are not visited and their links not looked at.  It
+ * is iterative, ends after at most 2n steps and reads only objs[0..n-1];
+ * it allocates 2n ints of scratch. */
+int rsc_tree_preorder(const OBJECT *objs, int n, int *order);
+
+/* Removes the unreachable objects of tree t (left by rsc_obj_delete or by
+ * the file), releasing their specs, and renumbers the others, which keep
+ * their relative order in the array; the links are rewritten, the root's
+ * ob_next becomes -1 and OF_LASTOB is on the new last object.  When map is
+ * not NULL (room for the old object count) map[old] is the new index or
+ * -1 for a dropped object.  Returns the new object count, or an enum
+ * rsc_walk_error, and then the tree is unchanged. */
+int rsc_tree_compact(struct rsc *r, int t, int *map);
+
 /* ---- objects ------------------------------------------------------------ */
 
 /* Appends a new object to the array of tree t and makes it the last child
@@ -323,23 +382,33 @@ int rsc_obj_add(struct rsc *r, int t, int parent, unsigned type);
 /* Unlinks object i from its parent and releases the specs of i and all its
  * descendants.  Their slots stay in the array (indices of the other objects
  * do not change) as unreachable G_IBOX objects with spec 0 and all links
- * -1; the writer drops unreachable objects.  The root cannot be deleted
- * (delete the tree).  Returns 0 or -1. */
+ * -1; they are not reused, and the writer drops them.  An editor that adds
+ * and deletes repeatedly can so reach RSC_MAX_OBJECTS: rsc_tree_compact
+ * gives the slots back.  The root cannot be deleted (delete the tree).
+ * An object with ob_next -1 is unlinked: only its subtree is released.
+ * Returns 0, or -1 for a bad index, broken links or a failed allocation
+ * (it allocates 2n ints of scratch), and then nothing has changed. */
 int rsc_obj_delete(struct rsc *r, int t, int i);
 
-/* Sets ob_type.  When the kind of spec changes (rsc_spec_kind of the old and
- * the new type differ) the old spec is released and the spec becomes empty;
+/* Sets ob_type.  When the kind of spec changes (rsc_obj_spec_kind before
+ * and after differ) the old spec is released and the spec becomes empty;
  * otherwise it is kept (G_TEXT to G_FBOXTEXT keeps the TEDINFO, G_STRING to
- * G_BUTTON keeps the string).  Returns 0 or -1 (bad index). */
+ * G_BUTTON keeps the string, any change with OF_INDIRECT set keeps the
+ * value).  Returns 0 or -1 (bad index). */
 int rsc_obj_set_type(struct rsc *r, int t, int i, unsigned type);
 /* Sets ob_flags, except OF_LASTOB, which the model keeps on the last object
- * of the array. */
+ * of the array.  Setting or clearing OF_INDIRECT changes the kind of spec
+ * of a type with a pointer kind: the old spec is then released and becomes
+ * empty, as for a type change. */
 int rsc_obj_set_flags(struct rsc *r, int t, int i, unsigned flags);
 int rsc_obj_set_state(struct rsc *r, int t, int i, unsigned state);
 int rsc_obj_set_geom(struct rsc *r, int t, int i, int x, int y, int w, int h);
 
-/* RSC_SPEC_VALUE: sets / reads the plain spec value. */
+/* RSC_SPEC_VALUE (rsc_obj_spec_kind): sets / reads the plain spec value.
+ * rsc_obj_get_value returns 0, or -1 for a bad index or another kind;
+ * rsc_obj_value is the lenient variant: 0 for those. */
 int rsc_obj_set_value(struct rsc *r, int t, int i, uint32_t value);
+int rsc_obj_get_value(const struct rsc *r, int t, int i, uint32_t *out);
 uint32_t rsc_obj_value(const struct rsc *r, int t, int i);
 
 /* The strings of an object, for rsc_obj_set_str. */
@@ -373,6 +442,14 @@ int rsc_obj_set_tedinfo(struct rsc *r, int t, int i, const TEDINFO *src);
 int rsc_obj_set_iconblk(struct rsc *r, int t, int i, const ICONBLK *src);
 int rsc_obj_set_bitblk(struct rsc *r, int t, int i, const BITBLK *src);
 
+/* Change the size of the image of an object (G_ICON: ib_wicon, ib_hicon;
+ * G_IMAGE: bi_wb, bi_hl) or of free image k, reallocating its data: the
+ * top left part of the old image is kept, the rest is zero; NULL data stays
+ * NULL.  The record must exist; sizes 0..32767.  Returns 0 or -1. */
+int rsc_obj_resize_icon(struct rsc *r, int t, int i, int w, int h);
+int rsc_obj_resize_bitblk(struct rsc *r, int t, int i, int wb, int hl);
+int rsc_frimg_resize(struct rsc *r, int k, int wb, int hl);
+
 /* Replaces the colour icon of a G_CICON object with a new one without
  * colour versions: the fields of *mono are copied, its ib_pmask and
  * ib_pdata (rsc_plane_bytes(ib_wicon, ib_hicon) bytes each, may be NULL)
@@ -383,7 +460,12 @@ int rsc_obj_set_cicon(struct rsc *r, int t, int i, const ICONBLK *mono, const ch
 /* The colour icon of object i, or NULL (not a G_CICON, or none). */
 struct rsc_cicon *rsc_obj_cicon(const struct rsc *r, int t, int i);
 
-/* Appends a colour version (planes 1..16) to colour icon c, copying the
+/* The most planes a colour version may have.  The format and the AES allow
+ * up to 32 (some tools write 24 and 32 plane versions); the old reader
+ * accepted 1..16 only, and so does the model for now. */
+#define RSC_MAX_PLANES	16
+
+/* Appends a colour version (planes 1..RSC_MAX_PLANES) to colour icon c, copying the
  * planes (sizes as for struct rsc_cicon_version; col_data and col_mask
  * required, sel_data and sel_mask both or neither).  Returns its index, or
  * -1. */

@@ -174,6 +174,13 @@ enum rsc_spec_kind rsc_spec_kind(unsigned ob_type)
 	}
 }
 
+/* The kind of spec of object o: that of its type, but a plain value when
+ * OF_INDIRECT is set (the model never owns what an indirect spec points to). */
+enum rsc_spec_kind rsc_obj_spec_kind(const OBJECT *o)
+{
+	return o->ob_flags & OF_INDIRECT ? RSC_SPEC_VALUE : rsc_spec_kind(o->ob_type);
+}
+
 /* ---- records: free and copy ---------------------------------------------- */
 
 static void free_tedinfo(TEDINFO *te)
@@ -233,7 +240,7 @@ static void free_cicon(struct rsc_cicon *c)
  * empties the spec.  The one place that knows what an object owns. */
 static void spec_release(OBJECT *o)
 {
-	switch (rsc_spec_kind(o->ob_type))
+	switch (rsc_obj_spec_kind(o))
 	{
 	case RSC_SPEC_STRING:
 		rsc_mfree(o->ob_spec.free_string);
@@ -495,6 +502,9 @@ int rsc_obj_add(struct rsc *r, int t, int parent, unsigned type)
 
 	if (!tr || parent < 0 || parent >= tr->nobj || tr->nobj >= RSC_MAX_OBJECTS)
 		return -1;
+	p = &tr->obj[parent];
+	if (p->ob_tail < -1 || p->ob_tail >= tr->nobj || (p->ob_head == -1) != (p->ob_tail == -1))
+		return -1;		/* broken links: do not write through them */
 	obj = rsc_realloc(tr->obj, ((size_t)tr->nobj + 1) * sizeof *obj);
 	if (!obj)
 		return -1;
@@ -516,81 +526,112 @@ int rsc_obj_add(struct rsc *r, int t, int parent, unsigned type)
 }
 
 /* The parent of object i (not the root), found the AES way: follow ob_next
- * until an object whose ob_tail is where we came from; -1 when there is
- * none (an unlinked object) or the links do not lead to one. */
+ * until an object whose ob_tail is where we came from; -1 when i is
+ * unlinked (ob_next -1), -2 when the links do not lead to a parent. */
 static int find_parent(const OBJECT *o, int n, int i)
 {
 	int	j = i, nx, steps;
 
+	if (o[i].ob_next == -1)
+		return -1;
 	for (steps = 0; steps < n; steps++)
 	{
 		nx = o[j].ob_next;
 		if (nx < 0 || nx >= n)
-			return -1;
+			return -2;
 		if (o[nx].ob_tail == j)
 			return nx;
 		j = nx;
 	}
-	return -1;
+	return -2;
 }
 
-/* Marks the subtree of s in mark[] (a preorder walk).  Returns 0, or -1
- * when the links are out of range or do not form a tree. */
-static int mark_subtree(const OBJECT *o, int n, int s, unsigned char *mark)
+/* The preorder walk of the subtree of s (s's own ob_next is not looked at)
+ * into order[]; parent[] (n ints) is scratch, left holding the parent of
+ * every visited object and -2 for the others.  Returns the number of
+ * objects visited or an enum rsc_walk_error.  Each object is entered once
+ * and left once, so it ends within 2n steps; it reads only o[0..n-1]. */
+static int walk_tree(const OBJECT *o, int n, int s, int *order, int *parent)
 {
-	int	cur = s, nx, steps = 0;
+	int	cnt = 0, cur = s, h, tl, nx, i;
 
-	mark[s] = 1;
+	for (i = 0; i < n; i++)
+		parent[i] = -2;
+	parent[s] = -1;
+	order[cnt++] = s;
 	for (;;)
 	{
-		if (++steps > 3 * n)
-			return -1;
-		nx = o[cur].ob_head;
-		if (nx != -1)
+		/* entering cur */
+		h = o[cur].ob_head;
+		tl = o[cur].ob_tail;
+		if (h < -1 || h >= n || tl < -1 || tl >= n)
+			return RSC_WALK_ERANGE;
+		if ((h == -1) != (tl == -1))
+			return RSC_WALK_ECHAIN;
+		if (h != -1)
 		{
-			if (nx < 0 || nx >= n || mark[nx])
-				return -1;
-			mark[nx] = 1;
-			cur = nx;
+			if (parent[h] != -2)
+				return RSC_WALK_ESHARED;
+			parent[h] = cur;
+			order[cnt++] = cur = h;
 			continue;
 		}
+		/* leaving cur: on to its next sibling, or back up */
 		for (;;)
 		{
 			if (cur == s)
-				return 0;
-			if (++steps > 3 * n)
-				return -1;
+				return cnt;
 			nx = o[cur].ob_next;
-			if (nx < 0 || nx >= n)
-				return -1;
-			if (o[nx].ob_tail == cur)
+			if (nx < -1 || nx >= n)
+				return RSC_WALK_ERANGE;
+			if (nx == -1)
+				return RSC_WALK_ECHAIN;	/* a child must lead on */
+			if (nx == parent[cur])
 			{
-				if (!mark[nx])
-					return -1;
-				cur = nx;	/* back up to the parent */
+				if (o[nx].ob_tail != cur)
+					return RSC_WALK_ECHAIN;	/* back at the parent before its ob_tail */
+				cur = nx;
 				continue;
 			}
-			if (mark[nx])
-				return -1;
-			mark[nx] = 1;
-			cur = nx;		/* on to the next sibling */
+			if (o[parent[cur]].ob_tail == cur)
+				return RSC_WALK_ECHAIN;	/* the parent's ob_tail is not its last child */
+			if (parent[nx] != -2)
+				return RSC_WALK_ESHARED;
+			parent[nx] = parent[cur];
+			order[cnt++] = cur = nx;
 			break;
 		}
 	}
+}
+
+int rsc_tree_preorder(const OBJECT *objs, int n, int *order)
+{
+	int	*scratch, cnt;
+
+	if (!objs || n < 1 || n > RSC_MAX_OBJECTS)
+		return RSC_WALK_EARG;
+	scratch = rsc_malloc((size_t)n * 2 * sizeof *scratch);
+	if (!scratch)
+		return RSC_WALK_ENOMEM;
+	cnt = walk_tree(objs, n, 0, order ? order : scratch + n, scratch);
+	rsc_mfree(scratch);
+	return cnt;
 }
 
 int rsc_obj_delete(struct rsc *r, int t, int i)
 {
 	struct rsc_tree	*tr = tree_at(r, t);
 	OBJECT	*o;
-	unsigned char	*mark;
-	int	n, parent, prev = -1, k, steps;
+	int	*scratch, *order, *parents;
+	int	n, parent, prev = -1, k, cnt, steps;
 
 	if (!tr || i <= 0 || i >= tr->nobj)
 		return -1;
 	o = tr->obj;
 	n = tr->nobj;
 	parent = find_parent(o, n, i);
+	if (parent == -2)
+		return -1;
 	if (parent >= 0 && o[parent].ob_head != i)
 	{
 		/* the sibling before i */
@@ -601,13 +642,15 @@ int rsc_obj_delete(struct rsc *r, int t, int i)
 			return -1;
 		prev = k;
 	}
-	mark = rsc_malloc((size_t)n);
-	if (!mark)
+	scratch = rsc_malloc((size_t)n * 2 * sizeof *scratch);
+	if (!scratch)
 		return -1;
-	memset(mark, 0, (size_t)n);
-	if (mark_subtree(o, n, i, mark) || (parent >= 0 && mark[parent]))
+	order = scratch;
+	parents = scratch + n;
+	cnt = walk_tree(o, n, i, order, parents);
+	if (cnt < 0 || (parent >= 0 && parents[parent] != -2))
 	{
-		rsc_mfree(mark);
+		rsc_mfree(scratch);
 		return -1;
 	}
 	/* nothing fails from here on */
@@ -627,18 +670,79 @@ int rsc_obj_delete(struct rsc *r, int t, int i)
 				o[parent].ob_tail = (short)prev;
 		}
 	}
+	for (k = 0; k < cnt; k++)
+	{
+		OBJECT	*d = &o[order[k]];
+
+		spec_release(d);
+		d->ob_next = d->ob_head = d->ob_tail = -1;
+		d->ob_type = G_IBOX;
+		d->ob_flags &= OF_LASTOB;
+		d->ob_state = 0;
+	}
+	rsc_mfree(scratch);
+	return 0;
+}
+
+/* link l of an object remapped through newidx (-1 for none) */
+static short remap(int l, int n, const int *newidx)
+{
+	return (short)(l < 0 || l >= n ? -1 : newidx[l]);
+}
+
+int rsc_tree_compact(struct rsc *r, int t, int *map)
+{
+	struct rsc_tree	*tr = tree_at(r, t);
+	OBJECT	*o, *no;
+	int	*scratch, *newidx, *parents;
+	int	n, cnt, k, m = 0;
+
+	if (!tr)
+		return RSC_WALK_EARG;
+	o = tr->obj;
+	n = tr->nobj;
+	scratch = rsc_malloc((size_t)n * 2 * sizeof *scratch);
+	if (!scratch)
+		return RSC_WALK_ENOMEM;
+	newidx = scratch;
+	parents = scratch + n;
+	cnt = walk_tree(o, n, 0, newidx, parents);
+	if (cnt < 0)
+	{
+		rsc_mfree(scratch);
+		return cnt;
+	}
+	no = rsc_malloc((size_t)cnt * sizeof *no);
+	if (!no)
+	{
+		rsc_mfree(scratch);
+		return RSC_WALK_ENOMEM;
+	}
+	/* nothing fails from here on: the reachable objects keep their order */
+	for (k = 0; k < n; k++)
+		newidx[k] = parents[k] != -2 ? m++ : -1;
 	for (k = 0; k < n; k++)
 	{
-		if (!mark[k])
+		if (newidx[k] < 0)
+		{
+			spec_release(&o[k]);
 			continue;
-		spec_release(&o[k]);
-		o[k].ob_next = o[k].ob_head = o[k].ob_tail = -1;
-		o[k].ob_type = G_IBOX;
-		o[k].ob_flags &= OF_LASTOB;
-		o[k].ob_state = 0;
+		}
+		no[newidx[k]] = o[k];
+		no[newidx[k]].ob_next = remap(o[k].ob_next, n, newidx);
+		no[newidx[k]].ob_head = remap(o[k].ob_head, n, newidx);
+		no[newidx[k]].ob_tail = remap(o[k].ob_tail, n, newidx);
+		no[newidx[k]].ob_flags &= ~OF_LASTOB;
 	}
-	rsc_mfree(mark);
-	return 0;
+	no[0].ob_next = -1;
+	no[cnt - 1].ob_flags |= OF_LASTOB;
+	if (map)
+		memcpy(map, newidx, (size_t)n * sizeof *map);
+	rsc_mfree(o);
+	tr->obj = no;
+	tr->nobj = cnt;
+	rsc_mfree(scratch);
+	return cnt;
 }
 
 int rsc_obj_set_type(struct rsc *r, int t, int i, unsigned type)
@@ -647,7 +751,7 @@ int rsc_obj_set_type(struct rsc *r, int t, int i, unsigned type)
 
 	if (!o)
 		return -1;
-	if (rsc_spec_kind(o->ob_type) != rsc_spec_kind(type))
+	if (!(o->ob_flags & OF_INDIRECT) && rsc_spec_kind(o->ob_type) != rsc_spec_kind(type))
 		spec_release(o);
 	o->ob_type = (unsigned short)type;
 	return 0;
@@ -659,6 +763,8 @@ int rsc_obj_set_flags(struct rsc *r, int t, int i, unsigned flags)
 
 	if (!o)
 		return -1;
+	if ((flags ^ o->ob_flags) & OF_INDIRECT && rsc_spec_kind(o->ob_type) != RSC_SPEC_VALUE)
+		spec_release(o);	/* the kind changes: owned pointer <-> opaque value */
 	o->ob_flags = (unsigned short)((flags & ~(unsigned)OF_LASTOB) | (o->ob_flags & OF_LASTOB));
 	return 0;
 }
@@ -691,7 +797,7 @@ static OBJECT *obj_kind(const struct rsc *r, int t, int i, enum rsc_spec_kind k)
 {
 	OBJECT	*o = obj_at(r, t, i);
 
-	return o && rsc_spec_kind(o->ob_type) == k ? o : NULL;
+	return o && rsc_obj_spec_kind(o) == k ? o : NULL;
 }
 
 int rsc_obj_set_value(struct rsc *r, int t, int i, uint32_t value)
@@ -712,6 +818,16 @@ uint32_t rsc_obj_value(const struct rsc *r, int t, int i)
 	return o ? (uint32_t)o->ob_spec.index : 0;
 }
 
+int rsc_obj_get_value(const struct rsc *r, int t, int i, uint32_t *out)
+{
+	OBJECT	*o = obj_kind(r, t, i, RSC_SPEC_VALUE);
+
+	if (!o)
+		return -1;
+	*out = (uint32_t)o->ob_spec.index;
+	return 0;
+}
+
 int rsc_obj_set_str(struct rsc *r, int t, int i, enum rsc_str_field f, const char *s)
 {
 	OBJECT	*o = obj_at(r, t, i);
@@ -721,7 +837,7 @@ int rsc_obj_set_str(struct rsc *r, int t, int i, enum rsc_str_field f, const cha
 
 	if (!o)
 		return -1;
-	k = rsc_spec_kind(o->ob_type);
+	k = rsc_obj_spec_kind(o);
 	te = k == RSC_SPEC_TEDINFO ? o->ob_spec.tedinfo : NULL;
 	switch (f)
 	{
@@ -810,6 +926,88 @@ struct rsc_cicon *rsc_obj_cicon(const struct rsc *r, int t, int i)
 	return o ? (struct rsc_cicon *)o->ob_spec.ciconblk : NULL;
 }
 
+/* ---- resizing image data ------------------------------------------------- */
+
+/* *data (oh rows of orow bytes, may be NULL) := a block of nh rows of nrow
+ * bytes holding the top left of the old one, zero-filled; NULL stays NULL.
+ * The new block goes to *out; *data is not touched.  Returns 0 or -1. */
+static int resize_plane(const void *data, size_t orow, size_t oh, size_t nrow, size_t nh, void *out)
+{
+	unsigned char	*p = NULL;
+	size_t	y, w = orow < nrow ? orow : nrow;
+
+	if (data)
+	{
+		p = rsc_malloc(nrow * nh);
+		if (!p)
+			return -1;
+		memset(p, 0, nrow * nh);
+		for (y = 0; y < oh && y < nh; y++)
+			memcpy(p + y * nrow, (const unsigned char *)data + y * orow, w);
+	}
+	memcpy(out, &p, sizeof p);
+	return 0;
+}
+
+static size_t icon_row(int w)
+{
+	return rsc_plane_bytes(w, 1);
+}
+
+static int resize_bitblk(BITBLK *bb, int wb, int hl)
+{
+	short	*nd;
+
+	if (!bb || wb < 0 || hl < 0 || wb > 32767 || hl > 32767)
+		return -1;
+	if (resize_plane(bb->bi_pdata, bb->bi_wb < 0 ? 0 : (size_t)bb->bi_wb,
+			 bb->bi_hl < 0 ? 0 : (size_t)bb->bi_hl, (size_t)wb, (size_t)hl, &nd))
+		return -1;
+	rsc_mfree(bb->bi_pdata);
+	bb->bi_pdata = nd;
+	bb->bi_wb = (short)wb;
+	bb->bi_hl = (short)hl;
+	return 0;
+}
+
+int rsc_obj_resize_icon(struct rsc *r, int t, int i, int w, int h)
+{
+	OBJECT	*o = obj_kind(r, t, i, RSC_SPEC_ICONBLK);
+	ICONBLK	*ib = o ? o->ob_spec.iconblk : NULL;
+	short	*nm, *nd;
+	size_t	oh;
+
+	if (!ib || w < 0 || h < 0 || w > 32767 || h > 32767)
+		return -1;
+	oh = ib->ib_hicon < 0 ? 0 : (size_t)ib->ib_hicon;
+	if (resize_plane(ib->ib_pmask, icon_row(ib->ib_wicon), oh, icon_row(w), (size_t)h, &nm))
+		return -1;
+	if (resize_plane(ib->ib_pdata, icon_row(ib->ib_wicon), oh, icon_row(w), (size_t)h, &nd))
+	{
+		rsc_mfree(nm);
+		return -1;
+	}
+	rsc_mfree(ib->ib_pmask);
+	rsc_mfree(ib->ib_pdata);
+	ib->ib_pmask = nm;
+	ib->ib_pdata = nd;
+	ib->ib_wicon = (short)w;
+	ib->ib_hicon = (short)h;
+	return 0;
+}
+
+int rsc_obj_resize_bitblk(struct rsc *r, int t, int i, int wb, int hl)
+{
+	OBJECT	*o = obj_kind(r, t, i, RSC_SPEC_BITBLK);
+
+	return o ? resize_bitblk(o->ob_spec.bitblk, wb, hl) : -1;
+}
+
+int rsc_frimg_resize(struct rsc *r, int k, int wb, int hl)
+{
+	return resize_bitblk(rsc_frimg(r, k), wb, hl);
+}
+
 /* ---- colour versions ------------------------------------------------------ */
 
 int rsc_cicon_nversions(const struct rsc_cicon *c)
@@ -842,7 +1040,7 @@ int rsc_cicon_add_version(struct rsc_cicon *c, int planes,
 	size_t	pb = rsc_plane_bytes(c->blk.monoblk.ib_wicon, c->blk.monoblk.ib_hicon);
 	int	n = 0;
 
-	if (planes < 1 || planes > 16 || !col_data || !col_mask || !sel_data != !sel_mask)
+	if (planes < 1 || planes > RSC_MAX_PLANES || !col_data || !col_mask || !sel_data != !sel_mask)
 		return -1;
 	v = rsc_malloc(sizeof *v);
 	if (!v)
