@@ -26,7 +26,10 @@ enum rsc_errcode
 	RSC_ELINK,		/* an object link is out of range */
 	RSC_ECYCLE,		/* the links of a tree form a cycle */
 	RSC_ECICON,		/* a colour icon block or its table is bad */
-	RSC_ETOOBIG		/* the data does not fit the format (16-bit offsets, counts) */
+	RSC_ETOOBIG		/* the data does not fit the format (16-bit offsets, counts),
+				 * or, reading, the decoded model would exceed the budget
+				 * of 4 * len + 65536 bytes (allocations charged at their
+				 * size plus a small cost each; see rscatari_read.c) */
 };
 
 /* What went wrong and where: offset is the position in the file (reader)
