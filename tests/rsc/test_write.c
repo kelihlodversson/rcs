@@ -2144,7 +2144,7 @@ static void test_fuzz(void)
 	uint8_t	*o;
 	size_t	len;
 	long	live;
-	int	k, bad = 0, ncicon = 0, refused = 0, cw;
+	int	k, bad = 0, ncicon = 0, refused = 0, forced = 0, force, cw;
 	unsigned	maxobj = 0;
 	size_t	bytes = 0;
 
@@ -2158,6 +2158,15 @@ static void test_fuzz(void)
 		cw = k & 1 ? 8 : 0;
 		geom_t = geom_i = -1;
 		edit(r);
+		/* every 97th edit at 8x16 also widens a root one past the range,
+		 * so the refusal is tested whatever the random edits do */
+		force = k % 194 == 1 && geom_t < 0 && rsc_ntrees(r) > 0;
+		if (force)
+		{
+			CHECK(rsc_obj_set_geom(r, 0, 0, 0, 0, 2169, 16) == 0);
+			geom_t = geom_i = 0;
+			forced++;
+		}
 		live = rsc_test_live_blocks();
 		if (wr(r, cw, cw * 2, &o, &len, &e))
 		{
@@ -2173,6 +2182,12 @@ static void test_fuzz(void)
 			fprintf(stderr, "fuzz %d: write failed: %s\n", k, e.msg);
 			bad++;
 			continue;
+		}
+		if (force)
+		{
+			/* a root is always reachable: the write had to refuse it */
+			fprintf(stderr, "fuzz %d: the widened root was written\n", k);
+			bad++;
 		}
 		if (geom_t >= 0)
 		{
@@ -2202,9 +2217,10 @@ static void test_fuzz(void)
 		rsc_free(r2);
 		rsc_mfree(o);
 	}
-	CHECK(bad == 0 && k == 5000 && refused > 0);
+	CHECK(bad == 0 && k == 5000 && forced > 0 && refused >= forced);
 	printf("  fuzz: %d edits (half at 8x16) written and read back, %zu bytes, up to %u objects, "
-	       "%d with colour icons, %d coordinates refused\n", k, bytes, maxobj, ncicon, refused);
+	       "%d with colour icons, %d coordinates refused (%d forced)\n", k, bytes, maxobj, ncicon,
+	       refused, forced);
 	rsc_free(m[0]);
 	rsc_free(m[1]);
 }
