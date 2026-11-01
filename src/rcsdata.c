@@ -1055,11 +1055,7 @@ void tally_obj(long tree, short obj)
 #ifndef RCS_HOST
 raddr rcs_alloc(unsigned long bytes)
 {
-	void *p = malloc(bytes);
-
-	if (p)
-		memset(p, 0, bytes);
-	return (raddr)p;
+	return (raddr)malloc(bytes);
 }
 
 void rcs_release(raddr a)

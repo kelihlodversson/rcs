@@ -21,9 +21,10 @@ arena, because a pointer does not fit in the 4 bytes the file image gives it.
 
 ## The arena
 
-`rcs_alloc(bytes)` returns an `raddr` of zeroed memory (0 when there is no room)
-and `rcs_release(a)` gives it back. On m68k and ARM `rcs_alloc` is `malloc`
-plus `memset` and `rcs_release` is `free` (`src/rcsdata.c`); on the host (`src/host/hostmem.c`) the arena is one reserved 1 GB region, blocks
+`rcs_alloc(bytes)` returns an `raddr` of memory (0 when there is no room; zeroed on the host only, so
+never rely on that)
+and `rcs_release(a)` gives it back. On m68k and ARM `rcs_alloc` is plain `malloc`
+(the memory is not cleared, as before) and `rcs_release` is `free` (`src/rcsdata.c`); on the host (`src/host/hostmem.c`) the arena is one reserved 1 GB region, blocks
 are 8-aligned, offset 0 is never handed out (it means "none"), and
 `rcs_release` does nothing. Allocate RCS data with these, never with `malloc`.
 
