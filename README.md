@@ -79,12 +79,23 @@ GUI are not part of it. On a 64-bit host addresses of resource data are 32-bit
 offsets into the arena; `docs/addresses.md` explains the rules for editing the
 sources. `rcs-cli`, a command line tool on top of this, is the next stage.
 
-On m68k and ARM the code is meant to be unchanged by all of this:
+On m68k and ARM the code is meant to behave as before.
 `tests/roundtrip/cmp-objs.sh BASE_DIR NEW_DIR [OBJDUMP]` compares the objects
 of a baseline build with those of the current tree and requires the
 disassembly of every function that existed before to be identical (and the
-data sections). The guarantee is checked by building a baseline and comparing;
-after a change the comparison has to be run again for both targets.
+data sections), with three exceptions that differ on purpose: `rcs_init` and
+`rcs_exit` (`src/rcsinit.c`) and `read_files` (`src/rcsread.c`) call
+`rcs_alloc`/`rcs_release` where they called `malloc`/`free`. The new function
+`rcs_alloc` itself is plain `malloc` on m68k and ARM. The comparison has to be
+run for both targets after a change. It was last run on the final tree for ARM
+only (identical apart from the above); the m68k comparison was not re-run on
+the final tree because the m68k toolchain was unavailable at the time.
+
+`make host-test` compares only the `.rsc` output with the golden files. The
+`.DFN` and `.H` files that the host run writes to `build/host` are not
+compared, and the golden files of `rcs` and `rcslow` were made with a `.dfn`
+file while the host run has none (the `.rsc` is equal anyway). So the reading
+and writing of `.DFN` files is not tested on the host.
 
 ## State of the port
 
