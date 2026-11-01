@@ -793,7 +793,10 @@ static int prepare(struct wr *w)
 }
 
 /* The classic part is too big: the offset of the first item that ends
- * beyond it, found by a walk with the real positions. */
+ * beyond it, found by a walk with the real positions.  There always is
+ * one: the strings, the images, the tables and records of the walk and the
+ * two pads cover the classic part from offset 36 without a gap, so
+ * whatever holds offset 65535 ends beyond it. */
 static int too_big(struct wr *w)
 {
 	size_t	strend = HDR_SIZE + w->size[S_STR];
@@ -806,8 +809,6 @@ static int too_big(struct wr *w)
 		w->beyond = strend;
 	if (w->ncicon && (w->classic & 1) && w->classic >= CLASSIC_MAX && w->classic < w->beyond)
 		w->beyond = w->classic;
-	if (w->beyond == (size_t)-1)
-		w->beyond = CLASSIC_MAX + 1;
 	return fail(w, RSC_ETOOBIG, w->beyond, "classic part exceeds 65535 bytes");
 }
 

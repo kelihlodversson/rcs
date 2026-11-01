@@ -1010,6 +1010,25 @@ static void test_limits(void)
 	CHECK(wr(r, 0, 0, &o, &len, &e) == 0 && o && hw(o, H_RSSIZE) == 65534);
 	rsc_mfree(o);
 	rsc_free(r);
+	/* strings alone (no trees): strings ending at 65535 need the pad there */
+	r = sized(65498, 0);
+	CHECK(rsc_tree_delete(r, 0) == 0);
+	EXPECT_FAIL(r, 0, 0, RSC_ETOOBIG, 65535);
+	rsc_free(r);
+	r = sized(65494, 0);			/* strings end at 65531: pad, table at 65532 */
+	CHECK(rsc_tree_delete(r, 0) == 0);
+	EXPECT_FAIL(r, 0, 0, RSC_ETOOBIG, 65532);
+	rsc_free(r);
+	r = sized(65495, 0);			/* strings end at 65532: 65536 bytes */
+	CHECK(rsc_tree_delete(r, 0) == 0);
+	EXPECT_FAIL(r, 0, 0, RSC_ETOOBIG, 65532);
+	rsc_free(r);
+	r = sized(65493, 0);			/* strings end at 65530: 65534 bytes */
+	CHECK(rsc_tree_delete(r, 0) == 0);
+	CHECK(wr(r, 0, 0, &o, &len, &e) == 0 && len == 65534 && o && o[65528] == 'x' && o[65529] == 0
+	      && rd32(o, 65530) == 36);
+	rsc_mfree(o);
+	rsc_free(r);
 	/* counts above 65535: free strings, objects */
 	r = rsc_new();
 	rsc_tree_add(r, 1);
@@ -1081,9 +1100,62 @@ static void test_errors(void)
 	ob[0].ob_tail = 1;
 	EXPECT_FAIL(r, 0, 0, RSC_ELINK, 0);
 	ob[0].ob_tail = 2;
-	CHECK(wr(r, 0, 0, &o, &len, &e) == 0);
+	/* the root's ob_next is not taken from the model */
+	ob[0].ob_next = 5;
+	CHECK(wr(r, 0, 0, &o, &len, &e) == 0 && o && rd16(o, hw(o, H_OBJECT)) == 0xffff);
 	rsc_mfree(o);
 	rsc_free(r);
+}
+
+/* Negative icon and image sizes are refused at each of the four places,
+ * and not looked at in an object no root reaches. */
+static void test_negative(void)
+{
+	struct rsc	*r;
+	struct rsc_error	e;
+	uint8_t	*o;
+	size_t	len;
+	ICONBLK	ib;
+	BITBLK	bb = { NULL, -2, 3, 0, 0, 1 };
+	OBJECT	*ob;
+	int	site, k;
+
+	memset(&ib, 0, sizeof ib);
+	for (site = 0; site < 4; site++)
+	{
+		r = rsc_new();
+		rsc_tree_add(r, 1);
+		k = rsc_obj_add(r, 0, 0, site == 0 ? G_ICON : site == 3 ? G_CICON : G_IMAGE);
+		ib.ib_wicon = 16;
+		ib.ib_hicon = -1;
+		switch (site)
+		{
+		case 0:
+			CHECK(rsc_obj_set_iconblk(r, 0, k, &ib) == 0);
+			break;
+		case 1:
+			CHECK(rsc_obj_set_bitblk(r, 0, k, &bb) == 0);
+			break;
+		case 2:
+			CHECK(rsc_frimg_add(r, &bb) == 0);
+			break;
+		case 3:
+			CHECK(rsc_obj_set_cicon(r, 0, k, &ib, "neg") == 0);
+			break;
+		}
+		EXPECT_FAIL(r, 0, 0, RSC_EARG, 0);
+		CHECK(wr(r, 0, 0, &o, &len, &e) == -1 && strstr(e.msg, "negative")
+		      && strstr(e.msg, site == 2 ? "free image 0" : "object 1"));
+		if (site != 2)
+		{
+			/* unreachable: the root no longer has the child */
+			ob = rsc_tree_objects(r, 0, NULL);
+			ob[0].ob_head = ob[0].ob_tail = -1;
+			CHECK(wr(r, 0, 0, &o, &len, &e) == 0 && o && hw(o, H_NOBS) == 1);
+			rsc_mfree(o);
+		}
+		rsc_free(r);
+	}
 }
 
 /* Pixel coordinates the file form cannot hold. */
@@ -1411,10 +1483,22 @@ static void test_cicons(void)
 	EXPECT_FAIL(r, 0, 0, RSC_ECICON, 0);
 	v->c.num_planes = RSC_MAX_PLANES + 1;
 	EXPECT_FAIL(r, 0, 0, RSC_ECICON, 0);
+	CHECK(rsc_cicon_add_version(c, RSC_MAX_PLANES + 1, pat, pat, NULL, NULL) == -1);
 	v->c.num_planes = 3;
 	v->c.next_res = &v->c;
 	EXPECT_FAIL(r, 0, 0, RSC_ECICON, 0);
 	v->c.next_res = NULL;
+	/* exactly RSC_MAX_PLANES planes, with selected planes */
+	CHECK(rsc_cicon_add_version(c, RSC_MAX_PLANES, pat, pat + 1, pat + 2, pat + 3) == 1);
+	o = round_trip(r, &len);
+	if (o)
+	{
+		blk = rd32(o, hw(o, H_RSSIZE) + 12 + 2 * 4);		/* the third icon */
+		blk += 38 + 2 * 12 + 12 + 22 + 12 * 4;			/* its second version */
+		CHECK(rd16(o, blk) == RSC_MAX_PLANES && rd32(o, blk + 10) == 1);
+		CHECK(blk + 22 + 2 * 12 * (RSC_MAX_PLANES + 1) == len);
+	}
+	rsc_mfree(o);
 	rsc_free(r);
 	/* more than 254 colour icons (the old limit) */
 	r = rsc_new();
@@ -1729,6 +1813,7 @@ int main(int argc, char **argv)
 	test_null_data();
 	test_limits();
 	test_errors();
+	test_negative();
 	test_coords();
 	test_coord_brute();
 	test_coord_files();
