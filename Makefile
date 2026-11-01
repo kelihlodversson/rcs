@@ -197,27 +197,29 @@ build/host/roundtrip: $(HOST_SRC) $(wildcard src/*.h src/host/*.h src/host/mint/
 
 # ---- the resource library on the host ---------------------------------------
 #
-#   make rsc-test            build tests/rsc/test_rsc.c with the library and run it
+#   make rsc-test            build the tests of tests/rsc with the library and run them
 #   make rsc-test RSC_SAN=1  the same with AddressSanitizer and UBSan
 #
 # The library defines the AES structures itself on the host (RSC_HOST); it
-# does not use src/host.
+# does not use src/host.  Each test program is one file of tests/rsc; the
+# reader tests read the files of tests/golden.
 
 RSC_SAN        =
-RSC_TEST_SRC   = $(RSC_LIB_SRC) tests/rsc/test_rsc.c
+RSC_TESTS      = test_rsc test_read
 RSC_TEST_FLAGS = -std=gnu99 -fno-strict-aliasing -Wall -Wextra -DRSC_HOST -DRSC_TEST \
                  -Isrc/rsc -g
 ifeq ($(RSC_SAN),1)
 RSC_TEST_FLAGS += -fsanitize=address,undefined -fno-sanitize-recover=undefined
-RSC_TEST_BIN    = build/host/rsc/test_rsc-san
+RSC_TEST_SUFFIX = -san
 else
-RSC_TEST_BIN    = build/host/rsc/test_rsc
+RSC_TEST_SUFFIX =
 endif
+RSC_TEST_BINS  = $(patsubst %,build/host/rsc/%$(RSC_TEST_SUFFIX),$(RSC_TESTS))
 
 .PHONY: rsc-test
-rsc-test: $(RSC_TEST_BIN)
-	./$(RSC_TEST_BIN)
+rsc-test: $(RSC_TEST_BINS)
+	@set -e; for t in $(RSC_TEST_BINS); do echo "./$$t"; ./$$t; done
 
-$(RSC_TEST_BIN): $(RSC_TEST_SRC) $(RSC_LIB_H)
+build/host/rsc/%$(RSC_TEST_SUFFIX): tests/rsc/%.c $(RSC_LIB_SRC) $(RSC_LIB_H)
 	@mkdir -p $(dir $@)
-	$(HOST_CC) $(RSC_TEST_FLAGS) -o $@ $(RSC_TEST_SRC)
+	$(HOST_CC) $(RSC_TEST_FLAGS) -o $@ $(RSC_LIB_SRC) $<
