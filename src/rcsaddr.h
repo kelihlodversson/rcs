@@ -16,4 +16,18 @@ extern unsigned char *rcs_base;
 extern raddr rcs_alloc(unsigned long bytes);
 extern void rcs_release(raddr a);
 
+/* an address held in a table entry or a record field, 4 bytes in the file
+ * image: a long on m68k and ARM, so that nothing changes there */
+#ifdef RCS_HOST
+typedef unsigned int rentry;
+#else
+typedef long rentry;
+#endif
+#define RS_ENTRY	((short)sizeof(rentry))
+
+/* the rentry at an address, and the same read back as a signed long, so
+ * that the -1 which means "none" stays -1 on the host */
+#define RFIELD(a)	(*(rentry *)RP(a))
+#define RGET(a)		((long)(int)RFIELD(a))
+
 #endif

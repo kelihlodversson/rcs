@@ -13,6 +13,7 @@
 #include "rcsdefs.h"
 #include "rcsvdi.h"
 #include "rcslib.h"
+#include "rcsaddr.h"
 
 extern	MFDB	gl_dst;
 
@@ -221,10 +222,10 @@ void text_wh(long taddr, short type, short *w, short *h)
 {
 	short	font;
 
-	font = (*(short *)(TE_FONT(taddr)));
-	taddr = (*(long *)((type == G_TEXT || type == G_BOXTEXT)? TE_PTEXT(taddr): TE_PTMPLT(taddr)));
+	font = (*(short *)RP(TE_FONT(taddr)));
+	taddr = (RGET((type == G_TEXT || type == G_BOXTEXT)? TE_PTEXT(taddr): TE_PTMPLT(taddr)));
 	*h = ch_height(font);
-	*w = ch_width(font) * (short)strlen((char *)(taddr));
+	*w = ch_width(font) * (short)strlen((char *)RP(taddr));
 }
 
 void icon_wh(long taddr, short *w, short *h)
@@ -232,7 +233,7 @@ void icon_wh(long taddr, short *w, short *h)
 	ICONBLK	here;
 	GRECT	p;
 
-	memmove((void *)(((long)(&here))), (void *)(taddr), sizeof(ICONBLK));
+	memmove((void *)(((long)(&here))), (void *)RP(taddr), sizeof(ICONBLK));
 	rc_copy((GRECT *) &here.ib_xchar, &p);
 	rc_union((GRECT *) &here.ib_xicon, &p);
 	rc_union((GRECT *) &here.ib_xtext, &p);
@@ -244,9 +245,9 @@ void icon_tfix(long taddr)
 {
 	short	dw;
 
-	dw = ((*(short *)(IB_WICON(taddr))) - (*(short *)(IB_WTEXT(taddr)))) / 2;
-	(*(short *)(IB_XICON(taddr)) = ((dw<0)? -dw: 0));
-	(*(short *)(IB_XTEXT(taddr)) = ((dw<0)? 0: dw));
+	dw = ((*(short *)RP(IB_WICON(taddr))) - (*(short *)RP(IB_WTEXT(taddr)))) / 2;
+	(*(short *)RP(IB_XICON(taddr)) = ((dw<0)? -dw: 0));
+	(*(short *)RP(IB_XTEXT(taddr)) = ((dw<0)? 0: dw));
 }
 
 void trans_bitblk(long obspec)
@@ -254,10 +255,10 @@ void trans_bitblk(long obspec)
 	long	taddr;
 	short	wb, hl;
 
-	if ( (taddr = (*(long *)(BI_PDATA(obspec)))) != -1L)
+	if ( (taddr = (RGET(BI_PDATA(obspec)))) != -1L)
 	{
-		wb = (*(short *)(BI_WB(obspec)));
-		hl = (*(short *)(BI_HL(obspec)));
+		wb = (*(short *)RP(BI_WB(obspec)));
+		hl = (*(short *)RP(BI_HL(obspec)));
 		gsx_trans(taddr, wb, taddr, wb, hl);
 	}
 }
@@ -311,10 +312,10 @@ void invert_obj(long tree, short obj, GRECT *clprect)
 	graf_mouse(M_ON, NULL);
 	if (iconedit_flag)
 	{
-		if ((*(short *)(OB_STATE(obj))) == SELECTED)
-		    (*(short *)(OB_STATE(obj)) = (NORMAL));
+		if ((*(short *)RP(OB_STATE(obj))) == SELECTED)
+		    (*(short *)RP(OB_STATE(obj)) = (NORMAL));
 		else
-		    (*(short *)(OB_STATE(obj)) = (SELECTED));
+		    (*(short *)RP(OB_STATE(obj)) = (SELECTED));
 	}
 }
 
@@ -332,11 +333,11 @@ void trans_obj(long tree, short obj)
 				trans_bitblk(obspec);
 				break;
 			case G_ICON:
-				hl = (*(short *)(IB_HICON(obspec)));
-				wb = ((*(short *)(IB_WICON(obspec))) + 7) >> 3;
-				if ( (taddr = (*(long *)(IB_PDATA(obspec)))) != -1L)
+				hl = (*(short *)RP(IB_HICON(obspec)));
+				wb = ((*(short *)RP(IB_WICON(obspec))) + 7) >> 3;
+				if ( (taddr = (RGET(IB_PDATA(obspec)))) != -1L)
 					gsx_trans(taddr, wb, taddr, wb, hl);
-				if ( (taddr = (*(long *)(IB_PMASK(obspec)))) != -1L)
+				if ( (taddr = (RGET(IB_PMASK(obspec)))) != -1L)
 					gsx_trans(taddr, wb, taddr, wb, hl);
 				break;
 			default:
@@ -349,10 +350,10 @@ void unfix_chpos(long where, short x_or_y)
 {
 	short	cpos, coff, cbits;
 
-	cpos = (*(short *)(where));
+	cpos = (*(short *)RP(where));
 	coff = cpos / (x_or_y? gl_hchar: gl_wchar);
 	cbits = cpos % (x_or_y? gl_hchar: gl_wchar);
-	(*(short *)(where) = (coff | (cbits << 8)));
+	(*(short *)RP(where) = (coff | (cbits << 8)));
 }
 
 static void fix_chpos(long pfix, short ifx)
@@ -360,7 +361,7 @@ static void fix_chpos(long pfix, short ifx)
 	short	coffset;
 	short	cpos;
 
-	cpos = (*(short *)(pfix));
+	cpos = (*(short *)RP(pfix));
 	coffset = (short) (((cpos) >> 8) & 0xff) & 0xff;	/* Alcyon bug ! */
 	cpos = (short) ((cpos) & 0xff) & 0xff;
 	if (ifx)
@@ -371,7 +372,7 @@ static void fix_chpos(long pfix, short ifx)
 		cpos -= (256 - coffset);
 	else
 		cpos += coffset;
-	(*(short *)(pfix) = (cpos));
+	(*(short *)RP(pfix) = (cpos));
 }
 
 void rs_obfix(long tree, short curob)
@@ -487,19 +488,19 @@ void unsble_obj(long tree, short which)
 
 void objc_xywh(long tree, short obj, GRECT *p)
 {
-	objc_offset((OBJECT  *)tree, obj, &p->g_x, &p->g_y);
+	objc_offset((OBJECT  *)RP(tree), obj, &p->g_x, &p->g_y);
 	p->g_w = GET_WIDTH(tree, obj);
 	p->g_h = GET_HEIGHT(tree, obj);
 }
 
 void ob_setxywh(long tree, short obj, GRECT *pt)
 {
-	memmove((void *)(OB_X(obj)), (void *)(((long)(pt))), 2 * (sizeof(GRECT)/2));
+	memmove((void *)RP(OB_X(obj)), (void *)(((long)(pt))), 2 * (sizeof(GRECT)/2));
 }
 
 void ob_relxywh(long tree, short obj, GRECT *pt)
 {
-	memmove((void *)(((long)(pt))), (void *)(OB_X(obj)), 2 * (sizeof(GRECT)/2));
+	memmove((void *)(((long)(pt))), (void *)RP(OB_X(obj)), 2 * (sizeof(GRECT)/2));
 }
 
 short min(short a, short b)
@@ -523,8 +524,8 @@ void LLSTRCPY(long src, long dest)
 	char	b;
 
 	do {
-		b = (*(char *)(src++));
-		(*(char *)(dest++) = (b));
+		b = (*(char *)RP(src++));
+		(*(char *)RP(dest++) = (b));
 	} while (b);
 }
 
@@ -532,27 +533,27 @@ short LLSTRCMP(long l1, long l2)
 {
 	char	b;
 
-	b = (*(char *)(l1++));
+	b = (*(char *)RP(l1++));
 	while (b)
 	{
-		if (b != (*(char *)(l2++)))
+		if (b != (*(char *)RP(l2++)))
 			return (false);
 		else
-			b = (*(char *)(l1++));
+			b = (*(char *)RP(l1++));
 	}
-	return (!(*(char *)(l2)));
+	return (!(*(char *)RP(l2)));
 }
 
 void LWINC(long x)
 {
-	(*(short *)(x) = (1 + (*(short *)(x))));
+	(*(short *)RP(x) = (1 + (*(short *)RP(x))));
 }
 
 short dmcopy(FILE *stream, long msrc, long mdest, long mln)	/* disk to memory copy */
 {
 	if (fseek(stream, msrc, SEEK_SET))
 		return( 0 );
-	else if ( fread( (void *)mdest, 1, mln, stream) < (size_t)mln)
+	else if ( fread( (void *)RP(mdest), 1, mln, stream) < (size_t)mln)
 		return( 0 );
 	else
 		return(mln != 0);
@@ -565,112 +566,112 @@ static long obj_addr(long tree, short obj, short offset)
 
 short GET_NEXT(long tree, short x)
 {
-	return (*(short *)(obj_addr(tree, x, 0)));
+	return (*(short *)RP(obj_addr(tree, x, 0)));
 }
 
 short GET_HEAD(long tree, short x)
 {
-	return (*(short *)(obj_addr(tree, x, 2)));
+	return (*(short *)RP(obj_addr(tree, x, 2)));
 }
 
 short GET_TAIL(long tree, short x)
 {
-	return (*(short *)(obj_addr(tree, x, 4)));
+	return (*(short *)RP(obj_addr(tree, x, 4)));
 }
 
 short GET_TYPE(long tree, short x)
 {
-	return (*(short *)(obj_addr(tree, x, 6)));
+	return (*(short *)RP(obj_addr(tree, x, 6)));
 }
 
 short GET_FLAGS(long tree, short x)
 {
-	return (*(short *)(obj_addr(tree, x, 8)));
+	return (*(short *)RP(obj_addr(tree, x, 8)));
 }
 
 short GET_STATE(long tree, short x)
 {
-	return (*(short *)(obj_addr(tree, x, 10)));
+	return (*(short *)RP(obj_addr(tree, x, 10)));
 }
 
 long GET_SPEC(long tree, short x)
 {
-	return (*(long *)(obj_addr(tree, x, 12)));
+	return (RGET(obj_addr(tree, x, 12)));
 }
 
 short GET_X(long tree, short x)
 {
-	return (*(short *)(obj_addr(tree, x, 16)));
+	return (*(short *)RP(obj_addr(tree, x, 16)));
 }
 
 short GET_Y(long tree, short x)
 {
-	return (*(short *)(obj_addr(tree, x, 18)));
+	return (*(short *)RP(obj_addr(tree, x, 18)));
 }
 
 short GET_WIDTH(long tree, short x)
 {
-	return (*(short *)(obj_addr(tree, x, 20)));
+	return (*(short *)RP(obj_addr(tree, x, 20)));
 }
 
 short GET_HEIGHT(long tree, short x)
 {
-	return (*(short *)(obj_addr(tree, x, 22)));
+	return (*(short *)RP(obj_addr(tree, x, 22)));
 }
 
 void SET_NEXT(long tree, short x, short val)
 {
-	(*(short *)(obj_addr(tree, x, 0)) = (val));
+	(*(short *)RP(obj_addr(tree, x, 0)) = (val));
 }
 
 void SET_HEAD(long tree, short x, short val)
 {
-	(*(short *)(obj_addr(tree, x, 2)) = (val));
+	(*(short *)RP(obj_addr(tree, x, 2)) = (val));
 }
 
 void SET_TAIL(long tree, short x, short val)
 {
-	(*(short *)(obj_addr(tree, x, 4)) = (val));
+	(*(short *)RP(obj_addr(tree, x, 4)) = (val));
 }
 
 static void SET_TYPE(long tree, short x, short val)
 {
-	(*(short *)(obj_addr(tree, x, 6)) = (val));
+	(*(short *)RP(obj_addr(tree, x, 6)) = (val));
 }
 
 void SET_FLAGS(long tree, short x, short val)
 {
-	(*(short *)(obj_addr(tree, x, 8)) = (val));
+	(*(short *)RP(obj_addr(tree, x, 8)) = (val));
 }
 
 void SET_STATE(long tree, short x, short val)
 {
-	(*(short *)(obj_addr(tree, x, 10)) = (val));
+	(*(short *)RP(obj_addr(tree, x, 10)) = (val));
 }
 
 void SET_SPEC(long tree, short x, long val)
 {
-	(*(long *)(obj_addr(tree, x, 12)) = (val));
+	(RFIELD(obj_addr(tree, x, 12)) = (val));
 }
 
 void SET_X(long tree, short x, short val)
 {
-	(*(short *)(obj_addr(tree, x, 16)) = (val));
+	(*(short *)RP(obj_addr(tree, x, 16)) = (val));
 }
 
 void SET_Y(long tree, short x, short val)
 {
-	(*(short *)(obj_addr(tree, x, 18)) = (val));
+	(*(short *)RP(obj_addr(tree, x, 18)) = (val));
 }
 
 void SET_WIDTH(long tree, short x, short val)
 {
-	(*(short *)(obj_addr(tree, x, 20)) = (val));
+	(*(short *)RP(obj_addr(tree, x, 20)) = (val));
 }
 
 void SET_HEIGHT(long tree, short x, short val)
 {
-	(*(short *)(obj_addr(tree, x, 22)) = (val));
+	(*(short *)RP(obj_addr(tree, x, 22)) = (val));
 }
 
 /* the GRECT helpers that the original build took from RCLIB.LIB; gemlib has
