@@ -21,12 +21,12 @@ int main(int argc, char **argv)
         fprintf(stderr, "file names are limited to 70 characters\n");
         return 2;
     }
-    /* the program's own resource, as the Atari program loads RCS.RSC: the
-     * goldens were made at a character height of 16, so this is the one */
+    /* the program's own resource, as the Atari program loads RCS.RSC (src/atari/rcs.rsc;
+     * the goldens were made with it, at a character height of 16) */
     {
         const char *own = getenv("RCS_OWN_RSC");
 
-        if (!rsrc_load(own ? own : "tests/golden/rcs.rsc")) {
+        if (!rsrc_load(own ? own : "src/atari/rcs.rsc")) {
             fprintf(stderr, "cannot load the program's resource\n");
             return 2;
         }
