@@ -1889,10 +1889,20 @@ static const short *rdata(void)
 /* the object an edit gave a coordinate without file form, or -1 */
 static int geom_t = -1, geom_i = -1;
 
+/*
+ * One random edit.  Every draw of the generator is a statement of its own:
+ * C leaves the order of function arguments, of initialisers and of the
+ * operands of most operators unspecified, and gcc and clang do pick
+ * different orders, so two draws in one expression would make the fuzz
+ * depend on the compiler.
+ */
 static void edit(struct rsc *r)
 {
 	char	b1[32], b2[32], b3[32];
 	int	nt = rsc_ntrees(r), t = (int)rnd((unsigned)nt), n = 0, i, cw, ch;
+	unsigned	v1, v2, v3, v4;
+	const char	*s1, *s2, *s3;
+	const short	*d1, *d2;
 	struct rsc_cicon	*c;
 
 	rsc_cell(r, &cw, &ch);
@@ -1917,7 +1927,11 @@ static void edit(struct rsc *r)
 		break;
 	case 5:
 		if (nt)
-			rsc_obj_set_flags(r, t, i, rnd(0x10000) & (rnd(3) ? ~(unsigned)OF_INDIRECT : 0xffff));
+		{
+			v1 = rnd(0x10000);
+			v2 = rnd(3);
+			rsc_obj_set_flags(r, t, i, v1 & (v2 ? ~(unsigned)OF_INDIRECT : 0xffff));
+		}
 		break;
 	case 6:
 		if (nt)
@@ -1925,16 +1939,24 @@ static void edit(struct rsc *r)
 		break;
 	case 7:
 		if (nt && !cw)
-			rsc_obj_set_geom(r, t, i, (short)rnd(0x10000), (short)rnd(0x10000),
-					 (short)rnd(0x10000), (short)rnd(0x10000));
+		{
+			v1 = rnd(0x10000);
+			v2 = rnd(0x10000);
+			v3 = rnd(0x10000);
+			v4 = rnd(0x10000);
+			rsc_obj_set_geom(r, t, i, (short)v1, (short)v2, (short)v3, (short)v4);
+		}
 		else if (nt)
 		{
 			/* at 8x16 the reader's range is -127 .. 2168 and 4208;
 			 * now and then one past it */
-			int	bad = rnd(40) == 0;
+			int	bad = rnd(40) == 0, x, y, w, h;
 
-			if (rsc_obj_set_geom(r, t, i, (int)rnd(2296) - 127, (int)rnd(4336) - 127,
-					     bad ? 2169 : (int)rnd(2296) - 127, (int)rnd(4336) - 127) == 0 && bad)
+			x = (int)rnd(2296) - 127;
+			y = (int)rnd(4336) - 127;
+			w = bad ? 2169 : (int)rnd(2296) - 127;
+			h = (int)rnd(4336) - 127;
+			if (rsc_obj_set_geom(r, t, i, x, y, w, h) == 0 && bad)
 			{
 				geom_t = t;
 				geom_i = i;
@@ -1943,7 +1965,10 @@ static void edit(struct rsc *r)
 		break;
 	case 8:
 		if (nt)
-			rsc_obj_set_str(r, t, i, (enum rsc_str_field)rnd(5), rstr(b1));
+		{
+			v1 = rnd(5);
+			rsc_obj_set_str(r, t, i, (enum rsc_str_field)v1, rstr(b1));
+		}
 		break;
 	case 9:
 		if (nt)
@@ -1951,7 +1976,12 @@ static void edit(struct rsc *r)
 			if (rnd(5) == 0)
 				rsc_obj_set_tedinfo(r, t, i, NULL);
 			else
-				set_tedinfo(r, t, i, rstr(b1), rstr(b2), rstr(b3));
+			{
+				s1 = rstr(b1);
+				s2 = rstr(b2);
+				s3 = rstr(b3);
+				set_tedinfo(r, t, i, s1, s2, s3);
+			}
 		}
 		break;
 	case 10:
@@ -1972,8 +2002,18 @@ static void edit(struct rsc *r)
 	case 11:
 		if (nt)
 		{
-			BITBLK	bb = { (short *)rdata(), (short)rnd(9), (short)rnd(9), 1, 2, (short)rnd(16) };
+			BITBLK	bb;
 
+			d1 = rdata();
+			v1 = rnd(9);
+			v2 = rnd(9);
+			v3 = rnd(16);
+			bb.bi_pdata = (short *)d1;
+			bb.bi_wb = (short)v1;
+			bb.bi_hl = (short)v2;
+			bb.bi_x = 1;
+			bb.bi_y = 2;
+			bb.bi_color = (short)v3;
 			rsc_obj_set_bitblk(r, t, i, rnd(5) ? &bb : NULL);
 		}
 		break;
@@ -1987,7 +2027,9 @@ static void edit(struct rsc *r)
 			ib.ib_hicon = (short)rnd(10);
 			ib.ib_pmask = (short *)rdata();
 			ib.ib_pdata = (short *)rdata();
-			rsc_obj_set_cicon(r, t, i, rnd(5) ? &ib : NULL, rnd(2) ? "cicon" : NULL);
+			v1 = rnd(5);
+			v2 = rnd(2);
+			rsc_obj_set_cicon(r, t, i, v1 ? &ib : NULL, v2 ? "cicon" : NULL);
 		}
 		break;
 	case 13:
@@ -1995,12 +2037,18 @@ static void edit(struct rsc *r)
 		{
 			if (rnd(3))
 			{
-				int	v = rsc_cicon_add_version(c, 1 + (int)rnd(RSC_MAX_PLANES), pat + rnd(100),
-								  pat + rnd(100), rnd(2) ? pat : NULL, NULL);
+				int	v;
 
+				v1 = rnd(RSC_MAX_PLANES);
+				d1 = pat + rnd(100);
+				d2 = pat + rnd(100);
+				v2 = rnd(2);
+				v = rsc_cicon_add_version(c, 1 + (int)v1, d1, d2, v2 ? pat : NULL, NULL);
 				if (v < 0)
 					rsc_cicon_add_version(c, 1 + (int)rnd(8), pat, pat, pat, pat);
-				c->file_head[rnd(3)] = (uint32_t)rnd(0x10000) * 0x10001U;
+				v1 = rnd(3);
+				v2 = rnd(0x10000);
+				c->file_head[v1] = (uint32_t)v2 * 0x10001U;
 			}
 			else
 				rsc_cicon_remove_version(c, (int)rnd(3));
@@ -2017,14 +2065,28 @@ static void edit(struct rsc *r)
 	case 15:
 		if (rnd(3) || rsc_nfrimg(r) == 0)
 		{
-			BITBLK	bb = { (short *)rdata(), (short)rnd(7), (short)rnd(7), 0, 0, 1 };
+			BITBLK	bb;
 
+			d1 = rdata();
+			v1 = rnd(7);
+			v2 = rnd(7);
+			bb.bi_pdata = (short *)d1;
+			bb.bi_wb = (short)v1;
+			bb.bi_hl = (short)v2;
+			bb.bi_x = 0;
+			bb.bi_y = 0;
+			bb.bi_color = 1;
 			rsc_frimg_add(r, &bb);
 		}
 		else if (rnd(2))
 			rsc_frimg_delete(r, (int)rnd((unsigned)rsc_nfrimg(r)));
 		else
-			rsc_frimg_resize(r, (int)rnd((unsigned)rsc_nfrimg(r)), (int)rnd(7), (int)rnd(7));
+		{
+			v1 = rnd((unsigned)rsc_nfrimg(r));
+			v2 = rnd(7);
+			v3 = rnd(7);
+			rsc_frimg_resize(r, (int)v1, (int)v2, (int)v3);
+		}
 		break;
 	case 16:
 		if (nt < 6 && rnd(2))
@@ -2034,19 +2096,35 @@ static void edit(struct rsc *r)
 		break;
 	case 17:
 		if (nt)
-			rsc_obj_set_value(r, t, i, (uint32_t)rnd(0x10000) << 16 | rnd(0x10000));
+		{
+			v1 = rnd(0x10000);
+			v2 = rnd(0x10000);
+			rsc_obj_set_value(r, t, i, (uint32_t)v1 << 16 | v2);
+		}
 		break;
 	case 18:
 		if (nt && rnd(2))
-			rsc_obj_resize_icon(r, t, i, (int)rnd(50), (int)rnd(12));
+		{
+			v1 = rnd(50);
+			v2 = rnd(12);
+			rsc_obj_resize_icon(r, t, i, (int)v1, (int)v2);
+		}
 		else if (nt)
-			rsc_obj_resize_bitblk(r, t, i, (int)rnd(9), (int)rnd(9));
+		{
+			v1 = rnd(9);
+			v2 = rnd(9);
+			rsc_obj_resize_bitblk(r, t, i, (int)v1, (int)v2);
+		}
 		break;
 	case 19:
 		if (nt && rnd(2))
 			rsc_tree_compact(r, t, NULL);
 		else
-			rsc_set_vrsn(r, rnd(0x10000) & ~(rnd(2) ? 2u : 1u));	/* not 3: RSXHDR */
+		{
+			v1 = rnd(0x10000);
+			v2 = rnd(2);
+			rsc_set_vrsn(r, v1 & ~(v2 ? 2u : 1u));	/* not 3: RSXHDR */
+		}
 		break;
 	}
 }
