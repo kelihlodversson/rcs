@@ -111,7 +111,8 @@ issue #29).
     gmake rsc-test
     gmake rsc-test RSC_SAN=1
 
-`RSC_SAN=1` adds AddressSanitizer and UBSan. `docs/resource-model.md` describes
+`RSC_SAN=1` adds AddressSanitizer and UBSan; CI runs both, and `make host-test`,
+on every pull request. `docs/resource-model.md` describes
 the model, the ownership rules and the limits.
 
 ## State of the port
