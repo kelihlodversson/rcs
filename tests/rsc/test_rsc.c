@@ -541,7 +541,53 @@ static void test_strings(void)
 	CHECK_STR(o[2].ob_spec.tedinfo->te_ptmplt, "____");
 	CHECK_STR(o[2].ob_spec.tedinfo->te_pvalid, "XXXX");
 	CHECK(rsc_obj_set_str(r, 0, 2, RSC_STR_SPEC, "x") == -1);
+	/* te_txtlen and te_tmplen follow the strings: strlen + 1, 0 for NULL */
+	CHECK(o[2].ob_spec.tedinfo->te_txtlen == 5 && o[2].ob_spec.tedinfo->te_tmplen == 5);
+	CHECK(rsc_obj_set_str(r, 0, 2, RSC_STR_TE_TEXT, "a longer text") == 0);
+	CHECK(o[2].ob_spec.tedinfo->te_txtlen == 14 && o[2].ob_spec.tedinfo->te_tmplen == 5);
+	CHECK(rsc_obj_set_str(r, 0, 2, RSC_STR_TE_TMPLT, "") == 0);
+	CHECK(o[2].ob_spec.tedinfo->te_tmplen == 1);
+	CHECK(rsc_obj_set_str(r, 0, 2, RSC_STR_TE_TMPLT, NULL) == 0);
+	CHECK(o[2].ob_spec.tedinfo->te_tmplen == 0 && o[2].ob_spec.tedinfo->te_ptmplt == NULL);
+	CHECK(rsc_obj_set_str(r, 0, 2, RSC_STR_TE_VALID, "a valid string") == 0);
+	CHECK(o[2].ob_spec.tedinfo->te_txtlen == 14 && o[2].ob_spec.tedinfo->te_tmplen == 0);
+	/* 32766 characters fit the short, 32767 do not: the model is unchanged */
+	{
+		char	*big = malloc(32768);
+
+		memset(big, 'q', 32767);
+		big[32767] = '\0';
+		live = rsc_test_live_blocks();
+		CHECK(rsc_obj_set_str(r, 0, 2, RSC_STR_TE_TEXT, big) == -1);
+		CHECK(rsc_obj_set_str(r, 0, 2, RSC_STR_TE_TMPLT, big) == -1);
+		CHECK(rsc_test_live_blocks() == live);
+		CHECK_STR(o[2].ob_spec.tedinfo->te_ptext, "a longer text");
+		CHECK(o[2].ob_spec.tedinfo->te_txtlen == 14 && o[2].ob_spec.tedinfo->te_tmplen == 0);
+		te.te_ptext = big;
+		CHECK(rsc_obj_set_tedinfo(r, 0, 2, &te) == -1);
+		te.te_ptext = NULL;
+		te.te_ptmplt = big;
+		CHECK(rsc_obj_set_tedinfo(r, 0, 2, &te) == -1);
+		te.te_ptmplt = NULL;
+		CHECK(rsc_test_live_blocks() == live);
+		big[32766] = '\0';
+		CHECK(rsc_obj_set_str(r, 0, 2, RSC_STR_TE_TEXT, big) == 0);
+		CHECK(rsc_obj_set_str(r, 0, 2, RSC_STR_TE_TMPLT, big) == 0);
+		CHECK(o[2].ob_spec.tedinfo->te_txtlen == 32767 && o[2].ob_spec.tedinfo->te_tmplen == 32767);
+		free(big);
+	}
+	/* rsc_obj_set_tedinfo recomputes them for non-NULL strings and keeps
+	 * them for NULL ones */
+	te.te_ptext = "abc";
+	te.te_ptmplt = NULL;
+	te.te_txtlen = 99;
+	te.te_tmplen = 42;
+	CHECK(rsc_obj_set_tedinfo(r, 0, 2, &te) == 0);
+	CHECK(o[2].ob_spec.tedinfo->te_txtlen == 4 && o[2].ob_spec.tedinfo->te_tmplen == 42);
+	te.te_txtlen = te.te_tmplen = 0;
 	/* replacing the record frees the old one with its strings */
+	CHECK(rsc_obj_set_str(r, 0, 2, RSC_STR_TE_TMPLT, "____") == 0);
+	CHECK(rsc_obj_set_str(r, 0, 2, RSC_STR_TE_VALID, "XXXX") == 0);
 	live = rsc_test_live_blocks();
 	te.te_ptext = "new";
 	CHECK(rsc_obj_set_tedinfo(r, 0, 2, &te) == 0);

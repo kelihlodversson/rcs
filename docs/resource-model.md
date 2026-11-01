@@ -232,6 +232,12 @@ negative ICONBLK and BITBLK sizes (`RSC_EOFFSET`); a cell size above 127
 specs being decoded, so a bad spec there does not fail the read. The reader
 sets the root's `ob_next` to -1, drops NULL entries of the free tables and
 sets `te_txtlen` and `te_tmplen` to `strlen + 1`, as the old reader did.
+The model keeps them so: `rsc_obj_set_str` sets them to `strlen + 1` of the
+new text or template (0 for NULL) and `rsc_obj_set_tedinfo` recomputes them
+for non-NULL strings (keeping the given values for NULL ones, as the reader
+keeps the file's); both refuse a string of 32767 characters or more. So a
+model built through the API is a fixed point: writing, reading and writing
+again gives the same bytes.
 
 ## The writer
 
@@ -243,6 +249,10 @@ Trees go in index order and objects in preorder, renumbered, with `OF_LASTOB`
 only on the last object of each tree. Strings are never shared: a string used
 twice is written twice. A NULL string is written as `0xFFFFFFFF`; NULL image
 data is a blank image and is written as zero words behind a real pointer.
+`te_txtlen` and `te_tmplen` are written as stored; a `te_ptext` or
+`te_ptmplt` of 32767 characters or more (which only a caller breaking the
+contract can store) is `RSC_ETOOBIG` at the TEDINFO, since the reader would
+refuse it.
 
 The classic part may not exceed 65535 bytes (16-bit offsets): that is
 `RSC_ETOOBIG` at the offset of the first item that ends beyond it, not a

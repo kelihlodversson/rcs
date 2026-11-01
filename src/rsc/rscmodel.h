@@ -446,7 +446,10 @@ enum rsc_str_field
 /* Replaces one string of an object with a copy of s (NULL: no string),
  * freeing the old one.  The record (TEDINFO, ICONBLK, colour icon) must
  * exist.  For a colour icon s is copied into its text and must have at most
- * 12 characters (NULL clears it).  Returns 0 or -1. */
+ * 12 characters (NULL clears it).  RSC_STR_TE_TEXT and RSC_STR_TE_TMPLT also
+ * set te_txtlen or te_tmplen to strlen(s) + 1, as the old editor did (0
+ * for NULL), and fail for a string of 32767 characters or more (the length
+ * is a short; the reader refuses such a file).  Returns 0 or -1. */
 int rsc_obj_set_str(struct rsc *r, int t, int i, enum rsc_str_field f, const char *s);
 
 /* Replace the record of an object with a copy of *src (NULL src: no
@@ -454,8 +457,11 @@ int rsc_obj_set_str(struct rsc *r, int t, int i, enum rsc_str_field f, const cha
  * spec.  The pointer fields of src are sources, copied too (each may be
  * NULL):
  *  - TEDINFO: te_ptext, te_ptmplt, te_pvalid, copied as strings; the other
- *    fields (te_font, te_just, te_color, te_thickness, te_txtlen, ...) as
- *    they are (the writer decides about te_txtlen and te_tmplen);
+ *    fields (te_font, te_just, te_color, te_thickness, ...) as they are,
+ *    except that te_txtlen and te_tmplen become strlen + 1 of a non-NULL
+ *    te_ptext and te_ptmplt (as the reader and rsc_obj_set_str make them;
+ *    kept as given for a NULL string); a text or template of 32767
+ *    characters or more fails.  The writer writes the stored values;
  *  - ICONBLK: ib_pmask and ib_pdata, rsc_plane_bytes(ib_wicon, ib_hicon)
  *    bytes each; ib_ptext as a string;
  *  - BITBLK: bi_pdata, rsc_bitblk_bytes(src) bytes.

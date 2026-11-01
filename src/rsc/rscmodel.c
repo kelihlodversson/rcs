@@ -263,13 +263,32 @@ static void spec_release(OBJECT *o)
 	memset(&o->ob_spec, 0, sizeof o->ob_spec);
 }
 
+/* te_txtlen or te_tmplen for the string s: strlen + 1, or keep when s is
+ * NULL; -1 when that exceeds 32767 (the field is a short). */
+static int te_len(const char *s, short keep)
+{
+	size_t	n;
+
+	if (!s)
+		return keep;
+	n = strlen(s);
+	return n >= 32767 ? -1 : (int)n + 1;
+}
+
 static TEDINFO *copy_tedinfo(const TEDINFO *src)
 {
-	TEDINFO	*te = rsc_malloc(sizeof *te);
+	TEDINFO	*te;
+	int	txtlen = te_len(src->te_ptext, src->te_txtlen);
+	int	tmplen = te_len(src->te_ptmplt, src->te_tmplen);
 
+	if (txtlen < 0 || tmplen < 0)
+		return NULL;
+	te = rsc_malloc(sizeof *te);
 	if (!te)
 		return NULL;
 	*te = *src;
+	te->te_txtlen = (short)txtlen;
+	te->te_tmplen = (short)tmplen;
 	te->te_ptext = te->te_ptmplt = te->te_pvalid = NULL;
 	if (dup_str(&te->te_ptext, src->te_ptext) || dup_str(&te->te_ptmplt, src->te_ptmplt)
 	    || dup_str(&te->te_pvalid, src->te_pvalid))
@@ -834,7 +853,9 @@ int rsc_obj_set_str(struct rsc *r, int t, int i, enum rsc_str_field f, const cha
 	OBJECT	*o = obj_at(r, t, i);
 	enum rsc_spec_kind	k;
 	char	**slot = NULL, *copy;
+	short	*len = NULL;
 	TEDINFO	*te;
+	int	n = 0;
 
 	if (!o)
 		return -1;
@@ -848,11 +869,17 @@ int rsc_obj_set_str(struct rsc *r, int t, int i, enum rsc_str_field f, const cha
 		break;
 	case RSC_STR_TE_TEXT:
 		if (te)
+		{
 			slot = &te->te_ptext;
+			len = &te->te_txtlen;
+		}
 		break;
 	case RSC_STR_TE_TMPLT:
 		if (te)
+		{
 			slot = &te->te_ptmplt;
+			len = &te->te_tmplen;
+		}
 		break;
 	case RSC_STR_TE_VALID:
 		if (te)
@@ -865,10 +892,12 @@ int rsc_obj_set_str(struct rsc *r, int t, int i, enum rsc_str_field f, const cha
 			return set_cicon_text((struct rsc_cicon *)o->ob_spec.ciconblk, s);
 		break;
 	}
-	if (!slot || dup_str(&copy, s))
+	if (!slot || (len && (n = te_len(s, 0)) < 0) || dup_str(&copy, s))
 		return -1;
 	rsc_mfree(*slot);
 	*slot = copy;
+	if (len)
+		*len = (short)n;
 	return 0;
 }
 

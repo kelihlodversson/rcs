@@ -69,8 +69,11 @@
  *    the model allocated (written directly, against the contract of
  *    rscmodel.h) is refused (RSC_EARG) rather than read past its blocks;
  *    the size fields of an ICONBLK and a BITBLK have to be trusted.
- *  - te_txtlen and te_tmplen are written as the model has them (the reader
- *    recomputes them from the strings).
+ *  - te_txtlen and te_tmplen are written as the model has them (the model
+ *    keeps them at strlen + 1 of the strings, and the reader recomputes
+ *    them so).  A te_ptext or te_ptmplt of 32767 characters or more is
+ *    refused (RSC_ETOOBIG at the TEDINFO, the message naming the tree and
+ *    object): the reader would refuse the file.
  *  - Coordinates: with a cell size of 0, 0 they are written as they are
  *    (file form).  Otherwise they are converted back exactly as the
  *    reader converts them forward (fix_chpos: pixels = low byte * cell +
@@ -260,6 +263,25 @@ static int fail_in(struct wr *w, int code, const char *what, const char *where, 
 	return -1;
 }
 
+/* An error at offset at of the output that concerns object i of tree t:
+ * "what what2 (tree t, object i) at offset 0x...". */
+static int fail_obj(struct wr *w, int code, size_t at, const char *what, const char *what2,
+		    int t, int i)
+{
+	char	m[sizeof w->err->msg];
+	size_t	n = 0;
+
+	m[0] = '\0';
+	app(m, &n, what);
+	app(m, &n, what2);
+	app(m, &n, " (tree ");
+	app_num(m, &n, (size_t)t, 0);
+	app(m, &n, ", object ");
+	app_num(m, &n, (size_t)i, 0);
+	app(m, &n, ")");
+	return fail(w, code, at, m);
+}
+
 static int nomem(struct wr *w)
 {
 	return fail(w, RSC_ENOMEM, 0, "out of memory");
@@ -365,7 +387,8 @@ static int put_str(struct wr *w, const char *s, uint32_t *off)
 
 /* ---- records ---------------------------------------------------------------- */
 
-static int put_tedinfo(struct wr *w, const TEDINFO *te, uint32_t *spec)
+/* The TEDINFO te of object i of tree t; *spec := its offset. */
+static int put_tedinfo(struct wr *w, int t, int i, const TEDINFO *te, uint32_t *spec)
 {
 	uint32_t	p[3];
 	size_t	at;
@@ -373,6 +396,12 @@ static int put_tedinfo(struct wr *w, const TEDINFO *te, uint32_t *spec)
 	if (put_str(w, te->te_ptext, &p[0]) || put_str(w, te->te_ptmplt, &p[1])
 	    || put_str(w, te->te_pvalid, &p[2]) || adv(w, S_TED, TED_SIZE, &at))
 		return -1;
+	/* the reader refuses these (te_txtlen and te_tmplen are shorts); the
+	 * writing pass knows the real offset */
+	if (w->mode == W_EMIT && te->te_ptext && strlen(te->te_ptext) >= 32767)
+		return fail_obj(w, RSC_ETOOBIG, at, "TEDINFO text too long", "", t, i);
+	if (w->mode == W_EMIT && te->te_ptmplt && strlen(te->te_ptmplt) >= 32767)
+		return fail_obj(w, RSC_ETOOBIG, at, "TEDINFO template too long", "", t, i);
 	put32(w, at, p[0]);
 	put32(w, at + 4, p[1]);
 	put32(w, at + 8, p[2]);
@@ -579,17 +608,7 @@ int rsc_test_coord_to_file(int v, int cell, unsigned *word)
  * file form. */
 static int bad_coord(struct wr *w, size_t at, const char *f, int t, int i)
 {
-	char	m[sizeof w->err->msg];
-	size_t	n = 0;
-
-	m[0] = '\0';
-	app(m, &n, f);
-	app(m, &n, " out of range (tree ");
-	app_num(m, &n, (size_t)t, 0);
-	app(m, &n, ", object ");
-	app_num(m, &n, (size_t)i, 0);
-	app(m, &n, ")");
-	return fail(w, RSC_ETOOBIG, at, m);
+	return fail_obj(w, RSC_ETOOBIG, at, f, " out of range", t, i);
 }
 
 /* A link of the current tree (n objects) renumbered; -1 when it points to
@@ -626,7 +645,7 @@ static int put_object(struct wr *w, int t, const OBJECT *objs, int n, int i, int
 		break;
 	case RSC_SPEC_TEDINFO:
 		if (o->ob_spec.tedinfo)
-			rc = put_tedinfo(w, o->ob_spec.tedinfo, &spec);
+			rc = put_tedinfo(w, t, i, o->ob_spec.tedinfo, &spec);
 		break;
 	case RSC_SPEC_ICONBLK:
 		if (o->ob_spec.iconblk)

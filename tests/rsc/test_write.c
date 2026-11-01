@@ -151,8 +151,8 @@ static struct rsc *rd(const uint8_t *b, size_t len, int cw, int ch, struct rsc_e
 }
 
 /* The bytes o of a written model read back and written again give the same
- * bytes (the reader normalises te_txtlen and te_tmplen, so a model is only
- * guaranteed to be a fixed point once it has been read). */
+ * bytes (the model keeps te_txtlen and te_tmplen as the reader makes them,
+ * so this holds for a model built through the API too). */
 static int fixed_point(const char *what, const uint8_t *o, size_t len, int cw, int ch)
 {
 	struct rsc_error	e;
@@ -813,8 +813,10 @@ static void test_sample(void)
 	CHECK(rd32(o, cb + 16) == (uint32_t)k + 22 + 2 * 4 * 3);
 	CHECK((size_t)rd32(o, cb + 16) + 38 + 2 * 4 + 12 == len);
 	/* read back: the same content, and the same bytes again */
-	/* te_txtlen and te_tmplen as the model has them */
-	CHECK(rd16(o, hw(o, H_TEDINFO) + 24) == 77 && rd16(o, hw(o, H_TEDINFO) + 26) == 88);
+	/* te_txtlen and te_tmplen as the model has them: strlen + 1 of the
+	 * strings, as given (77, 88) for NULL strings (tree 1) */
+	CHECK(rd16(o, hw(o, H_TEDINFO) + 24) == 6 && rd16(o, hw(o, H_TEDINFO) + 26) == 11);
+	CHECK(rd16(o, hw(o, H_TEDINFO) + 28 + 24) == 77 && rd16(o, hw(o, H_TEDINFO) + 28 + 26) == 88);
 	r2 = rd(o, len, 0, 0, &e);
 	CHECK(r2 && same_model(r, r2));
 	CHECK(r2 && wr(r2, 0, 0, &o2, &len2, &e) == 0);
@@ -956,6 +958,82 @@ static struct rsc *sized(size_t n, int odd)
 		CHECK(rsc_frimg_add(r, &bb) == 0);
 	free(s);
 	return r;
+}
+
+/* TEDINFO strings: models built with rsc_obj_set_str are fixed points
+ * (write, read, write gives the same bytes), te_txtlen and te_tmplen
+ * following the strings; a text or template of 32767 characters (which
+ * only a caller breaking the contract can store) is refused by the writer,
+ * since the reader would refuse it. */
+static void test_tedinfo_lengths(void)
+{
+	static const size_t	lens[] = { 0, 1, 2, 7, 100, 1000, 20000, 32766 };
+	char	*s = malloc(32768), *t = malloc(32768);
+	struct rsc_error	e;
+	struct rsc	*r;
+	TEDINFO	te, *tp;
+	uint8_t	*o;
+	size_t	len, k;
+	int	i;
+
+	memset(s, 'a', 32767);
+	memset(t, '_', 32767);
+	for (k = 0; k < sizeof lens / sizeof lens[0]; k++)
+	{
+		r = rsc_new();
+		rsc_tree_add(r, 1);
+		memset(&te, 0, sizeof te);
+		te.te_txtlen = 5;		/* stale: replaced below */
+		te.te_tmplen = 9;
+		i = rsc_obj_add(r, 0, 0, G_FTEXT);
+		CHECK(rsc_obj_set_tedinfo(r, 0, i, &te) == 0);
+		s[lens[k]] = '\0';
+		t[lens[(k + 3) % 8] / 2] = '\0';
+		CHECK(rsc_obj_set_str(r, 0, i, RSC_STR_TE_TEXT, s) == 0);
+		CHECK(rsc_obj_set_str(r, 0, i, RSC_STR_TE_TMPLT, t) == 0);
+		CHECK(rsc_obj_set_str(r, 0, i, RSC_STR_TE_VALID, "X") == 0);
+		i = rsc_obj_add(r, 0, 0, G_TEXT);
+		CHECK(rsc_obj_set_tedinfo(r, 0, i, &te) == 0);
+		CHECK(rsc_obj_set_str(r, 0, i, RSC_STR_TE_TEXT, "short") == 0);
+		s[lens[k]] = 'a';
+		t[lens[(k + 3) % 8] / 2] = '_';
+		o = NULL;
+		CHECK(wr(r, 0, 0, &o, &len, &e) == 0);
+		if (!o)
+			fprintf(stderr, "tedinfo %zu: %s\n", lens[k], e.msg);
+		CHECK(o && rd16(o, hw(o, H_TEDINFO) + 24) == lens[k] + 1);
+		CHECK(o && rd16(o, hw(o, H_TEDINFO) + 26) == lens[(k + 3) % 8] / 2 + 1);
+		CHECK(o && rd16(o, hw(o, H_TEDINFO) + 28 + 24) == 6 && rd16(o, hw(o, H_TEDINFO) + 28 + 26) == 9);
+		CHECK(o && fixed_point("tedinfo lengths", o, len, 0, 0));
+		rsc_mfree(o);
+		rsc_free(r);
+	}
+	/* 32767 characters stored behind the model's back: refused at the
+	 * TEDINFO (after 36 + 32768 bytes of string), naming the object */
+	r = rsc_new();
+	rsc_tree_add(r, 1);
+	CHECK(rsc_obj_set_type(r, 0, 0, G_TEXT) == 0);
+	memset(&te, 0, sizeof te);
+	CHECK(rsc_obj_set_tedinfo(r, 0, 0, &te) == 0);
+	tp = rsc_tree_objects(r, 0, NULL)[0].ob_spec.tedinfo;
+	s[32767] = '\0';
+	tp->te_ptext = rsc_strdup(s);
+	EXPECT_FAIL(r, 0, 0, RSC_ETOOBIG, 36 + 32768);
+	CHECK(wr(r, 0, 0, &o, &len, &e) == -1 && strncmp(e.msg, "TEDINFO text too long (tree 0, object 0)", 40) == 0);
+	tp->te_ptmplt = tp->te_ptext;
+	tp->te_ptext = NULL;
+	EXPECT_FAIL(r, 0, 0, RSC_ETOOBIG, 36 + 32768);
+	CHECK(wr(r, 0, 0, &o, &len, &e) == -1 && strncmp(e.msg, "TEDINFO template too long", 25) == 0);
+	tp->te_ptmplt[32766] = '\0';		/* 32766: written, and read back */
+	tp->te_tmplen = 32767;
+	o = NULL;
+	CHECK(wr(r, 0, 0, &o, &len, &e) == 0);
+	CHECK(o && fixed_point("tedinfo 32766", o, len, 0, 0));
+	rsc_mfree(o);
+	rsc_free(r);
+	free(s);
+	free(t);
+	CHECK(rsc_test_live_blocks() == 0);
 }
 
 static void test_limits(void)
@@ -1770,8 +1848,8 @@ static void test_fuzz(void)
 {
 	struct rsc	*m[2], *r, *r2;
 	struct rsc_error	e;
-	uint8_t	*o, *o2;
-	size_t	len, len2;
+	uint8_t	*o;
+	size_t	len;
 	long	live;
 	int	k, bad = 0, ncicon = 0, refused = 0, cw;
 	unsigned	maxobj = 0;
@@ -1821,12 +1899,8 @@ static void test_fuzz(void)
 			fprintf(stderr, "fuzz %d: %s\n", k, r2 ? "content differs" : e.msg);
 			bad++;
 		}
-		else
-		{
-			if (wr(r2, cw, cw * 2, &o2, &len2, &e) || !fixed_point("fuzz rewrite", o2, len2, cw, cw * 2))
-				bad++;
-			rsc_mfree(o2);
-		}
+		else if (!fixed_point("fuzz rewrite", o, len, cw, cw * 2))
+			bad++;		/* write(read(write(m))) == write(m) for any edited m */
 		rsc_free(r2);
 		rsc_mfree(o);
 	}
@@ -1856,6 +1930,7 @@ int main(int argc, char **argv)
 	test_sample();
 	test_tree_order();
 	test_null_data();
+	test_tedinfo_lengths();
 	test_limits();
 	test_errors();
 	test_negative();
