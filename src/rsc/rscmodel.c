@@ -831,13 +831,6 @@ int rsc_obj_set_value(struct rsc *r, int t, int i, uint32_t value)
 	return 0;
 }
 
-uint32_t rsc_obj_value(const struct rsc *r, int t, int i)
-{
-	OBJECT	*o = obj_kind(r, t, i, RSC_SPEC_VALUE);
-
-	return o ? (uint32_t)o->ob_spec.index : 0;
-}
-
 int rsc_obj_get_value(const struct rsc *r, int t, int i, uint32_t *out)
 {
 	OBJECT	*o = obj_kind(r, t, i, RSC_SPEC_VALUE);

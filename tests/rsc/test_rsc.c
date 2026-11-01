@@ -84,6 +84,14 @@ static void fill(short *w, int n, int seed)
 		w[i] = (short)(seed * 1000 + i);
 }
 
+/* The plain spec value of object i, 0 when it has none. */
+static uint32_t value_of(struct rsc *r, int t, int i)
+{
+	uint32_t	v = 0;
+
+	return rsc_obj_get_value(r, t, i, &v) == 0 ? v : 0;
+}
+
 /* Builds a dialog with every kind of object, two free strings, a free image
  * and a colour icon with two versions.  Stops at the first failure and
  * returns -1; 0 when all went well. */
@@ -271,6 +279,7 @@ static void test_build_all(void)
 	BITBLK	*bb;
 	struct rsc_cicon	*c;
 	struct rsc_cicon_version	*v;
+	uint32_t	val;
 	int	n, i;
 
 	CHECK(build_all(r) == 0);
@@ -279,11 +288,11 @@ static void test_build_all(void)
 	CHECK(n == 14);
 	CHECK(tree_ok(r, 0));
 	CHECK_STR(walk(r, 0), "0 1 2 3 4 5 6 7 8 9 10 11 12 13");
-	CHECK(o[0].ob_type == G_BOX && rsc_obj_value(r, 0, 0) == 0x00021100UL);
+	CHECK(o[0].ob_type == G_BOX && value_of(r, 0, 0) == 0x00021100UL);
 	CHECK(o[0].ob_width == 40 && o[0].ob_height == 20);
 	CHECK(o[10].ob_head == 11 && o[10].ob_tail == 12 && o[12].ob_next == 10);
-	CHECK(rsc_obj_value(r, 0, 11) == 0x41001100UL);
-	CHECK(rsc_obj_value(r, 0, 1) == 0);	/* not a value kind */
+	CHECK(value_of(r, 0, 11) == 0x41001100UL);
+	CHECK(rsc_obj_get_value(r, 0, 1, &val) == -1);	/* not a value kind */
 	CHECK_STR(o[1].ob_spec.free_string, "A string");
 	CHECK_STR(o[2].ob_spec.free_string, "OK");
 	CHECK(o[2].ob_flags == (OF_SELECTABLE | OF_DEFAULT | OF_EXIT));
@@ -488,7 +497,7 @@ static void test_type_change(void)
 	CHECK(o[1].ob_spec.index == 0);
 	CHECK(rsc_obj_set_value(r, 0, 1, 0xfffe1173UL) == 0);
 	CHECK(rsc_obj_set_type(r, 0, 1, G_IBOX) == 0);		/* value kept */
-	CHECK(rsc_obj_value(r, 0, 1) == 0xfffe1173UL);
+	CHECK(value_of(r, 0, 1) == 0xfffe1173UL);
 	CHECK(rsc_obj_set_type(r, 0, 1, G_STRING) == 0);
 	CHECK(o[1].ob_spec.free_string == NULL);
 	CHECK(rsc_obj_set_str(r, 0, 1, RSC_STR_SPEC, "again") == 0);
@@ -1081,7 +1090,7 @@ static void test_indirect(void)
 	/* other flags and type changes keep the value */
 	CHECK(rsc_obj_set_flags(r, 0, 1, OF_INDIRECT) == 0);
 	CHECK(rsc_obj_set_type(r, 0, 1, G_STRING) == 0);
-	CHECK(rsc_obj_value(r, 0, 1) == 0x12345678UL);
+	CHECK(value_of(r, 0, 1) == 0x12345678UL);
 	CHECK(rsc_obj_set_str(r, 0, 1, RSC_STR_SPEC, "no") == -1);
 	/* clearing it empties the spec: the value is no pointer */
 	CHECK(rsc_obj_set_flags(r, 0, 1, 0) == 0);
@@ -1090,8 +1099,8 @@ static void test_indirect(void)
 	CHECK(rsc_obj_set_str(r, 0, 1, RSC_STR_SPEC, "yes") == 0);
 	/* a value-kind type is not affected by the flag */
 	CHECK(rsc_obj_set_type(r, 0, 1, G_BOX) == 0 && rsc_obj_set_value(r, 0, 1, 7) == 0);
-	CHECK(rsc_obj_set_flags(r, 0, 1, OF_INDIRECT) == 0 && rsc_obj_value(r, 0, 1) == 7);
-	CHECK(rsc_obj_set_flags(r, 0, 1, 0) == 0 && rsc_obj_value(r, 0, 1) == 7);
+	CHECK(rsc_obj_set_flags(r, 0, 1, OF_INDIRECT) == 0 && value_of(r, 0, 1) == 7);
+	CHECK(rsc_obj_set_flags(r, 0, 1, 0) == 0 && value_of(r, 0, 1) == 7);
 	CHECK(rsc_obj_get_value(r, 0, 2, &v) == -1);
 	/* an indirect object is freed without touching its value */
 	CHECK(rsc_obj_add(r, 0, 0, G_ICON) == 2);

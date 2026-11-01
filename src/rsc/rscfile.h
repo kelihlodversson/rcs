@@ -7,7 +7,9 @@
 #include <stdint.h>
 #include "rscmodel.h"
 
-/* The on-disk formats.  RSC_FORMAT_RSX (RSXHDR) is added in phase 3 of #29. */
+/* The on-disk formats.  Reserved: nothing takes or returns it yet; it is
+ * for phase 3 of #29, which adds RSC_FORMAT_RSX (RSXHDR) and the functions
+ * that choose between the formats. */
 enum rsc_format
 {
 	RSC_FORMAT_CLASSIC		/* Atari big-endian RSHDR, with the colour icon extension */
@@ -20,7 +22,9 @@ enum rsc_errcode
 	RSC_ENOMEM,		/* an allocation failed */
 	RSC_EARG,		/* a bad argument (NULL buffer, bad cell size, ...) */
 	RSC_ETRUNC,		/* the file ends before the data it describes */
-	RSC_EHEADER,		/* the header is inconsistent */
+	RSC_EHEADER,		/* reserved for phase 3 of #29 (an inconsistent
+				 * RSXHDR); the classic reader reports a bad
+				 * header field as RSC_EOFFSET or RSC_ETRUNC */
 	RSC_EOFFSET,		/* an offset or count points outside the file */
 	RSC_ESTRING,		/* a string has no NUL inside the file */
 	RSC_ELINK,		/* an object link is out of range */

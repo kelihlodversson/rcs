@@ -427,11 +427,9 @@ int rsc_obj_set_state(struct rsc *r, int t, int i, unsigned state);
 int rsc_obj_set_geom(struct rsc *r, int t, int i, int x, int y, int w, int h);
 
 /* RSC_SPEC_VALUE (rsc_obj_spec_kind): sets / reads the plain spec value.
- * rsc_obj_get_value returns 0, or -1 for a bad index or another kind;
- * rsc_obj_value is the lenient variant: 0 for those. */
+ * rsc_obj_get_value returns 0, or -1 for a bad index or another kind. */
 int rsc_obj_set_value(struct rsc *r, int t, int i, uint32_t value);
 int rsc_obj_get_value(const struct rsc *r, int t, int i, uint32_t *out);
-uint32_t rsc_obj_value(const struct rsc *r, int t, int i);
 
 /* The strings of an object, for rsc_obj_set_str. */
 enum rsc_str_field

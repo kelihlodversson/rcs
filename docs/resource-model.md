@@ -16,7 +16,7 @@ it yet: the objects are compiled for m68k and ARM but not linked into
 | File | Content |
 |---|---|
 | `src/rsc/rscmodel.h`, `rscmodel.c` | the types and the editing API of the model |
-| `src/rsc/rscfile.h` | the format selector, the error type and codes, `RSC_MAX_CELL` |
+| `src/rsc/rscfile.h` | the format selector (reserved for phase 3), the error type and codes, `RSC_MAX_CELL` |
 | `src/rsc/rscatari_read.c` | the reader of the classic Atari big-endian `.RSC` format |
 | `src/rsc/rscatari_write.c` | the writer of that format |
 | `tests/rsc/` | `test_rsc.c`, `test_read.c`, `test_write.c` |
@@ -203,7 +203,8 @@ NULL. The offset is a position in the file (reader) or in the output
 |---|---|
 | `RSC_ENOMEM` | an allocation failed |
 | `RSC_EARG` | bad argument: NULL buffer, bad or mismatched cell size, negative icon size (writer) |
-| `RSC_ETRUNC`, `RSC_EHEADER` | the file ends early; the header is inconsistent |
+| `RSC_ETRUNC` | the file ends early (a header field that points past it is `RSC_EOFFSET` or `RSC_ETRUNC`) |
+| `RSC_EHEADER` | reserved for the `RSXHDR` reader of phase 3; not returned yet |
 | `RSC_EOFFSET`, `RSC_ESTRING` | an offset or count is outside the file, negative record size; a string has no NUL in the file |
 | `RSC_ELINK`, `RSC_ECYCLE` | an object link is out of range, a root is listed twice; the links of a tree form a cycle |
 | `RSC_ECICON` | a colour icon block or its table is bad |
