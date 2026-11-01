@@ -172,6 +172,40 @@ static int fixed_point(const char *what, const uint8_t *o, size_t len, int cw, i
 	return ok;
 }
 
+/* The colour icon table of the written file o (when it has one) as the
+ * AES and EmuTOS read it (pTOS's aes/rsload_legacy.c): as many blocks as
+ * entries before the terminator, the first right after it, each next
+ * right after the previous, each as long as its own head says.  The
+ * writer's entries must be exactly those offsets (so that a loader that
+ * takes them as offsets, like pTOS's portable one, reads the same), and
+ * the last block must end the file, the length in the extension.  1 when
+ * all that holds. */
+static int sequential_table(const uint8_t *o, size_t len)
+{
+	size_t	ext = hw(o, H_RSSIZE), tab, n, k, pos, words;
+	uint32_t	nv, v;
+
+	if (!(hw(o, H_VRSN) & RSC_VRSN_FORMAT_BITS))
+		return 1;
+	if (ext + 12 > len || rd32(o, ext) != len)
+		return 0;
+	tab = rd32(o, ext + 4);
+	for (n = 0; tab + 4 * n + 4 <= len && rd32(o, tab + 4 * n) != FILE_NULL; n++)
+		;
+	pos = tab + 4 * n + 4;
+	for (k = 0; k < n; k++)
+	{
+		if (pos + 38 > len || rd32(o, tab + 4 * k) != pos)
+			return 0;
+		words = rsc_plane_bytes((short)rd16(o, pos + 22), (short)rd16(o, pos + 24)) / 2;
+		nv = rd32(o, pos + 34);
+		pos += 38 + 4 * words + 12;
+		for (v = 0; v < nv && pos + 22 <= len; v++)
+			pos += 22 + 2 * words * (rd16(o, pos) + 1) * (rd32(o, pos + 10) ? 2 : 1);
+	}
+	return pos == len;
+}
+
 /* ---- comparing models ------------------------------------------------------------ */
 
 static int why(const char *what, int t, int k)
@@ -687,6 +721,7 @@ static void test_golden(const char *name, int cw, int ch)
 	}
 	CHECK(wr(r, cw, ch, &o1, &l1, &e) == 0);
 	CHECK(o1 && same_bytes(what, o1, l1, g.b, g.len));
+	CHECK(o1 && sequential_table(o1, l1));
 	/* the model is unchanged, and written twice gives the same bytes */
 	CHECK(model_hash(r) == h);
 	CHECK(wr(r, cw, ch, &o2, &l2, &e) == 0);
@@ -1793,6 +1828,7 @@ static void test_cicons(void)
 	{
 		cb = hw(o, H_RSSIZE);
 		CHECK(rd32(o, cb + 12 + 4 * 300) == FILE_NULL);
+		CHECK(sequential_table(o, len));
 		CHECK(rd32(o, hw(o, H_OBJECT) + 300 * 24 + 12) == 299);
 	}
 	rsc_mfree(o);
@@ -2055,6 +2091,11 @@ static void test_fuzz(void)
 		}
 		else if (!fixed_point("fuzz rewrite", o, len, cw, cw * 2))
 			bad++;		/* write(read(write(m))) == write(m) for any edited m */
+		else if (!sequential_table(o, len))
+		{
+			fprintf(stderr, "fuzz %d: the colour icon table is not sequential\n", k);
+			bad++;
+		}
 		rsc_free(r2);
 		rsc_mfree(o);
 	}

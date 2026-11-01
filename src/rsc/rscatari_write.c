@@ -34,11 +34,16 @@
  * extension follows, with 32-bit offsets: one 0x00 pad to an even offset,
  * which is rsh_rssize; there 12 bytes (the total file length, the offset
  * of the table, 0); the table at rsh_rssize + 12 (a long per colour icon
- * block, then 0xFFFFFFFF); then the blocks, in the layout rscatari_read.c
+ * block, then 0xFFFFFFFF); then the blocks, one right after the other
+ * from the byte after the terminator, in the layout rscatari_read.c
  * documents: the 38-byte head (file_head, the eleven ICONBLK words of the
  * mono icon, the number of versions), the mono data and mask, the 12 text
- * bytes, then per version its 22-byte header and planes.  Without colour
- * icons rsh_rssize is the file length.
+ * bytes, then per version its 22-byte header and planes; the last block
+ * ends the file.  The table entries are the real offsets of the blocks:
+ * the AES and EmuTOS ignore them and find the blocks one after the other
+ * from the terminator (as the reader does), pTOS's portable loader takes
+ * them as offsets, and with this layout both find the same blocks.
+ * Without colour icons rsh_rssize is the file length.
  *
  * The header words object, tedinfo, iconblk, bitblk and imdata are the
  * offset of their section even when it is empty; frstr and frimg are 0
