@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "rscmodel.h"
 #include "rscfile.h"
 
@@ -344,8 +345,30 @@ static void test_cicon(void)
 
 /* ---- error paths ------------------------------------------------------------------ */
 
-/* A read either succeeds or fails with a proper code and position; nothing
- * leaks.  Returns 1 for success. */
+/* Every tree of r is sound: root ob_next -1, OF_LASTOB on the last object
+ * only, and the walk passes and stays inside the tree. */
+static int trees_sound(struct rsc *r)
+{
+	int	t, i, n, k;
+	OBJECT	*o;
+
+	for (t = 0; t < rsc_ntrees(r); t++)
+	{
+		o = rsc_tree_objects(r, t, &n);
+		if (!o || n < 1 || o[0].ob_next != -1)
+			return 0;
+		for (i = 0; i < n; i++)
+			if (!(o[i].ob_flags & OF_LASTOB) != (i != n - 1))
+				return 0;
+		k = rsc_tree_preorder(o, n, NULL);
+		if (k < 1 || k > n)
+			return 0;
+	}
+	return 1;
+}
+
+/* A read either succeeds (with sound trees) or fails with a proper code
+ * and position; nothing leaks.  Returns 1 for success. */
 static int read_clean(const uint8_t *b, size_t len)
 {
 	struct rsc_error	err;
@@ -356,7 +379,7 @@ static int read_clean(const uint8_t *b, size_t len)
 	r = read_copy(b, len, 8, 16, &err);
 	if (r)
 	{
-		ok = err.code == RSC_OK;
+		ok = err.code == RSC_OK && trees_sound(r);
 		rsc_free(r);
 	}
 	else
@@ -650,49 +673,106 @@ static void test_mini(void)
 	put16(b, 18, 1000);		/* trindex */
 	CHECK(read_code(b, MINI_LEN, &off) == RSC_EOFFSET && off == 18);
 	build_mini(b);
+
+	/* negative BITBLK sizes */
+	put16(b, 56, 0xfffe);
+	CHECK(read_code(b, MINI_LEN, &off) == RSC_EOFFSET && off == 56);
+	build_mini(b);
+	put16(b, 58, 0xffff);
+	CHECK(read_code(b, MINI_LEN, &off) == RSC_EOFFSET && off == 58);
+	build_mini(b);
+	put16(b, 56, 0xfffe);		/* in a free image */
+	put16(b, 126 + 6, G_BOX);
+	CHECK(read_code(b, MINI_LEN, &off) == RSC_EOFFSET && off == 56);
+	build_mini(b);
+
+	/* cell sizes: 128 is the largest */
+	CHECK(rsc_atari_read(b, MINI_LEN, 129, 16, &err) == NULL && err.code == RSC_EARG);
+	CHECK(rsc_atari_read(b, MINI_LEN, 8, 129, &err) == NULL && err.code == RSC_EARG);
+	r = rsc_atari_read(b, MINI_LEN, 128, 128, &err);
+	CHECK(r != NULL);
+	if (r)
+	{
+		o = rsc_tree_objects(r, 0, &n);
+		CHECK(o[0].ob_width == 10 * 128);
+		rsc_free(r);
+	}
+
+	/* the same root twice in the tree index (moved to the end) */
+	put16(b, 18, MINI_LEN);
+	put16(b, 22, 2);
+	put32(b, MINI_LEN, MINI_OBJ);
+	put32(b, MINI_LEN + 4, MINI_OBJ);
+	CHECK(read_code(b, MINI_LEN + 8, &off) == RSC_ELINK && off == MINI_LEN + 4);
+	/* object 1 as the root of a second tree: the first ends before it,
+	 * and its links leave it */
+	put32(b, MINI_LEN + 4, MINI_OBJ + 24);
+	CHECK(read_code(b, MINI_LEN + 8, &off) == RSC_ELINK && off == MINI_OBJ);
+	/* three lone objects without OF_LASTOB are three trees */
+	put_obj(b, 78, -1, -1, -1, G_IBOX, 0, 0, 1, 1, 1, 1);
+	put_obj(b, 102, -1, -1, -1, G_STRING, 0, 36, 2, 2, 2, 2);
+	put_obj(b, 126, -1, -1, -1, G_IMAGE, 0, 52, 3, 3, 3, 3);
+	put16(b, 22, 3);
+	put32(b, MINI_LEN + 4, 102);
+	put32(b, MINI_LEN + 8, 126);
+	r = read_copy(b, MINI_LEN + 12, 0, 0, &err);
+	CHECK(r && rsc_ntrees(r) == 3);
+	if (r)
+	{
+		for (n = 0; n < 3; n++)
+		{
+			int	cnt;
+
+			o = rsc_tree_objects(r, n, &cnt);
+			CHECK(cnt == 1 && o[0].ob_x == n + 1 && trees_sound(r));
+		}
+		CHECK_STR(rsc_tree_objects(r, 1, NULL)[0].ob_spec.free_string, "Hello");
+		rsc_free(r);
+	}
+	/* a root that has OF_LASTOB is a tree of one object even with the next
+	 * objects not roots: the second and third object are then ignored */
+	put16(b, 22, 1);
+	put16(b, 78 + 8, OF_LASTOB);
+	r = read_copy(b, MINI_LEN + 12, 0, 0, &err);
+	CHECK(r && rsc_ntrees(r) == 1);
+	if (r)
+	{
+		rsc_tree_objects(r, 0, &n);
+		CHECK(n == 1);
+		rsc_free(r);
+	}
+	build_mini(b);
+
+	/* an unreachable object of a run: its spec is not decoded */
+	put16(b, 78 + 4, 1);		/* the root's only child is 1 */
+	put16(b, 102, 0);
+	put32(b, 126 + 12, 9999);	/* a bad BITBLK pointer in object 2 */
+	r = read_copy(b, MINI_LEN, 0, 0, &err);
+	CHECK(r != NULL);
+	if (r)
+	{
+		o = rsc_tree_objects(r, 0, &n);
+		CHECK(n == 3 && o[2].ob_type == G_IMAGE && o[2].ob_spec.bitblk == NULL);
+		CHECK(rsc_tree_preorder(o, n, NULL) == 2);
+		rsc_free(r);
+	}
+	build_mini(b);
 	CHECK(rsc_test_live_blocks() == 0);
 }
 
 /* A colour icon file: a tree of a root and nobj G_CICON children (object
- * i has index first + i), a table of ncicon entries all naming one block
- * (with the terminator unless noterm), the block: 16 x 2, two versions
- * (2 planes; 1 plane with a selected image).  Returns the length. */
-static size_t build_cfile(uint8_t *b, size_t room, int nobj, int first, int ncicon, int noterm)
+ * i has index first + i - 1, or 0 for all when first < 0), a table of
+ * ncicon entries naming as many copies of one block (with the terminator
+ * unless noterm, which puts the table at the end); the block: 16 x 2, two
+ * versions (2 planes; 1 plane with a selected image).  Returns the
+ * length. */
+#define CBLK_LEN	130
+
+static void put_cblk(uint8_t *b, size_t blk)
 {
-	size_t	objs = 36, tr = objs + 24 * ((size_t)nobj + 1), ext = tr + 4, tab = ext + 12;
-	size_t	blk = tab + 4 * ((size_t)ncicon + 1), p, end;
+	size_t	p;
 	int	i;
 
-	end = blk + 38 + 8 + 12 + 22 + 12 + 22 + 16;
-	if (noterm)
-	{
-		blk = tab - 0;	/* the block first, the table at the very end */
-		end = blk + 38 + 8 + 12 + 22 + 12 + 22 + 16;
-		tab = end;
-		end += 4 * (size_t)ncicon;
-	}
-	if (end > room)
-		exit(2);
-	memset(b, 0, end);
-	put16(b, 0, 4 | 1);
-	put16(b, 2, (unsigned)objs);
-	put16(b, 12, 36);
-	put16(b, 14, 36);
-	put16(b, 18, (unsigned)tr);
-	put16(b, 20, (unsigned)nobj + 1);
-	put16(b, 22, 1);
-	put16(b, 34, (unsigned)ext);
-	put_obj(b, objs, -1, nobj ? 1 : -1, nobj, G_IBOX, nobj ? 0 : OF_LASTOB, 0, 0, 0, 10, 5);
-	for (i = 1; i <= nobj; i++)
-		put_obj(b, objs + 24 * (size_t)i, i < nobj ? i + 1 : 0, -1, -1, G_CICON,
-			i == nobj ? OF_LASTOB : 0, (uint32_t)(first + i - 1), 0, 0, 4, 2);
-	put32(b, tr, (uint32_t)objs);
-	put32(b, ext, (uint32_t)end);
-	put32(b, ext + 4, (uint32_t)tab);
-	for (i = 0; i < ncicon; i++)
-		put32(b, tab + 4 * (size_t)i, (uint32_t)blk);
-	if (!noterm)
-		put32(b, tab + 4 * (size_t)ncicon, FILE_NULL);
 	put32(b, blk, 0x11111111);
 	put32(b, blk + 4, 0x22222222);
 	put32(b, blk + 8, 0x33333333);
@@ -721,17 +801,58 @@ static size_t build_cfile(uint8_t *b, size_t room, int nobj, int first, int ncic
 	put32(b, p + 10, 7);
 	for (i = 0; i < 8; i++)
 		put16(b, p + 22 + 2 * (size_t)i, 0x0200 + (unsigned)i);
+}
+
+static size_t build_cfile(uint8_t *b, size_t room, int nobj, int first, int ncicon, int noterm)
+{
+	size_t	objs = 36, tr = objs + 24 * ((size_t)nobj + 1), ext = tr + 4, tab = ext + 12;
+	size_t	blk = tab + 4 * ((size_t)ncicon + 1), end;
+	int	i;
+
+	if (noterm)
+	{
+		blk = tab;		/* the blocks first, the table at the very end */
+		tab = blk + CBLK_LEN * (size_t)ncicon;
+		end = tab + 4 * (size_t)ncicon;
+	}
+	else
+		end = blk + CBLK_LEN * (size_t)ncicon;
+	if (end > room)
+		exit(2);
+	memset(b, 0, end);
+	put16(b, 0, 4 | 1);
+	put16(b, 2, (unsigned)objs);
+	put16(b, 12, 36);
+	put16(b, 14, 36);
+	put16(b, 18, (unsigned)tr);
+	put16(b, 20, (unsigned)nobj + 1);
+	put16(b, 22, 1);
+	put16(b, 34, (unsigned)ext);
+	put_obj(b, objs, -1, nobj ? 1 : -1, nobj, G_IBOX, nobj ? 0 : OF_LASTOB, 0, 0, 0, 10, 5);
+	for (i = 1; i <= nobj; i++)
+		put_obj(b, objs + 24 * (size_t)i, i < nobj ? i + 1 : 0, -1, -1, G_CICON,
+			i == nobj ? OF_LASTOB : 0, first < 0 ? 0 : (uint32_t)(first + i - 1), 0, 0, 4, 2);
+	put32(b, tr, (uint32_t)objs);
+	put32(b, ext, (uint32_t)end);
+	put32(b, ext + 4, (uint32_t)tab);
+	for (i = 0; i < ncicon; i++)
+	{
+		put32(b, tab + 4 * (size_t)i, (uint32_t)(blk + CBLK_LEN * (size_t)i));
+		put_cblk(b, blk + CBLK_LEN * (size_t)i);
+	}
+	if (!noterm)
+		put32(b, tab + 4 * (size_t)ncicon, FILE_NULL);
 	return end;
 }
 
 static void test_cfile(void)
 {
-	static uint8_t	b[20000];
+	static uint8_t	b[65536];
 	struct rsc_error	err;
 	struct rsc	*r;
 	struct rsc_cicon	*c;
 	struct rsc_cicon_version	*v;
-	size_t	len, off;
+	size_t	len, off, blk;
 	int	n, k;
 
 	len = build_cfile(b, sizeof b, 1, 0, 1, 0);
@@ -795,13 +916,22 @@ static void test_cfile(void)
 	CHECK(read_code(b, len, &off) == RSC_ECICON && off == 36 + 24 + 12);
 	/* too many planes; the version count larger than the file */
 	len = build_cfile(b, sizeof b, 1, 0, 1, 0);
-	off = 36 + 48 + 4 + 12 + 8;	/* the block */
-	put16(b, off + 38 + 20, 17);
-	CHECK(read_code(b, len, &off) == RSC_ECICON);
+	blk = 36 + 48 + 4 + 12 + 8;
+	put16(b, blk + 38 + 20, 17);
+	CHECK(read_code(b, len, &off) == RSC_ECICON && off == blk + 58);
 	len = build_cfile(b, sizeof b, 1, 0, 1, 0);
-	off = 36 + 48 + 4 + 12 + 8;
-	put32(b, off + 34, 3);
-	CHECK(read_code(b, len, &off) == RSC_ECICON);
+	put32(b, blk + 34, 3);		/* the third version would start at the end */
+	CHECK(read_code(b, len, &off) == RSC_ECICON && off == len);
+	put32(b, blk + 34, 4);
+	CHECK(read_code(b, len, &off) == RSC_ECICON && off == blk + 34);
+	/* a negative colour icon size */
+	len = build_cfile(b, sizeof b, 1, 0, 1, 0);
+	put16(b, blk + 22, 0xfff0);
+	CHECK(read_code(b, len, &off) == RSC_ECICON && off == blk);
+	/* a table that lists a block twice */
+	len = build_cfile(b, sizeof b, 1, 0, 2, 0);
+	put32(b, 104, rd32(b, 100));	/* the table is at 100 */
+	CHECK(read_code(b, len, &off) == RSC_ECICON && off == 104);
 
 	/* more than 254 colour icons */
 	len = build_cfile(b, sizeof b, 300, 0, 300, 0);
@@ -816,6 +946,148 @@ static void test_cfile(void)
 		rsc_free(r);
 	}
 	CHECK(rsc_test_live_blocks() == 0);
+}
+
+/* ---- bounds on what a small file can make the reader do -------------------------- */
+
+static uint8_t	big[1200000];
+
+/* A file of a root and nobj G_TEXT children sharing one TEDINFO whose
+ * text has slen characters, and its template and validation tlen each.
+ * Returns the length. */
+static size_t build_shared_ted(int nobj, size_t slen, size_t tlen)
+{
+	size_t	str = 36, ted = str + slen + 2 * tlen + 3, objs, tr, end, at;
+	int	i, k;
+
+	ted += ted & 1;
+	objs = ted + 28;
+	tr = objs + 24 * ((size_t)nobj + 1);
+	end = tr + 4;
+	memset(big, 0, end);
+	for (k = 0, at = str; k < 3; k++)
+	{
+		size_t	n = k ? tlen : slen;
+
+		memset(big + at, 'a' + k, n);
+		put32(big, ted + 4 * (size_t)k, (uint32_t)at);
+		at += n + 1;
+	}
+	put16(big, 2, (unsigned)objs);
+	put16(big, 4, (unsigned)ted);
+	put16(big, 12, 36);
+	put16(big, 18, (unsigned)tr);
+	put16(big, 20, (unsigned)nobj + 1);
+	put16(big, 22, 1);
+	put16(big, 24, 1);
+	put16(big, 34, (unsigned)end);
+	put_obj(big, objs, -1, 1, nobj, G_IBOX, 0, 0, 0, 0, 10, 5);
+	for (i = 1; i <= nobj; i++)
+		put_obj(big, objs + 24 * (size_t)i, i < nobj ? i + 1 : 0, -1, -1, G_TEXT,
+			i == nobj ? OF_LASTOB : 0, (uint32_t)ted, 0, 0, 4, 1);
+	put32(big, tr, (uint32_t)objs);
+	return end;
+}
+
+/* A colour icon file of one block of nver versions of a 0 x 0 icon,
+ * named by every one of ntab table entries.  Returns the length. */
+static size_t build_dup_table(long nver, long ntab)
+{
+	size_t	objs = 36, tr = objs + 24, ext = tr + 4, tab = ext + 12;
+	size_t	blk = tab + 4 * (size_t)ntab + 4, p, end;
+	long	k;
+
+	end = blk + 38 + 12 + 22 * (size_t)nver;
+	if (end > sizeof big)
+		exit(2);
+	memset(big, 0, end);
+	put16(big, 0, 4);
+	put16(big, 2, (unsigned)objs);
+	put16(big, 18, (unsigned)tr);
+	put16(big, 20, 1);
+	put16(big, 22, 1);
+	put16(big, 34, (unsigned)ext);
+	put_obj(big, objs, -1, -1, -1, G_IBOX, OF_LASTOB, 0, 0, 0, 10, 5);
+	put32(big, tr, (uint32_t)objs);
+	put32(big, ext, (uint32_t)end);
+	put32(big, ext + 4, (uint32_t)tab);
+	for (k = 0; k < ntab; k++)
+		put32(big, tab + 4 * (size_t)k, (uint32_t)blk);
+	put32(big, tab + 4 * (size_t)ntab, FILE_NULL);
+	put32(big, blk + 34, (uint32_t)nver);
+	for (k = 0, p = blk + 50; k < nver; k++, p += 22)
+		put16(big, p, 1);
+	return end;
+}
+
+static int big_code(size_t len, size_t *off, char *msg)
+{
+	struct rsc_error	err;
+	struct rsc	*r = rsc_atari_read(big, len, 0, 0, &err);
+
+	*off = err.offset;
+	if (msg)
+		strcpy(msg, err.msg);
+	CHECK(r != NULL || rsc_test_live_blocks() == 0);
+	rsc_free(r);
+	CHECK(rsc_test_live_blocks() == 0);
+	return r ? RSC_OK : err.code;
+}
+
+static void test_hostile(void)
+{
+	char	msg[96];
+	size_t	len, off;
+	int	n, first_fail = 0;
+	clock_t	t0;
+
+	/* many objects sharing one TEDINFO: the budget decides */
+	for (n = 1; n <= 60 && !first_fail; n++)
+	{
+		len = build_shared_ted(n, 1000, 1000);
+		if (big_code(len, &off, msg) != RSC_OK)
+		{
+			first_fail = n;
+			CHECK(big_code(len, &off, msg) == RSC_ETOOBIG);
+			CHECK(strncmp(msg, "decoded size exceeds the limit", 30) == 0);
+		}
+	}
+	CHECK(first_fail >= 20 && first_fail <= 30);
+	len = build_shared_ted(2000, 1000, 1000);
+	CHECK(big_code(len, &off, msg) == RSC_ETOOBIG);
+	/* a TEDINFO text of 32767 characters: te_txtlen would not fit */
+	len = build_shared_ted(1, 32766, 3);
+	CHECK(big_code(len, &off, NULL) == RSC_OK);
+	len = build_shared_ted(1, 32767, 3);
+	CHECK(big_code(len, &off, NULL) == RSC_ETOOBIG && off == rd16(big, 4) + 24u);
+
+	/* many G_CICON objects naming one block */
+	len = build_cfile(big, sizeof big, 1000, -1, 1, 0);
+	CHECK(big_code(len, &off, msg) == RSC_ETOOBIG);
+	CHECK(strncmp(msg, "decoded size exceeds the limit", 30) == 0);
+	len = build_cfile(big, sizeof big, 20, -1, 1, 0);
+	CHECK(big_code(len, &off, NULL) == RSC_OK);
+
+	/* a table naming one block of 40000 versions 60000 times: 1 MB */
+	t0 = clock();
+	len = build_dup_table(40000, 60000);
+	CHECK(len > 1000000);
+	CHECK(big_code(len, &off, NULL) == RSC_ECICON && off == 36 + 24 + 4 + 12 + 4);
+	len = build_dup_table(40000, 1);
+	CHECK(big_code(len, &off, NULL) == RSC_OK);
+	CHECK(clock() - t0 < CLOCKS_PER_SEC);
+
+	/* a negative ICONBLK size in rcs.rsc (the first ICONBLK at 16600) */
+	{
+		struct file	f = load("rcs.rsc");
+
+		put16(f.b, 16600 + 22, 0xffd0);
+		CHECK(read_code(f.b, f.len, &off) == RSC_EOFFSET && off == 16600 + 22);
+		put16(f.b, 16600 + 22, 48);
+		put16(f.b, 16600 + 24, 0xffff);
+		CHECK(read_code(f.b, f.len, &off) == RSC_EOFFSET && off == 16600 + 24);
+		free(f.b);
+	}
 }
 
 /* ---- allocation failures ------------------------------------------------------------- */
@@ -843,17 +1115,20 @@ static long fail_each(const uint8_t *b, size_t len)
 	}
 	rsc_test_fail_alloc_after(-1);
 	rsc_free(r);
+	printf("  %ld allocation failures injected\n", n);
 	CHECK(rsc_test_live_blocks() == 0);
 	return n;
 }
 
 static void test_alloc_failures(void)
 {
-	struct file	f = load("cicon.rsc");
+	struct file	f = load("cicon.rsc"), g = load("rcs.rsc");
 	uint8_t	b[MINI_LEN + 16], c[2000];
 	size_t	len;
 
 	CHECK(fail_each(f.b, f.len) > 5);
+	CHECK(fail_each(g.b, g.len) > 500);
+	free(g.b);
 	build_mini(b);
 	CHECK(fail_each(b, MINI_LEN) > 5);
 	len = build_cfile(c, sizeof c, 2, 0, 2, 0);
@@ -870,6 +1145,7 @@ int main(int argc, char **argv)
 	test_cicon();
 	test_mini();
 	test_cfile();
+	test_hostile();
 	test_truncation();
 	test_mutations();
 	test_alloc_failures();
