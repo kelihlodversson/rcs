@@ -57,6 +57,32 @@ when editing those resource files with RCS. The build is the one of
 [TypeShelf](https://github.com/kelihlodversson/TypeShelf), and CI
 (`.github/workflows/build.yml`) builds both targets on every pull request.
 
+## Building on the host
+
+    gmake host-test
+
+builds `build/host/roundtrip` with the host compiler and, for each of
+`tests/golden/rcs.rsc`, `rcslow.rsc` and `cicon.rsc`, loads the file, writes it
+and compares the result with `tests/golden/NAME.out.rsc`. These golden files
+are what the Atari program writes after loading the same input. They were made
+by `tests/roundtrip/gen-golden.sh` on the pTOS `virt-arm` image in the emulator,
+with the program built with `-DRCS_ROUNDTRIP` (it writes `C:\OUT.RSC` straight
+after loading). Only ARM is used: the m68k build with that hook panics in
+`write_files()` (Line F exception, not understood yet).
+
+The host build compiles the load and save sources (`rcsread.c`, `rcswrite.c`,
+`rcsdata.c`, `rcslib.c`, `rcsdisk.c`, `rcscicon.c`) unchanged against a shim in
+`src/host/`: an arena for the resource data, and stubs for the GEM and GEMDOS
+calls (alerts print to stderr and answer the first button). The files of the
+GUI are not part of it. On a 64-bit host addresses of resource data are 32-bit
+offsets into the arena; `docs/addresses.md` explains the rules for editing the
+sources. `rcs-cli`, a command line tool on top of this, is the next stage.
+
+On m68k and ARM the code is meant to be unchanged by all of this:
+`tests/roundtrip/cmp-objs.sh` compares the objects of a baseline build with
+those of the current tree and requires the disassembly of every function that
+existed before to be identical (and the data sections).
+
 ## State of the port
 
 The sources include `<gem.h>` of gemlib and the C headers of libcmini; the
