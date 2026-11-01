@@ -7,6 +7,7 @@
 #include "rcs.h"
 #include "rcsdata.h"
 #include "rcscicon.h"
+#include "rcsaddr.h"
 
 #define MAXCICON	254
 
@@ -83,7 +84,7 @@ static long cblk_len(const unsigned char *image, long size, unsigned long off, l
 
 void cicon_scan(long image, long size, unsigned long table_off)
 {
-	const unsigned char	*im = (const unsigned char *)image;
+	const unsigned char	*im = (const unsigned char *)RP(image);
 	unsigned long	off;
 	long	len, voff;
 
@@ -132,15 +133,22 @@ long cicon_iconblk(unsigned long index)
 		return 0;
 	for (i = 0; i < words; i++)
 	{
-		((unsigned short *)maskp)[i] = rd_be16(b + DISK_CICONBLK_SIZE + 2 * words + 2 * i);
-		((unsigned short *)data)[i] = rd_be16(b + DISK_CICONBLK_SIZE + 2 * i);
+		((unsigned short *)RP(maskp))[i] = rd_be16(b + DISK_CICONBLK_SIZE + 2 * words + 2 * i);
+		((unsigned short *)RP(data))[i] = rd_be16(b + DISK_CICONBLK_SIZE + 2 * i);
 	}
-	memcpy((void *)text, b + DISK_CICONBLK_SIZE + 4 * words, 12);
-	((char *)text)[12] = '\0';
-	ib = (ICONBLK *)ibaddr;
+	memcpy((void *)RP(text), b + DISK_CICONBLK_SIZE + 4 * words, 12);
+	((char *)RP(text))[12] = '\0';
+	ib = (ICONBLK *)RP(ibaddr);
+#ifdef RCS_HOST
+	/* the fields hold arena addresses */
+	ib->ib_pmask = maskp;
+	ib->ib_pdata = data;
+	ib->ib_ptext = text;
+#else
 	ib->ib_pmask = (short *)maskp;
 	ib->ib_pdata = (short *)data;
 	ib->ib_ptext = (char *)text;
+#endif
 	ib->ib_char = rd_be16(b + 12);
 	ib->ib_xchar = rd_be16(b + 14);
 	ib->ib_ychar = rd_be16(b + 16);
@@ -172,7 +180,7 @@ long cicon_iconblk(unsigned long index)
 struct cicon_kept *cicon_kept(long iconblk)
 {
 	short	i;
-	ICONBLK	*ib = (ICONBLK *)iconblk;
+	ICONBLK	*ib = (ICONBLK *)RP(iconblk);
 
 	for (i = 0; i < nmark; i++)
 		if (mark[i].iconblk == iconblk)
