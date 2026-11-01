@@ -1661,6 +1661,41 @@ static void test_alloc_failures(void)
 	free(f.b);
 }
 
+/* ---- unreferenced colour blocks ---------------------------------------------- */
+
+/* The one object is a G_BOX, so no G_CICON names the block and only the
+ * scan of the table checks it.  The block (put_cblk) is changed to two
+ * versions without a selected image, the first with 5 planes (24 bytes of
+ * data), so that the table's check of the number of versions still lets a
+ * file through that ends anywhere in the header of the last one.  A file
+ * that ends 1 to 21 bytes before the end of the last version's header
+ * (and so inside it), or at its start, is refused as truncated, at the
+ * header. */
+static void test_unreferenced_truncated(void)
+{
+	static uint8_t	b[2048];
+	const size_t	ext = 36 + 24 * 2 + 4;
+	size_t	len = build_cfile(b, sizeof b, 1, -1, 1, 0), blk = len - CBLK_LEN, off;
+	size_t	hdr, n;
+	int	j, code;
+
+	put16(b, 36 + 24 + 6, G_BOX);	/* the object */
+	put16(b, blk + 58, 5);		/* version 1: 5 planes, no selected image */
+	put32(b, blk + 58 + 10, 0);
+	hdr = blk + 58 + 22 + 24;		/* version 2: 1 plane, no selected image */
+	put16(b, hdr, 1);
+	put32(b, hdr + 10, 0);
+	CHECK(read_code(b, hdr + 22 + 8, &off) == RSC_OK);
+	for (j = 0; j < 22; j++)
+	{
+		n = hdr + (size_t)j;
+		put32(b, ext, (uint32_t)n);	/* the total length */
+		code = read_code(b, n, &off);
+		CHECK(code == RSC_ECICON && off == hdr);
+		CHECK(strncmp(read_err.msg, "colour version truncated", 24) == 0);
+	}
+}
+
 /* ---- the header version -------------------------------------------------------- */
 
 /* A version with both low bits set is the extended RSXHDR header, refused
@@ -1720,6 +1755,7 @@ int main(int argc, char **argv)
 	test_truncation();
 	test_mutations();
 	test_version();
+	test_unreferenced_truncated();
 	test_alloc_failures();
 	printf("rsc-test (reader): %ld checks, %ld failed\n", checks, failures);
 	return failures ? 1 : 0;
