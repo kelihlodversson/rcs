@@ -42,6 +42,12 @@ struct rsc_error
 	char	msg[96];
 };
 
+/* The largest character cell size the readers and writers take: a file
+ * coordinate converted to pixels (low byte * cell + high byte, the high
+ * byte -127..128) is then at most 255 * 127 + 128 = 32513 and fits a
+ * short.  A larger cell is RSC_EARG. */
+#define RSC_MAX_CELL	127
+
 /* The classic Atari format (rscatari_read.c, rscatari_write.c).
  *
  * rsc_atari_read decodes len bytes at buf into a new model, or returns NULL

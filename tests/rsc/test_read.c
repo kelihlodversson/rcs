@@ -686,15 +686,16 @@ static void test_mini(void)
 	CHECK(read_code(b, MINI_LEN, &off) == RSC_EOFFSET && off == 56);
 	build_mini(b);
 
-	/* cell sizes: 128 is the largest */
-	CHECK(rsc_atari_read(b, MINI_LEN, 129, 16, &err) == NULL && err.code == RSC_EARG);
-	CHECK(rsc_atari_read(b, MINI_LEN, 8, 129, &err) == NULL && err.code == RSC_EARG);
-	r = rsc_atari_read(b, MINI_LEN, 128, 128, &err);
+	/* cell sizes: RSC_MAX_CELL (127) is the largest */
+	CHECK(RSC_MAX_CELL == 127);
+	CHECK(rsc_atari_read(b, MINI_LEN, 128, 16, &err) == NULL && err.code == RSC_EARG);
+	CHECK(rsc_atari_read(b, MINI_LEN, 8, 128, &err) == NULL && err.code == RSC_EARG);
+	r = rsc_atari_read(b, MINI_LEN, 127, 127, &err);
 	CHECK(r != NULL);
 	if (r)
 	{
 		o = rsc_tree_objects(r, 0, &n);
-		CHECK(o[0].ob_width == 10 * 128);
+		CHECK(o[0].ob_width == 10 * 127);
 		rsc_free(r);
 	}
 
@@ -952,6 +953,61 @@ static void test_cfile(void)
 
 static uint8_t	big[1200000];
 
+/* Every coordinate word with every cell size 1..RSC_MAX_CELL: a file of
+ * 16384 objects (a lone root, the rest unreachable but converted too)
+ * whose x, y, w, h are the words 0..65535; the result must be the exact
+ * fix_chpos value and fit a short. */
+static void test_coords(void)
+{
+	size_t	tr = 36, objs = 40, n = 16384, k, len = objs + 24 * n;
+	struct rsc_error	err;
+	struct rsc	*r;
+	OBJECT	*o;
+	int	cell, cnt, ok = 1;
+
+	memset(big, 0, len);
+	put16(big, 2, (unsigned)objs);
+	put16(big, 18, (unsigned)tr);
+	put16(big, 20, (unsigned)n);
+	put16(big, 22, 1);
+	put32(big, tr, (uint32_t)objs);
+	for (k = 0; k < n; k++)
+	{
+		put_obj(big, objs + 24 * k, -1, -1, -1, G_BOX, 0, 0, (unsigned)(4 * k),
+			(unsigned)(4 * k + 1), (unsigned)(4 * k + 2), (unsigned)(4 * k + 3));
+	}
+	for (cell = 1; cell <= RSC_MAX_CELL; cell++)
+	{
+		r = rsc_atari_read(big, len, cell, cell, &err);
+		ok &= r != NULL;
+		o = r ? rsc_tree_objects(r, 0, &cnt) : NULL;
+		for (k = 0; o && k < 4 * n; k++)
+		{
+			long	hi = (long)(k >> 8), want = (long)(k & 0xff) * cell + (hi > 128 ? hi - 256 : hi);
+			short	*f = &o[k / 4].ob_x;	/* ob_x, ob_y, ob_width, ob_height */
+
+			ok &= want >= -32768 && want <= 32767 && f[k % 4] == want;
+		}
+		rsc_free(r);
+	}
+	CHECK(ok);
+	/* the extremes and the sign boundary of the high byte */
+	put16(big, 20, 1);
+	put_obj(big, objs, -1, -1, -1, G_BOX, OF_LASTOB, 0, 0x80ff, 0x8001, 0x8101, 0xff00);
+	r = rsc_atari_read(big, objs + 24, 127, 8, &err);
+	CHECK(r != NULL);
+	if (r)
+	{
+		o = rsc_tree_objects(r, 0, NULL);
+		CHECK(o[0].ob_x == 32513);		/* 255 * 127 + 128 */
+		CHECK(o[0].ob_y == 8 + 128);		/* high byte 128 is +128 */
+		CHECK(o[0].ob_width == 127 - 127);	/* high byte 129 is -127 */
+		CHECK(o[0].ob_height == -1);		/* high byte 255 is -1 */
+		rsc_free(r);
+	}
+	CHECK(rsc_test_live_blocks() == 0);
+}
+
 /* A file of a root and nobj G_TEXT children sharing one TEDINFO whose
  * text has slen characters, and its template and validation tlen each.
  * Returns the length. */
@@ -1145,6 +1201,7 @@ int main(int argc, char **argv)
 	test_cicon();
 	test_mini();
 	test_cfile();
+	test_coords();
 	test_hostile();
 	test_truncation();
 	test_mutations();

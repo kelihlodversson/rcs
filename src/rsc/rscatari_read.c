@@ -77,9 +77,9 @@
  *  - A colour icon table offset of 0 or 0xFFFFFFFF means no colour icons,
  *    as for the old reader and the AES; a G_CICON object then has no
  *    colour icon if its spec is 0xFFFFFFFF and is an error otherwise.
- *  - A cell size above 128 is refused (RSC_EARG), so that a converted
- *    coordinate (low byte * cell + high byte, at most 255 * 128 + 128)
- *    always fits a short.
+ *  - A cell size above RSC_MAX_CELL (127, rscfile.h) is refused
+ *    (RSC_EARG), so that a converted coordinate (low byte * cell + high
+ *    byte, at most 255 * 127 + 128 = 32513) always fits a short.
  *  - Colour icons, where pTOS's loader is stricter: the total length of
  *    the extension is accepted when it is at most len (pTOS: equal to
  *    len); a G_CICON index of 0xFFFFFFFF is accepted as no colour icon
@@ -102,9 +102,6 @@
 #define CBLK_SIZE	38	/* the ICONBLK and the count of colour versions */
 #define CTEXT_SIZE	12
 #define CICON_SIZE	22	/* the header of a colour version */
-
-/* The largest cell size taken (keeps the conversion inside an int). */
-#define RSC_MAX_CELL	128
 
 /* What one allocation costs in the budget beyond its size. */
 #define BLOCK_COST	8
