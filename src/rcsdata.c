@@ -20,6 +20,7 @@
 
 /* the OB_ macros of rcsdefs.h give the offsets the records have on the
  * Atari, which is the layout the host structs keep too */
+_Static_assert(sizeof(OBJECT) == 24, "OBJECT size");
 _Static_assert(offsetof(OBJECT, ob_next) == 0, "OBJECT ob_next");
 _Static_assert(offsetof(OBJECT, ob_head) == 2, "OBJECT ob_head");
 _Static_assert(offsetof(OBJECT, ob_tail) == 4, "OBJECT ob_tail");

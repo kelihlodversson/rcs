@@ -266,7 +266,7 @@ short rcs_init(void)
 					if ( buff_size < 0x10700L )
 						head = rcs_alloc( buff_size -= 0x700L);
 					else
-						head = rcs_alloc( buff_size = 0x10000L);
+						head = rcs_alloc( buff_size = 0x10000L); 
 					buff_size -= 2500L;	/* Reserve a panic buffer */
 					if (buff_size < 1000L)
 					{
