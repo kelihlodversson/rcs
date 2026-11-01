@@ -79,7 +79,7 @@ In `opn_rsc()`, after `read_files()` succeeds and before `new_state(FILE_STATE)`
 - [ ] **Step 2: Move the emulator tooling into the repo**
 
 Copy `qd.py` and `rcsrun/launch.c`, `launch2.c` from the session scratchpad
-(`/private/tmp/claude-501/-Users-keli-cloud-pTOS/bc6b77ae-3713-432f-915b-6b6ddbf94562/scratchpad/`) into `tests/emulator/`. Change `S=` and `R=` in `qd.py` so they are relative to the script and the repo root; it needs the pTOS virt-m68k and virt-arm images in `PTOS_M68K_ELF` and `PTOS_ARM_ELF` (environment variables, no default). Document the variables at the top of the file.
+(kept in the scratchpad of the session that wrote this plan) into `tests/emulator/`. Change `S=` and `R=` in `qd.py` so they are relative to the script and the repo root; it needs the pTOS virt-m68k and virt-arm images in `PTOS_M68K_ELF` and `PTOS_ARM_ELF` (environment variables, no default). Document the variables at the top of the file.
 
 - [ ] **Step 3: Write the generator script**
 
@@ -89,7 +89,7 @@ Copy `qd.py` and `rcsrun/launch.c`, `launch2.c` from the session scratchpad
 
 ```bash
 cp src/atari/rcs.rsc tests/golden/rcs.rsc; cp src/atari/rcslow.rsc tests/golden/rcslow.rsc
-cp /private/tmp/claude-501/-Users-keli-cloud-pTOS/bc6b77ae-3713-432f-915b-6b6ddbf94562/scratchpad/cicon.rsc tests/golden/cicon.rsc   # generator file from pTOS, root next patched; 1,076 bytes
+cp cicon.rsc tests/golden/cicon.rsc   # generator file from pTOS, from the session scratchpad, root next patched; 1,076 bytes
 sh tests/roundtrip/gen-golden.sh
 ls -l tests/golden
 ```
