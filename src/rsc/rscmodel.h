@@ -1,0 +1,445 @@
+/* RSCMODEL.H	a resource file in memory, in the native runtime form of the
+ *		AES: real pointers, no file offsets
+ *
+ * The model holds
+ *  - an ordered list of trees; each tree is a malloc'd array of OBJECT,
+ *    linked by index the way the AES links it (ob_next, ob_head, ob_tail),
+ *    with the root at index 0;
+ *  - an ordered list of free strings and one of free images (BITBLKs);
+ *  - the header values the writer needs (rsh_vrsn without the format bits)
+ *    and the character cell size the coordinates are in.
+ *
+ * Ownership.  The model owns everything it points to and frees it exactly
+ * once (rsc_free, rsc_tree_delete, rsc_obj_delete, a replacing setter, a
+ * type change).  Every record an object points to (TEDINFO, ICONBLK,
+ * BITBLK, struct rsc_cicon) belongs to that object alone, and every string
+ * and image block is a separate malloc'd block belonging to one record:
+ * nothing is shared.  Which member of ob_spec is a pointer the model owns
+ * depends only on the low byte of ob_type, through rsc_spec_kind().
+ *
+ * Every pointer passed in is copied, never adopted: the caller keeps what
+ * it passes.  Every pointer handed out (an OBJECT array, a record, a
+ * string) is borrowed: valid until the next call that changes that tree or
+ * list, or rsc_free.
+ *
+ * Direct access.  The caller may read everything and may write, through
+ * the pointers it gets, the links (ob_next, ob_head, ob_tail), ob_state,
+ * the coordinates and the non-pointer fields of the records.  It must not
+ * write ob_type, ob_spec or any pointer field of a record (use the
+ * setters: they keep ownership right) and should not write ob_flags (use
+ * rsc_obj_set_flags: OF_LASTOB is the model's).  A caller that writes the
+ * links must keep them in range or -1; the model does not check them again.
+ *
+ * Errors.  A call that can fail returns -1 (or NULL) and leaves the model
+ * as it was: nothing half built, nothing leaked.  Nothing aborts.  A bad
+ * tree or object index, or a spec setter called on an object whose type has
+ * another kind of spec, is a failure as well.
+ *
+ * Coordinates.  cell_w and cell_h are the character cell size: 0 means the
+ * object coordinates are in file form (low byte in character cells, high
+ * byte the pixel remainder), as the file has them; otherwise they are in
+ * pixels, as after rsrc_obfix.  The model only records which: the reader
+ * and the writer convert.
+ *
+ * Image data is in the byte order of the machine, as the AES draws it.
+ * An icon plane is rsc_plane_bytes(w, h) bytes, a BITBLK bi_wb * bi_hl.
+ */
+#ifndef RSCMODEL_H
+#define RSCMODEL_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#ifndef RSC_HOST
+
+#include <gem.h>
+
+#else /* RSC_HOST */
+
+/* The host test build: the AES structures with the names, field names and
+ * member types of gemlib's mt_gem.h, and native pointers. */
+
+#define G_BOX		20
+#define G_TEXT		21
+#define G_BOXTEXT	22
+#define G_IMAGE		23
+#define G_USERDEF	24
+#define G_PROGDEF	G_USERDEF
+#define G_IBOX		25
+#define G_BUTTON	26
+#define G_BOXCHAR	27
+#define G_STRING	28
+#define G_FTEXT		29
+#define G_FBOXTEXT	30
+#define G_ICON		31
+#define G_TITLE		32
+#define G_CICON		33
+
+#define OF_NONE		0x0000
+#define OF_SELECTABLE	0x0001
+#define OF_DEFAULT	0x0002
+#define OF_EXIT		0x0004
+#define OF_EDITABLE	0x0008
+#define OF_RBUTTON	0x0010
+#define OF_LASTOB	0x0020
+#define OF_TOUCHEXIT	0x0040
+#define OF_HIDETREE	0x0080
+#define OF_INDIRECT	0x0100
+
+#define OS_NORMAL	0x0000
+#define OS_SELECTED	0x0001
+#define OS_CROSSED	0x0002
+#define OS_CHECKED	0x0004
+#define OS_DISABLED	0x0008
+#define OS_OUTLINED	0x0010
+#define OS_SHADOWED	0x0020
+
+typedef struct text_edinfo
+{
+	char		*te_ptext;
+	char		*te_ptmplt;
+	char		*te_pvalid;
+	short		te_font;
+	short		te_fontid;
+	short		te_just;
+	short		te_color;
+	short		te_fontsize;
+	short		te_thickness;
+	short		te_txtlen;
+	short		te_tmplen;
+} TEDINFO;
+
+typedef struct icon_block
+{
+	short		*ib_pmask;
+	short		*ib_pdata;
+	char		*ib_ptext;
+	short		ib_char;
+	short		ib_xchar;
+	short		ib_ychar;
+	short		ib_xicon;
+	short		ib_yicon;
+	short		ib_wicon;
+	short		ib_hicon;
+	short		ib_xtext;
+	short		ib_ytext;
+	short		ib_wtext;
+	short		ib_htext;
+} ICONBLK;
+
+typedef struct bit_block
+{
+	short		*bi_pdata;
+	short		bi_wb;
+	short		bi_hl;
+	short		bi_x;
+	short		bi_y;
+	short		bi_color;
+} BITBLK;
+
+typedef struct cicon_data
+{
+	short		num_planes;
+	short		*col_data;
+	short		*col_mask;
+	short		*sel_data;
+	short		*sel_mask;
+	struct cicon_data *next_res;
+} CICON;
+
+typedef struct cicon_blk
+{
+	ICONBLK		monoblk;
+	CICON		*mainlist;
+} CICONBLK;
+
+typedef struct
+{
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	unsigned	interiorcol :  4;
+	unsigned	fillpattern :  3;
+	unsigned	textmode    :  1;
+	unsigned	textcol     :  4;
+	unsigned	framecol    :  4;
+	signed		framesize   :  8;
+	unsigned	character   :  8;
+#else
+	unsigned	character   :  8;
+	signed		framesize   :  8;
+	unsigned	framecol    :  4;
+	unsigned	textcol     :  4;
+	unsigned	textmode    :  1;
+	unsigned	fillpattern :  3;
+	unsigned	interiorcol :  4;
+#endif
+} BFOBSPEC;
+
+struct user_block;
+
+typedef union obspecptr
+{
+	long		index;
+	union obspecptr	*indirect;
+	BFOBSPEC	obspec;
+	TEDINFO		*tedinfo;
+	BITBLK		*bitblk;
+	ICONBLK		*iconblk;
+	CICONBLK	*ciconblk;
+	struct user_block *userblk;
+	char		*free_string;
+} OBSPEC;
+
+typedef struct object
+{
+	short		ob_next;
+	short		ob_head;
+	short		ob_tail;
+	unsigned short	ob_type;
+	unsigned short	ob_flags;
+	unsigned short	ob_state;
+	OBSPEC		ob_spec;
+	short		ob_x;
+	short		ob_y;
+	short		ob_width;
+	short		ob_height;
+} OBJECT;
+
+#endif /* RSC_HOST */
+
+/* ---- colour icons ------------------------------------------------------ */
+
+/* One colour version of a colour icon.  c is the AES CICON, so a chain of
+ * these is the mainlist of a CICONBLK as the AES draws it: c.next_res points
+ * to the c of the next version (NULL for the last).  col_data has
+ * num_planes planes of rsc_plane_bytes(w, h) bytes, col_mask one plane;
+ * sel_data and sel_mask are both NULL (no selected image) or both set, of
+ * the same sizes; w and h are those of the mono ICONBLK.
+ *
+ * file_ptr holds the five pointer fields of the version header in the file
+ * (col_data, col_mask, sel_data, sel_mask, next_res) as read, opaque; the
+ * API sets them to 0.  PLACEHOLDER: the reader (#29 task 2) settles whether
+ * they can be canonicalised (and this field dropped) or must be kept. */
+struct rsc_cicon_version
+{
+	CICON		c;		/* must stay the first member */
+	uint32_t	file_ptr[5];
+};
+
+/* What a G_CICON object's ob_spec points to (ob_spec.ciconblk is &blk).
+ * blk is the AES CICONBLK: blk.monoblk is the mono icon, whose ib_pdata and
+ * ib_pmask are owned word arrays and whose ib_ptext always points to text
+ * below; blk.mainlist is the chain of colour versions (struct
+ * rsc_cicon_version), in file order.  text has the 12 text bytes of the
+ * file plus a NUL the model keeps, so ib_ptext is always a C string.
+ *
+ * file_head holds the three pointer fields of the ICONBLK at the head of the
+ * block in the file (ib_pmask, ib_pdata, ib_ptext) as read, opaque; the API
+ * sets them to 0.  PLACEHOLDER as for rsc_cicon_version.file_ptr.
+ *
+ * The struct points into itself (ib_ptext): it is never copied by value. */
+struct rsc_cicon
+{
+	CICONBLK	blk;		/* must stay the first member */
+	char		text[13];
+	uint32_t	file_head[3];
+};
+
+/* ---- the kind of spec an object type has: THE ownership rule ------------- */
+
+enum rsc_spec_kind
+{
+	RSC_SPEC_VALUE,		/* a plain 32-bit value (boxes, G_BOXCHAR, G_USERDEF, any other type) */
+	RSC_SPEC_STRING,	/* ob_spec.free_string: G_BUTTON, G_STRING, G_TITLE */
+	RSC_SPEC_TEDINFO,	/* ob_spec.tedinfo: G_TEXT, G_BOXTEXT, G_FTEXT, G_FBOXTEXT */
+	RSC_SPEC_ICONBLK,	/* ob_spec.iconblk: G_ICON */
+	RSC_SPEC_BITBLK,	/* ob_spec.bitblk: G_IMAGE */
+	RSC_SPEC_CICON		/* ob_spec.ciconblk (a struct rsc_cicon): G_CICON */
+};
+
+/* The kind of spec of an object of type ob_type (only the low byte counts).
+ * A pointer kind may be NULL: no record (written as 0xFFFFFFFF). */
+enum rsc_spec_kind rsc_spec_kind(unsigned ob_type);
+
+/* Bytes of one icon plane of w x h pixels, by the AES rule
+ * ((w + 15) / 16) * 2 * h; 0 for a negative size. */
+size_t rsc_plane_bytes(int w, int h);
+/* Bytes of the data of a BITBLK: bi_wb * bi_hl; 0 for a negative size. */
+size_t rsc_bitblk_bytes(const BITBLK *bb);
+
+/* ---- the resource ------------------------------------------------------- */
+
+struct rsc;
+
+/* An empty resource (no trees, cell size 0, vrsn 0), or NULL. */
+struct rsc *rsc_new(void);
+/* Frees r and everything it owns; NULL is allowed. */
+void rsc_free(struct rsc *r);
+
+/* rsh_vrsn without the format bits (RSC_VRSN_FORMAT_BITS are cleared on
+ * set; the writer sets the ones its output needs). */
+#define RSC_VRSN_FORMAT_BITS	0x0004	/* bit 2: the colour icon extension follows */
+unsigned rsc_vrsn(const struct rsc *r);
+void rsc_set_vrsn(struct rsc *r, unsigned vrsn);
+
+/* The cell size the coordinates are in: 0, 0 for file form.  Setting it
+ * converts nothing.  Returns -1 for a negative size or only one of the two 0. */
+void rsc_cell(const struct rsc *r, int *cell_w, int *cell_h);
+int rsc_set_cell(struct rsc *r, int cell_w, int cell_h);
+
+/* ---- trees ------------------------------------------------------------ */
+
+/* The largest number of objects in a tree (links are shorts). */
+#define RSC_MAX_OBJECTS	32767
+
+int rsc_ntrees(const struct rsc *r);
+
+/* Appends a tree of nobj objects (1 <= nobj <= RSC_MAX_OBJECTS) and returns
+ * its index, or -1.  Every object is a G_IBOX with spec 0, flags 0 (but
+ * OF_LASTOB on the last), state 0, coordinates 0 and all links -1: the root
+ * alone, the others unlinked.  An editor asks for 1 and adds objects with
+ * rsc_obj_add; the reader asks for the count of the file and writes the
+ * links itself. */
+int rsc_tree_add(struct rsc *r, int nobj);
+
+/* Deletes tree t and everything it owns; the later trees move down by one.
+ * Returns 0 or -1. */
+int rsc_tree_delete(struct rsc *r, int t);
+
+/* The object array of tree t and its length (*nobj, may be NULL), or NULL
+ * for a bad index.  r is const so that a writer holding a const model can
+ * read; writing through the result is subject to "Direct access" above. */
+OBJECT *rsc_tree_objects(const struct rsc *r, int t, int *nobj);
+
+/* ---- objects ------------------------------------------------------------ */
+
+/* Appends a new object to the array of tree t and makes it the last child
+ * of parent, the AES way: the former last child's ob_next (or the parent's
+ * ob_head when it had none) points to it, its ob_next points back to the
+ * parent, and the parent's ob_tail is it.  The object has type type with an
+ * empty spec (0, or NULL for a pointer kind), flags, state and coordinates
+ * 0, no children; OF_LASTOB moves to it.  Returns its index, or -1. */
+int rsc_obj_add(struct rsc *r, int t, int parent, unsigned type);
+
+/* Unlinks object i from its parent and releases the specs of i and all its
+ * descendants.  Their slots stay in the array (indices of the other objects
+ * do not change) as unreachable G_IBOX objects with spec 0 and all links
+ * -1; the writer drops unreachable objects.  The root cannot be deleted
+ * (delete the tree).  Returns 0 or -1. */
+int rsc_obj_delete(struct rsc *r, int t, int i);
+
+/* Sets ob_type.  When the kind of spec changes (rsc_spec_kind of the old and
+ * the new type differ) the old spec is released and the spec becomes empty;
+ * otherwise it is kept (G_TEXT to G_FBOXTEXT keeps the TEDINFO, G_STRING to
+ * G_BUTTON keeps the string).  Returns 0 or -1 (bad index). */
+int rsc_obj_set_type(struct rsc *r, int t, int i, unsigned type);
+/* Sets ob_flags, except OF_LASTOB, which the model keeps on the last object
+ * of the array. */
+int rsc_obj_set_flags(struct rsc *r, int t, int i, unsigned flags);
+int rsc_obj_set_state(struct rsc *r, int t, int i, unsigned state);
+int rsc_obj_set_geom(struct rsc *r, int t, int i, int x, int y, int w, int h);
+
+/* RSC_SPEC_VALUE: sets / reads the plain spec value. */
+int rsc_obj_set_value(struct rsc *r, int t, int i, uint32_t value);
+uint32_t rsc_obj_value(const struct rsc *r, int t, int i);
+
+/* The strings of an object, for rsc_obj_set_str. */
+enum rsc_str_field
+{
+	RSC_STR_SPEC,		/* RSC_SPEC_STRING: ob_spec.free_string */
+	RSC_STR_TE_TEXT,	/* RSC_SPEC_TEDINFO: te_ptext */
+	RSC_STR_TE_TMPLT,	/* RSC_SPEC_TEDINFO: te_ptmplt */
+	RSC_STR_TE_VALID,	/* RSC_SPEC_TEDINFO: te_pvalid */
+	RSC_STR_IB_TEXT		/* RSC_SPEC_ICONBLK: ib_ptext; RSC_SPEC_CICON: text */
+};
+
+/* Replaces one string of an object with a copy of s (NULL: no string),
+ * freeing the old one.  The record (TEDINFO, ICONBLK, colour icon) must
+ * exist.  For a colour icon s is copied into its text and must have at most
+ * 12 characters (NULL clears it).  Returns 0 or -1. */
+int rsc_obj_set_str(struct rsc *r, int t, int i, enum rsc_str_field f, const char *s);
+
+/* Replace the record of an object with a copy of *src (NULL src: no
+ * record), releasing the old one.  The object's type must have that kind of
+ * spec.  The pointer fields of src are sources, copied too (each may be
+ * NULL):
+ *  - TEDINFO: te_ptext, te_ptmplt, te_pvalid, copied as strings; the other
+ *    fields (te_font, te_just, te_color, te_thickness, te_txtlen, ...) as
+ *    they are (the writer decides about te_txtlen and te_tmplen);
+ *  - ICONBLK: ib_pmask and ib_pdata, rsc_plane_bytes(ib_wicon, ib_hicon)
+ *    bytes each; ib_ptext as a string;
+ *  - BITBLK: bi_pdata, rsc_bitblk_bytes(src) bytes.
+ * Returns 0 or -1. */
+int rsc_obj_set_tedinfo(struct rsc *r, int t, int i, const TEDINFO *src);
+int rsc_obj_set_iconblk(struct rsc *r, int t, int i, const ICONBLK *src);
+int rsc_obj_set_bitblk(struct rsc *r, int t, int i, const BITBLK *src);
+
+/* Replaces the colour icon of a G_CICON object with a new one without
+ * colour versions: the fields of *mono are copied, its ib_pmask and
+ * ib_pdata (rsc_plane_bytes(ib_wicon, ib_hicon) bytes each, may be NULL)
+ * too; its ib_ptext is ignored: text (at most 12 characters, NULL for
+ * none) becomes the icon text.  NULL mono: no colour icon.  Returns 0 or
+ * -1. */
+int rsc_obj_set_cicon(struct rsc *r, int t, int i, const ICONBLK *mono, const char *text);
+/* The colour icon of object i, or NULL (not a G_CICON, or none). */
+struct rsc_cicon *rsc_obj_cicon(const struct rsc *r, int t, int i);
+
+/* Appends a colour version (planes 1..16) to colour icon c, copying the
+ * planes (sizes as for struct rsc_cicon_version; col_data and col_mask
+ * required, sel_data and sel_mask both or neither).  Returns its index, or
+ * -1. */
+int rsc_cicon_add_version(struct rsc_cicon *c, int planes,
+			  const short *col_data, const short *col_mask,
+			  const short *sel_data, const short *sel_mask);
+/* Removes and frees version v of c.  Returns 0 or -1. */
+int rsc_cicon_remove_version(struct rsc_cicon *c, int v);
+int rsc_cicon_nversions(const struct rsc_cicon *c);
+/* Version v of c, or NULL. */
+struct rsc_cicon_version *rsc_cicon_version(const struct rsc_cicon *c, int v);
+
+/* ---- free strings and free images ---------------------------------------- */
+
+int rsc_nfrstr(const struct rsc *r);
+/* Free string k, or NULL for a bad index. */
+const char *rsc_frstr(const struct rsc *r, int k);
+/* Appends a copy of s (not NULL) and returns its index, or -1. */
+int rsc_frstr_add(struct rsc *r, const char *s);
+/* Replaces free string k with a copy of s (not NULL), freeing the old one. */
+int rsc_frstr_set(struct rsc *r, int k, const char *s);
+/* Removes free string k; the later ones move down.  Returns 0 or -1. */
+int rsc_frstr_delete(struct rsc *r, int k);
+
+int rsc_nfrimg(const struct rsc *r);
+/* Free image k, or NULL for a bad index. */
+BITBLK *rsc_frimg(const struct rsc *r, int k);
+/* Appends a copy of *bb, its data (rsc_bitblk_bytes bytes, may be NULL)
+ * included, and returns its index, or -1. */
+int rsc_frimg_add(struct rsc *r, const BITBLK *bb);
+/* Removes free image k; the later ones move down.  Returns 0 or -1. */
+int rsc_frimg_delete(struct rsc *r, int k);
+
+/* ---- allocation, shared with the reader and the writer ------------------- */
+
+/* malloc, realloc, free and a string copy (NULL for NULL) that the test
+ * build can make fail and counts (rsc_test_*).  The library allocates and
+ * frees only through these, and so must a reader or writer for the blocks
+ * it gives the model or the caller (the writer's output buffer is freed by
+ * the caller with rsc_mfree).  A size of 0 allocates 1 byte. */
+void *rsc_malloc(size_t n);
+void *rsc_realloc(void *p, size_t n);
+void rsc_mfree(void *p);
+char *rsc_strdup(const char *s);
+
+#ifdef RSC_TEST
+/* After n more successful allocations every allocation fails, until the
+ * next call; n < 0 never fails (the default). */
+void rsc_test_fail_alloc_after(long n);
+/* Allocations tried (successful or not) since the last
+ * rsc_test_fail_alloc_after. */
+long rsc_test_alloc_count(void);
+/* Blocks allocated through rsc_malloc/rsc_realloc and not yet freed with
+ * rsc_mfree: the leak check of the tests (LeakSanitizer is not available
+ * everywhere). */
+long rsc_test_live_blocks(void);
+#endif
+
+#endif
