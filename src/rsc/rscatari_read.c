@@ -1,0 +1,787 @@
+/* RSCATARI_READ.C	the reader of the classic Atari .RSC format: the file
+ *			image decoded into the model of rscmodel.h
+ *
+ * The file (all numbers big-endian, all pointers file offsets, a NULL
+ * pointer 0xFFFFFFFF):
+ *
+ *   header	36 bytes, 18 words: vrsn, object, tedinfo, iconblk, bitblk,
+ *		frstr, string, imdata, frimg, trindex (offsets), nobs, ntree,
+ *		nted, nib, nbb, nstring, nimages (counts), rssize
+ *   OBJECT	24 bytes: next, head, tail, type, flags, state (words), spec
+ *		(long), x, y, width, height (words)
+ *   TEDINFO	28 bytes: ptext, ptmplt, pvalid (longs), font, fontid, just,
+ *		color, fontsize, thickness, txtlen, tmplen (words)
+ *   ICONBLK	34 bytes: pmask, pdata, ptext (longs), char, xchar, ychar,
+ *		xicon, yicon, wicon, hicon, xtext, ytext, wtext, htext (words)
+ *   BITBLK	14 bytes: pdata (long), wb, hl, x, y, color (words)
+ *   tables	the tree index (ntree longs: the offsets of the roots), the
+ *		free strings (nstring longs) and the free images (nimages
+ *		longs: offsets of BITBLKs)
+ *
+ * With bit 2 of vrsn set, 12 bytes at rssize extend the file: the total
+ * file length, the offset of the colour icon table and a zero long.  The
+ * table is a list of longs (the offsets of the colour icon blocks) ending
+ * with 0xFFFFFFFF; a G_CICON object's spec is an index into it.  A block:
+ *
+ *   ICONBLK	34 bytes, its three pointers meaningless (kept opaque in
+ *		struct rsc_cicon.file_head)
+ *   count	a long: the number of colour versions
+ *   mono	data, then mask: ((w + 15) / 16) * h words each
+ *   text	12 bytes
+ *   versions	count times: a 22-byte header (planes word; col_data,
+ *		col_mask, sel_data, sel_mask, next_res longs, kept opaque in
+ *		struct rsc_cicon_version.file_ptr), colour data (planes
+ *		planes) and mask (1 plane), and when sel_data is not 0 the
+ *		selected data and mask likewise
+ *
+ * Every offset and count is checked here, once, before it is used: every
+ * read of the buffer goes through a range check, every sum of offsets is
+ * computed so that it cannot overflow, and nothing loops more often than
+ * the buffer has bytes.  A violation fails the whole read with a code and
+ * the position in the file; what was built so far is freed.
+ *
+ * Decisions:
+ *  - rsh_rssize is not trusted for a plain file: the buffer length decides
+ *    and bytes after the data are ignored; rsh_string is not used.
+ *  - A table with a count of 0 is not looked at (its offset may be stale).
+ *  - A tree is the run of objects from its root up to the first object
+ *    with OF_LASTOB, or up to the end of the object table when no object
+ *    after the root has it (cicon.rsc has no OF_LASTOB at all).  The links
+ *    are relative to the root; objects of the run that the root does not
+ *    reach are kept (and their specs decoded), objects of the file in no
+ *    run are ignored.  Runs that overlap give each tree its own copy.
+ *  - Records and strings shared by objects are copied per object (the
+ *    setters copy); te_txtlen and te_tmplen become strlen + 1 of a non-NULL
+ *    te_ptext and te_ptmplt, as the old reader did.
+ *  - NULL entries of the free string and free image tables are dropped.
+ *  - A colour icon table offset of 0 or 0xFFFFFFFF means no colour icons,
+ *    as for the old reader and the AES; a G_CICON object then has no
+ *    colour icon if its spec is 0xFFFFFFFF and is an error otherwise.
+ *  - A cell size above 255 is refused (RSC_EARG).
+ *  - Errors that concern a pointer report the position of the field that
+ *    holds it, except a string without its NUL, which reports the string.
+ */
+#include <string.h>
+#include "rscfile.h"
+
+#define FILE_NULL		0xffffffffUL
+
+#define HDR_SIZE	36
+#define OBJ_SIZE	24
+#define TED_SIZE	28
+#define IB_SIZE		34
+#define BB_SIZE		14
+#define CBLK_SIZE	38	/* the ICONBLK and the count of colour versions */
+#define CTEXT_SIZE	12
+#define CICON_SIZE	22	/* the header of a colour version */
+
+/* The largest cell size taken (keeps the conversion inside an int). */
+#define RSC_MAX_CELL	255
+
+/* positions of the header words */
+enum
+{
+	H_VRSN, H_OBJECT, H_TEDINFO, H_ICONBLK, H_BITBLK, H_FRSTR, H_STRING,
+	H_IMDATA, H_FRIMG, H_TRINDEX, H_NOBS, H_NTREE, H_NTED, H_NIB, H_NBB,
+	H_NSTRING, H_NIMAGES, H_RSSIZE, H_WORDS
+};
+
+/* a table of the file: where, how many, how big */
+struct table
+{
+	size_t	off;
+	size_t	n;
+	size_t	size;
+};
+
+struct rd
+{
+	const uint8_t	*buf;
+	size_t	len;
+	int	cell_w, cell_h;
+	struct rsc	*r;
+	struct rsc_error	*err;
+	unsigned	h[H_WORDS];
+	struct table	obj, ted, ib, bb;
+	size_t	ctable;		/* offset of the colour icon table, 0 for none */
+	size_t	ncicon;		/* the number of colour icon blocks */
+};
+
+/* ---- errors -------------------------------------------------------------- */
+
+/* Fills the error report: code, offset and "what at offset 0x...".
+ * Returns -1 for the caller to pass on. */
+static int fail(struct rd *d, int code, size_t off, const char *what)
+{
+	static const char	hex[] = "0123456789abcdef";
+	char	num[2 * sizeof(size_t) + 1];
+	struct rsc_error	*e = d->err;
+	size_t	n, k = sizeof num - 1;
+
+	if (!e)
+		return -1;
+	e->code = code;
+	e->offset = off;
+	num[k] = '\0';
+	do
+	{
+		num[--k] = hex[off & 15];
+		off >>= 4;
+	} while (off && k > 0);
+	n = strlen(what);
+	if (n > sizeof e->msg - 1)
+		n = sizeof e->msg - 1;
+	memcpy(e->msg, what, n);
+	e->msg[n] = '\0';
+	if (n + 13 + strlen(num + k) < sizeof e->msg)
+	{
+		strcat(e->msg, " at offset 0x");
+		strcat(e->msg, num + k);
+	}
+	return -1;
+}
+
+static int nomem(struct rd *d)
+{
+	return fail(d, RSC_ENOMEM, 0, "out of memory");
+}
+
+/* ---- reading the buffer --------------------------------------------------- */
+
+/* n bytes at off are inside the buffer (no overflow: off is compared first) */
+static int in_buf(const struct rd *d, size_t off, size_t n)
+{
+	return off <= d->len && n <= d->len - off;
+}
+
+/* A big-endian word or long at off; 0 outside the buffer (a safety net:
+ * every caller has checked the range before). */
+static unsigned be16(const struct rd *d, size_t off)
+{
+	if (!in_buf(d, off, 2))
+		return 0;
+	return (unsigned)d->buf[off] << 8 | d->buf[off + 1];
+}
+
+static short sbe16(const struct rd *d, size_t off)
+{
+	unsigned	v = be16(d, off);
+
+	return (short)(v >= 0x8000 ? (int)v - 0x10000 : (int)v);
+}
+
+static uint32_t be32(const struct rd *d, size_t off)
+{
+	if (!in_buf(d, off, 4))
+		return 0;
+	return (uint32_t)be16(d, off) << 16 | be16(d, off + 2);
+}
+
+/* A block of nbytes of big-endian words at off (the range has been
+ * checked) converted to the machine's order (an odd last byte is copied as
+ * it is), allocated with rsc_malloc, in *out.  Returns 0 or -1. */
+static int words_at(struct rd *d, size_t off, size_t nbytes, short **out)
+{
+	unsigned char	*p;
+	size_t	k;
+
+	*out = NULL;
+	if (!in_buf(d, off, nbytes))
+		return fail(d, RSC_ETRUNC, off, "data past the end");
+	p = rsc_malloc(nbytes);
+	if (!p)
+		return nomem(d);
+	for (k = 0; k + 1 < nbytes; k += 2)
+	{
+		short	w = sbe16(d, off + k);
+
+		memcpy(p + k, &w, 2);
+	}
+	if (k < nbytes)
+		p[k] = d->buf[off + k];
+	*out = (short *)(void *)p;
+	return 0;
+}
+
+/* words_at for an image data pointer of a record: FILE_NULL gives NULL. */
+static int data_at(struct rd *d, uint32_t off, size_t nbytes, short **out)
+{
+	*out = NULL;
+	return off == FILE_NULL ? 0 : words_at(d, off, nbytes, out);
+}
+
+/* The string at off (FILE_NULL: NULL in *s): it must start in the buffer and end
+ * with a NUL before its end.  field is the position of the pointer. */
+static int string_at(struct rd *d, uint32_t off, size_t field, const char **s)
+{
+	*s = NULL;
+	if (off == FILE_NULL)
+		return 0;
+	if (off >= d->len)
+		return fail(d, RSC_ESTRING, field, "string pointer past the end");
+	if (!memchr(d->buf + off, 0, d->len - off))
+		return fail(d, RSC_ESTRING, off, "string without NUL");
+	*s = (const char *)(d->buf + off);
+	return 0;
+}
+
+/* Image data of nbytes at off (FILE_NULL allowed) lies inside the buffer. */
+static int data_ok(struct rd *d, uint32_t off, size_t nbytes, size_t field)
+{
+	if (off == FILE_NULL || in_buf(d, off, nbytes))
+		return 0;
+	return fail(d, off >= d->len ? RSC_EOFFSET : RSC_ETRUNC, field, "image data past the end");
+}
+
+/* off is the start of a record of table t (field holds it). */
+static int record_in(struct rd *d, const struct table *t, uint32_t off, size_t field,
+		     const char *what)
+{
+	if (off < t->off || off - t->off >= t->n * t->size || (off - t->off) % t->size)
+		return fail(d, RSC_EOFFSET, field, what);
+	return 0;
+}
+
+/* ---- the header and the tables --------------------------------------------- */
+
+/* Table at the offset in header word wo, count in header word wn. */
+static int table(struct rd *d, struct table *t, int wo, int wn, size_t size)
+{
+	t->off = d->h[wo];
+	t->n = d->h[wn];
+	t->size = size;
+	if (t->n == 0)
+		return 0;
+	if (t->off > d->len)
+		return fail(d, RSC_EOFFSET, 2 * (size_t)wo, "table past the end");
+	if (t->n > (d->len - t->off) / size)
+		return fail(d, RSC_ETRUNC, 2 * (size_t)wo, "table truncated");
+	return 0;
+}
+
+static int header(struct rd *d)
+{
+	struct table	t;
+	int	k;
+
+	if (d->len < HDR_SIZE)
+		return fail(d, RSC_ETRUNC, d->len, "header truncated");
+	for (k = 0; k < H_WORDS; k++)
+		d->h[k] = be16(d, 2 * (size_t)k);
+	rsc_set_vrsn(d->r, d->h[H_VRSN]);
+	return table(d, &d->obj, H_OBJECT, H_NOBS, OBJ_SIZE)
+	       || table(d, &d->ted, H_TEDINFO, H_NTED, TED_SIZE)
+	       || table(d, &d->ib, H_ICONBLK, H_NIB, IB_SIZE)
+	       || table(d, &d->bb, H_BITBLK, H_NBB, BB_SIZE)
+	       || table(d, &t, H_TRINDEX, H_NTREE, 4)
+	       || table(d, &t, H_FRSTR, H_NSTRING, 4)
+	       || table(d, &t, H_FRIMG, H_NIMAGES, 4) ? -1 : 0;
+}
+
+/* ---- the colour icon extension ---------------------------------------------- */
+
+/* Words of one plane of the colour icon block at off. */
+static size_t cblk_words(const struct rd *d, size_t off)
+{
+	int	w = sbe16(d, off + 22), h = sbe16(d, off + 24);
+
+	return rsc_plane_bytes(w, h) / 2;
+}
+
+/* Checks the version header at pos of a block with planes of words words
+ * and moves *pos past the version. */
+static int check_version(struct rd *d, size_t *pos, size_t words)
+{
+	size_t	hdr = *pos, payload;
+	unsigned	planes;
+
+	if (!in_buf(d, hdr, CICON_SIZE))
+		return fail(d, RSC_ECICON, hdr, "colour version truncated");
+	planes = be16(d, hdr);
+	if (planes < 1 || planes > RSC_MAX_PLANES)
+		return fail(d, RSC_ECICON, hdr, "bad number of colour planes");
+	if (words > (d->len - hdr) / (2 * ((size_t)planes + 1)))
+		return fail(d, RSC_ECICON, hdr, "colour version truncated");
+	payload = words * 2 * (planes + 1);
+	*pos = hdr + CICON_SIZE;
+	if (!in_buf(d, *pos, payload))
+		return fail(d, RSC_ECICON, hdr, "colour version truncated");
+	*pos += payload;
+	if (be32(d, hdr + 10) != 0)
+	{
+		if (!in_buf(d, *pos, payload))
+			return fail(d, RSC_ECICON, hdr, "selected colour version truncated");
+		*pos += payload;
+	}
+	return 0;
+}
+
+/* Checks the colour icon block at off (the table entry at field). */
+static int check_cblk(struct rd *d, uint32_t off, size_t field)
+{
+	size_t	words, pos;
+	uint32_t	count, i;
+
+	if ((off & 1) || !in_buf(d, off, CBLK_SIZE))
+		return fail(d, RSC_ECICON, field, "bad colour icon block offset");
+	if (sbe16(d, off + 22) < 0 || sbe16(d, off + 24) < 0)
+		return fail(d, RSC_ECICON, off, "negative colour icon size");
+	words = cblk_words(d, off);
+	pos = off + CBLK_SIZE;
+	if (words > (d->len - pos) / 4 || !in_buf(d, pos + words * 4, CTEXT_SIZE))
+		return fail(d, RSC_ECICON, off, "colour icon block truncated");
+	pos += words * 4 + CTEXT_SIZE;
+	count = be32(d, off + 34);
+	if (count > (d->len - pos) / CICON_SIZE)
+		return fail(d, RSC_ECICON, off + 34, "bad number of colour versions");
+	for (i = 0; i < count; i++)
+		if (check_version(d, &pos, words))
+			return -1;
+	return 0;
+}
+
+/* The extension and the colour icon table, when bit 2 of vrsn says so;
+ * every block is checked here. */
+static int cicon_ext(struct rd *d)
+{
+	size_t	ext = d->h[H_RSSIZE], pos;
+	uint32_t	total, tab, off;
+
+	if (!(d->h[H_VRSN] & RSC_VRSN_FORMAT_BITS))
+		return 0;
+	if (!in_buf(d, ext, 12))
+		return fail(d, RSC_ECICON, 2 * H_RSSIZE, "colour icon extension past the end");
+	total = be32(d, ext);
+	tab = be32(d, ext + 4);
+	if (total < ext + 12 || total > d->len)
+		return fail(d, RSC_ECICON, ext, "bad file length in the colour icon extension");
+	if (tab == 0 || tab == FILE_NULL)
+		return 0;
+	if ((tab & 1) || !in_buf(d, tab, 4))
+		return fail(d, RSC_ECICON, ext + 4, "bad colour icon table offset");
+	for (pos = tab; in_buf(d, pos, 4); pos += 4)
+	{
+		off = be32(d, pos);
+		if (off == FILE_NULL)
+		{
+			d->ctable = tab;
+			return 0;
+		}
+		if (check_cblk(d, off, pos))
+			return -1;
+		d->ncicon++;
+	}
+	return fail(d, RSC_ECICON, tab, "colour icon table without end");
+}
+
+/* ---- specs -------------------------------------------------------------------- */
+
+static int set_string(struct rd *d, int t, int i, uint32_t off, size_t field)
+{
+	const char	*s;
+
+	if (string_at(d, off, field, &s))
+		return -1;
+	if (s && rsc_obj_set_str(d->r, t, i, RSC_STR_SPEC, s))
+		return nomem(d);
+	return 0;
+}
+
+static int set_tedinfo(struct rd *d, int t, int i, uint32_t off, size_t field)
+{
+	TEDINFO	te;
+	const char	*s[3];
+	int	k;
+
+	if (off == FILE_NULL)
+		return 0;
+	if (record_in(d, &d->ted, off, field, "TEDINFO pointer outside the TEDINFO table"))
+		return -1;
+	for (k = 0; k < 3; k++)
+		if (string_at(d, be32(d, off + 4 * (size_t)k), off + 4 * (size_t)k, &s[k]))
+			return -1;
+	te.te_ptext = (char *)s[0];
+	te.te_ptmplt = (char *)s[1];
+	te.te_pvalid = (char *)s[2];
+	te.te_font = sbe16(d, off + 12);
+	te.te_fontid = sbe16(d, off + 14);
+	te.te_just = sbe16(d, off + 16);
+	te.te_color = sbe16(d, off + 18);
+	te.te_fontsize = sbe16(d, off + 20);
+	te.te_thickness = sbe16(d, off + 22);
+	te.te_txtlen = s[0] ? (short)(strlen(s[0]) + 1) : sbe16(d, off + 24);
+	te.te_tmplen = s[1] ? (short)(strlen(s[1]) + 1) : sbe16(d, off + 26);
+	return rsc_obj_set_tedinfo(d->r, t, i, &te) ? nomem(d) : 0;
+}
+
+/* The words fields of an ICONBLK at off (char .. htext) into *ib. */
+static void iconblk_words(const struct rd *d, size_t off, ICONBLK *ib)
+{
+	ib->ib_char = sbe16(d, off + 12);
+	ib->ib_xchar = sbe16(d, off + 14);
+	ib->ib_ychar = sbe16(d, off + 16);
+	ib->ib_xicon = sbe16(d, off + 18);
+	ib->ib_yicon = sbe16(d, off + 20);
+	ib->ib_wicon = sbe16(d, off + 22);
+	ib->ib_hicon = sbe16(d, off + 24);
+	ib->ib_xtext = sbe16(d, off + 26);
+	ib->ib_ytext = sbe16(d, off + 28);
+	ib->ib_wtext = sbe16(d, off + 30);
+	ib->ib_htext = sbe16(d, off + 32);
+}
+
+static int set_iconblk(struct rd *d, int t, int i, uint32_t off, size_t field)
+{
+	ICONBLK	ib;
+	const char	*s;
+	uint32_t	pm, pd;
+	size_t	n;
+	int	rc = -1;
+
+	if (off == FILE_NULL)
+		return 0;
+	if (record_in(d, &d->ib, off, field, "ICONBLK pointer outside the ICONBLK table"))
+		return -1;
+	iconblk_words(d, off, &ib);
+	n = rsc_plane_bytes(ib.ib_wicon, ib.ib_hicon);
+	pm = be32(d, off);
+	pd = be32(d, off + 4);
+	if (data_ok(d, pm, n, off) || data_ok(d, pd, n, off + 4)
+	    || string_at(d, be32(d, off + 8), off + 8, &s))
+		return -1;
+	ib.ib_ptext = (char *)s;
+	ib.ib_pdata = NULL;
+	if (data_at(d, pm, n, &ib.ib_pmask) || data_at(d, pd, n, &ib.ib_pdata))
+		goto out;
+	if (rsc_obj_set_iconblk(d->r, t, i, &ib))
+		nomem(d);
+	else
+		rc = 0;
+out:
+	rsc_mfree(ib.ib_pmask);
+	rsc_mfree(ib.ib_pdata);
+	return rc;
+}
+
+/* The BITBLK at off (inside the BITBLK table, checked) into *bb, its data
+ * decoded into a block the caller frees. */
+static int read_bitblk(struct rd *d, uint32_t off, BITBLK *bb)
+{
+	uint32_t	pd = be32(d, off);
+
+	bb->bi_wb = sbe16(d, off + 4);
+	bb->bi_hl = sbe16(d, off + 6);
+	bb->bi_x = sbe16(d, off + 8);
+	bb->bi_y = sbe16(d, off + 10);
+	bb->bi_color = sbe16(d, off + 12);
+	if (data_ok(d, pd, rsc_bitblk_bytes(bb), off))
+		return -1;
+	return data_at(d, pd, rsc_bitblk_bytes(bb), &bb->bi_pdata);
+}
+
+static int set_bitblk(struct rd *d, int t, int i, uint32_t off, size_t field)
+{
+	BITBLK	bb;
+	int	rc = 0;
+
+	if (off == FILE_NULL)
+		return 0;
+	if (record_in(d, &d->bb, off, field, "BITBLK pointer outside the BITBLK table")
+	    || read_bitblk(d, off, &bb))
+		return -1;
+	if (rsc_obj_set_bitblk(d->r, t, i, &bb))
+		rc = nomem(d);
+	rsc_mfree(bb.bi_pdata);
+	return rc;
+}
+
+/* Adds the colour version at *pos (checked by check_version) to c. */
+static int add_version(struct rd *d, struct rsc_cicon *c, size_t *pos, size_t words)
+{
+	size_t	hdr = *pos, pb = words * 2;
+	unsigned	planes = be16(d, hdr);
+	int	sel = be32(d, hdr + 10) != 0, v, k, rc = -1;
+	short	*p[4] = { NULL, NULL, NULL, NULL };
+	struct rsc_cicon_version	*ver;
+
+	*pos = hdr + CICON_SIZE;
+	if (words_at(d, *pos, pb * planes, &p[0])
+	    || words_at(d, *pos + pb * planes, pb, &p[1]))
+		goto out;
+	*pos += pb * (planes + 1);
+	if (sel)
+	{
+		if (words_at(d, *pos, pb * planes, &p[2])
+		    || words_at(d, *pos + pb * planes, pb, &p[3]))
+			goto out;
+		*pos += pb * (planes + 1);
+	}
+	v = rsc_cicon_add_version(c, (int)planes, p[0], p[1], p[2], p[3]);
+	if (v < 0)
+	{
+		nomem(d);
+		goto out;
+	}
+	ver = rsc_cicon_version(c, v);
+	for (k = 0; k < 5; k++)
+		ver->file_ptr[k] = be32(d, hdr + 2 + 4 * (size_t)k);
+	rc = 0;
+out:
+	for (k = 0; k < 4; k++)
+		rsc_mfree(p[k]);
+	return rc;
+}
+
+/* The colour icon of block off (checked by check_cblk) for object i. */
+static int build_cicon(struct rd *d, int t, int i, size_t off)
+{
+	ICONBLK	mono;
+	char	text[CTEXT_SIZE + 1];
+	size_t	words = cblk_words(d, off), pos = off + CBLK_SIZE;
+	uint32_t	count = be32(d, off + 34), v;
+	struct rsc_cicon	*c;
+	int	k, rc = -1;
+
+	iconblk_words(d, off, &mono);
+	mono.ib_ptext = NULL;
+	mono.ib_pmask = NULL;
+	if (words_at(d, pos, words * 2, &mono.ib_pdata)
+	    || words_at(d, pos + words * 2, words * 2, &mono.ib_pmask))
+		goto out;
+	pos += words * 4;
+	memcpy(text, d->buf + pos, CTEXT_SIZE);
+	text[CTEXT_SIZE] = '\0';
+	pos += CTEXT_SIZE;
+	if (rsc_obj_set_cicon(d->r, t, i, &mono, text))
+	{
+		nomem(d);
+		goto out;
+	}
+	c = rsc_obj_cicon(d->r, t, i);
+	for (k = 0; k < 3; k++)
+		c->file_head[k] = be32(d, off + 4 * (size_t)k);
+	for (v = 0; v < count; v++)
+		if (add_version(d, c, &pos, words))
+			goto out;
+	rc = 0;
+out:
+	rsc_mfree(mono.ib_pdata);
+	rsc_mfree(mono.ib_pmask);
+	return rc;
+}
+
+static int set_cicon(struct rd *d, int t, int i, uint32_t index, size_t field)
+{
+	if (index == FILE_NULL)
+		return 0;
+	if (index >= d->ncicon)
+		return fail(d, RSC_ECICON, field, "colour icon index out of range");
+	return build_cicon(d, t, i, be32(d, d->ctable + 4 * (size_t)index));
+}
+
+/* The spec of object i of tree t, whose file record is at rec. */
+static int set_spec(struct rd *d, int t, int i, size_t rec)
+{
+	OBJECT	*o = rsc_tree_objects(d->r, t, NULL) + i;
+	uint32_t	spec = be32(d, rec + 12);
+	size_t	field = rec + 12;
+
+	switch (rsc_obj_spec_kind(o))
+	{
+	case RSC_SPEC_STRING:
+		return set_string(d, t, i, spec, field);
+	case RSC_SPEC_TEDINFO:
+		return set_tedinfo(d, t, i, spec, field);
+	case RSC_SPEC_ICONBLK:
+		return set_iconblk(d, t, i, spec, field);
+	case RSC_SPEC_BITBLK:
+		return set_bitblk(d, t, i, spec, field);
+	case RSC_SPEC_CICON:
+		return set_cicon(d, t, i, spec, field);
+	case RSC_SPEC_VALUE:
+		break;
+	}
+	if (rsc_obj_set_value(d->r, t, i, spec))
+		return fail(d, RSC_EARG, rec, "object spec not set");
+	return 0;
+}
+
+/* ---- trees ---------------------------------------------------------------------- */
+
+/* A coordinate in file form converted with cell size cell (fix_chpos):
+ * the low byte in cells plus the high byte in pixels, signed above 128. */
+static short fix_coord(unsigned v, int cell)
+{
+	int	hi = (int)(v >> 8 & 0xff), px = (int)(v & 0xff) * cell;
+
+	return (short)(hi > 128 ? px - (256 - hi) : px + hi);
+}
+
+static short coord(const struct rd *d, size_t off, int cell)
+{
+	return cell ? fix_coord(be16(d, off), cell) : sbe16(d, off);
+}
+
+/* The fields of object i of tree t but its spec from the record at rec. */
+static void set_fields(struct rd *d, int t, int i, size_t rec)
+{
+	OBJECT	*o;
+
+	rsc_obj_set_type(d->r, t, i, be16(d, rec + 6));
+	rsc_obj_set_flags(d->r, t, i, be16(d, rec + 8));
+	o = rsc_tree_objects(d->r, t, NULL) + i;
+	o->ob_next = i ? sbe16(d, rec) : -1;
+	o->ob_head = sbe16(d, rec + 2);
+	o->ob_tail = sbe16(d, rec + 4);
+	o->ob_state = (unsigned short)be16(d, rec + 10);
+	o->ob_x = coord(d, rec + 16, d->cell_w);
+	o->ob_y = coord(d, rec + 18, d->cell_h);
+	o->ob_width = coord(d, rec + 20, d->cell_w);
+	o->ob_height = coord(d, rec + 22, d->cell_h);
+}
+
+/* The links of tree t, whose root is at root in the file, form an AES tree. */
+static int check_links(struct rd *d, int t, size_t root)
+{
+	int	n;
+	OBJECT	*o = rsc_tree_objects(d->r, t, &n);
+
+	switch (rsc_tree_preorder(o, n, NULL))
+	{
+	case RSC_WALK_ENOMEM:
+		return nomem(d);
+	case RSC_WALK_ESHARED:
+		return fail(d, RSC_ECYCLE, root, "tree links form a cycle or share an object");
+	case RSC_WALK_EARG:
+	case RSC_WALK_ERANGE:
+		return fail(d, RSC_ELINK, root, "tree link out of range");
+	case RSC_WALK_ECHAIN:
+		return fail(d, RSC_ELINK, root, "malformed sibling chain in tree");
+	default:
+		return 0;
+	}
+}
+
+/* Tree k of the tree index. */
+static int read_tree(struct rd *d, size_t k)
+{
+	size_t	field = d->h[H_TRINDEX] + 4 * k, s, e, root;
+	uint32_t	off = be32(d, field);
+	int	t, i;
+
+	if (record_in(d, &d->obj, off, field, "tree root outside the object table"))
+		return -1;
+	s = (off - d->obj.off) / OBJ_SIZE;
+	for (e = s; e + 1 < d->obj.n; e++)
+		if (be16(d, d->obj.off + e * OBJ_SIZE + 8) & OF_LASTOB)
+			break;
+	if (e - s + 1 > RSC_MAX_OBJECTS)
+		return fail(d, RSC_ETOOBIG, field, "tree with too many objects");
+	root = off;
+	t = rsc_tree_add(d->r, (int)(e - s + 1));
+	if (t < 0)
+		return nomem(d);
+	for (i = 0; (size_t)i <= e - s; i++)
+		set_fields(d, t, i, root + (size_t)i * OBJ_SIZE);
+	if (check_links(d, t, root))
+		return -1;
+	for (i = 0; (size_t)i <= e - s; i++)
+		if (set_spec(d, t, i, root + (size_t)i * OBJ_SIZE))
+			return -1;
+	return 0;
+}
+
+/* ---- free strings and free images ---------------------------------------------- */
+
+static int read_frstr(struct rd *d)
+{
+	size_t	k, field;
+	const char	*s;
+
+	for (k = 0; k < d->h[H_NSTRING]; k++)
+	{
+		field = d->h[H_FRSTR] + 4 * k;
+		if (string_at(d, be32(d, field), field, &s))
+			return -1;
+		if (s && rsc_frstr_add(d->r, s) < 0)
+			return nomem(d);
+	}
+	return 0;
+}
+
+static int read_frimg(struct rd *d)
+{
+	size_t	k, field;
+	uint32_t	off;
+	BITBLK	bb;
+	int	rc;
+
+	for (k = 0; k < d->h[H_NIMAGES]; k++)
+	{
+		field = d->h[H_FRIMG] + 4 * k;
+		off = be32(d, field);
+		if (off == FILE_NULL)
+			continue;
+		if (record_in(d, &d->bb, off, field, "free image outside the BITBLK table")
+		    || read_bitblk(d, off, &bb))
+			return -1;
+		rc = rsc_frimg_add(d->r, &bb) < 0 ? nomem(d) : 0;
+		rsc_mfree(bb.bi_pdata);
+		if (rc)
+			return -1;
+	}
+	return 0;
+}
+
+/* ---- the whole file -------------------------------------------------------------- */
+
+static int read_all(struct rd *d)
+{
+	size_t	k;
+
+	if (header(d) || cicon_ext(d))
+		return -1;
+	for (k = 0; k < d->h[H_NTREE]; k++)
+		if (read_tree(d, k))
+			return -1;
+	return read_frstr(d) || read_frimg(d) ? -1 : 0;
+}
+
+struct rsc *rsc_atari_read(const uint8_t *buf, size_t len, int cell_w, int cell_h,
+			   struct rsc_error *err)
+{
+	struct rd	d;
+
+	memset(&d, 0, sizeof d);
+	d.buf = buf;
+	d.len = len;
+	d.cell_w = cell_w;
+	d.cell_h = cell_h;
+	d.err = err;
+	if (err)
+	{
+		err->code = RSC_OK;
+		err->offset = 0;
+		err->msg[0] = '\0';
+	}
+	if (!buf || cell_w < 0 || cell_h < 0 || cell_w > RSC_MAX_CELL || cell_h > RSC_MAX_CELL
+	    || (cell_w == 0) != (cell_h == 0))
+	{
+		fail(&d, RSC_EARG, 0, "bad argument");
+		return NULL;
+	}
+	d.r = rsc_new();
+	if (!d.r)
+	{
+		nomem(&d);
+		return NULL;
+	}
+	if (rsc_set_cell(d.r, cell_w, cell_h) || read_all(&d))
+	{
+		if (err && err->code == RSC_OK)
+			fail(&d, RSC_EARG, 0, "bad argument");
+		rsc_free(d.r);
+		return NULL;
+	}
+	return d.r;
+}
