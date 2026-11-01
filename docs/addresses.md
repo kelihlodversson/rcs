@@ -22,13 +22,24 @@ arena, because a pointer does not fit in the 4 bytes the file image gives it.
 ## The arena
 
 `rcs_alloc(bytes)` returns an `raddr` of zeroed memory (0 when there is no room)
-and `rcs_release(a)` gives it back. On the Atari they are the system allocator;
-on the host (`src/host/hostmem.c`) the arena is one reserved 1 GB region, blocks
+and `rcs_release(a)` gives it back. On m68k and ARM `rcs_alloc` is `malloc`
+plus `memset` and `rcs_release` is `free` (`src/rcsdata.c`); on the host (`src/host/hostmem.c`) the arena is one reserved 1 GB region, blocks
 are 8-aligned, offset 0 is never handed out (it means "none"), and
 `rcs_release` does nothing. Allocate RCS data with these, never with `malloc`.
-The working buffer of the program itself, `buff_size`, is 64 KB (0x10000), and
-that is the limit on what one resource file can hold in memory; the test driver
-uses the same size.
+
+The limits are not the same thing:
+
+- The working buffer that holds the trees and objects is `buff_size`. On the
+  target (`src/rcsinit.c`) it is 0x10000 bytes minus a panic reserve of 2500
+  bytes, so 63036 bytes. The host driver (`tests/host/roundtrip.c`) allocates
+  a plain 0x10000 with no reserve.
+- The file format limits the tree and object data to 64 KB, because the header
+  holds 16-bit offsets: `rcsdisk.c` fails past 0xffff when reading and writing,
+  and `rcswrite.c` masks the offsets with 0xffff.
+- Colour icon data is held outside that buffer and is bounded separately: the
+  file's colour icon part may be up to 16 MB (`cicon_total` in `rcsread.c`;
+  `cicon_prepare(0x1000000L - 1024)` in `rcswrite.c`).
+- The 1 GB host arena is a ceiling of the host allocator, not a format limit.
 
 ## Table entries and fields: rentry, RFIELD, RGET
 
@@ -54,8 +65,12 @@ pointer.
 `rcscicon.c` keeps the colour versions of the icons it has read. In
 `struct cicon_kept`, `head` and `versions` are ordinary host pointers (from
 `malloc`), as is `block` in `cblk[]`: they are never passed through `RP()`. The
-icon itself is RCS data: the `iconblk` argument and the return value of the
-functions in `rcscicon.h` are `raddr`, and are dereferenced with `RP()`.
+icon itself is RCS data. `rcscicon.h` does not use the type `raddr`: RCS
+addresses are held as `long` there. `cicon_kept(long iconblk)` takes the RCS
+address of an ICONBLK and returns a host pointer, `struct cicon_kept *` (into
+the static `mark[]` table); `cicon_iconblk()` returns an RCS address as `long`;
+`cicon_scan(long image, ...)` takes the RCS address of the file image. The RCS
+addresses are dereferenced with `RP()`, the host pointers never.
 
 ## Files not converted yet
 

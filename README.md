@@ -71,17 +71,20 @@ after loading). Only ARM is used: the m68k build with that hook panics in
 `write_files()` (Line F exception, not understood yet).
 
 The host build compiles the load and save sources (`rcsread.c`, `rcswrite.c`,
-`rcsdata.c`, `rcslib.c`, `rcsdisk.c`, `rcscicon.c`) unchanged against a shim in
-`src/host/`: an arena for the resource data, and stubs for the GEM and GEMDOS
-calls (alerts print to stderr and answer the first button). The files of the
+`rcsdata.c`, `rcslib.c`, `rcsdisk.c`, `rcscicon.c`), the same sources as the
+Atari build and not a host copy of the code, against a shim in `src/host/`: an
+arena for the resource data, and stubs for the GEM and GEMDOS calls (alerts
+print to stderr and answer the alert's default button). The files of the
 GUI are not part of it. On a 64-bit host addresses of resource data are 32-bit
 offsets into the arena; `docs/addresses.md` explains the rules for editing the
 sources. `rcs-cli`, a command line tool on top of this, is the next stage.
 
 On m68k and ARM the code is meant to be unchanged by all of this:
-`tests/roundtrip/cmp-objs.sh` compares the objects of a baseline build with
-those of the current tree and requires the disassembly of every function that
-existed before to be identical (and the data sections).
+`tests/roundtrip/cmp-objs.sh BASE_DIR NEW_DIR [OBJDUMP]` compares the objects
+of a baseline build with those of the current tree and requires the
+disassembly of every function that existed before to be identical (and the
+data sections). The guarantee is checked by building a baseline and comparing;
+after a change the comparison has to be run again for both targets.
 
 ## State of the port
 
