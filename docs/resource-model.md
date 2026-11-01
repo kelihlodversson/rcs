@@ -30,7 +30,10 @@ The extended format (`RSXHDR`) is not here yet.
     gmake rsc-test RSC_SAN=1
 
 builds each test program with the host compiler and runs it. `RSC_SAN=1` adds
-AddressSanitizer and UBSan (and stops at the first undefined behaviour). On
+AddressSanitizer and UBSan (and stops at the first undefined behaviour).
+The `host-tests` job of `.github/workflows/build.yml` runs both, and
+`make host-test`, with the system compiler of Ubuntu (gcc, where
+LeakSanitizer is on as well) for every pull request. On
 the host `rscmodel.h` defines the AES structures itself (`-DRSC_HOST`) with
 the field names of gemlib; on m68k and ARM it includes `<gem.h>`. It does not
 use `src/host/gem.h`.

@@ -4,6 +4,8 @@
 #   make arm       build/arm/RCS.PRG and its resource files (pTOS on ARM)
 #   make libs      only gemlib and libcmini, for both targets
 #   make rsc-test  the tests of the resource library (src/rsc) on this machine
+#                  (RSC_SAN=1: with AddressSanitizer and UBSan)
+#   make host-test the load/save round trip of the old code on this machine
 #   make clean
 #
 # Needs GNU make, python3 and rsync, and the m68k-atari-mintelf- toolchain on
