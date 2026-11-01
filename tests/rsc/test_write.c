@@ -1359,6 +1359,37 @@ static void test_negative(void)
 	}
 }
 
+/* A colour icon whose mono size is changed behind the model's back: the
+ * writer must refuse it (RSC_EARG) rather than read past the mono data. */
+static void test_cicon_mono_size(void)
+{
+	struct rsc	*r;
+	struct rsc_error	e;
+	struct rsc_cicon	*c;
+	uint8_t	*o;
+	size_t	len;
+	int	k, withv;
+
+	for (withv = 0; withv < 2; withv++)
+	{
+		r = rsc_new();
+		rsc_tree_add(r, 1);
+		k = rsc_obj_add(r, 0, 0, G_CICON);
+		c = set_cicon(r, 0, k, 16, 2, pat + 300, pat + 400, "CI");
+		if (withv)
+		{
+			CHECK(rsc_cicon_add_version(c, 4, pat + 500, pat + 600, NULL, NULL) == 0);
+			c->blk.monoblk.ib_wicon = 32;	/* only the mono size */
+		}
+		else
+			c->blk.monoblk.ib_hicon = 40;
+		CHECK(wr(r, 0, 0, &o, &len, &e) == -1 && e.code == RSC_EARG
+		      && strstr(e.msg, "does not match") && strstr(e.msg, "tree 0")
+		      && strstr(e.msg, "object 1"));
+		rsc_free(r);
+	}
+}
+
 /* Pixel coordinates the file form cannot hold. */
 static void test_coords(void)
 {
@@ -2059,6 +2090,7 @@ int main(int argc, char **argv)
 	test_limits();
 	test_errors();
 	test_negative();
+	test_cicon_mono_size();
 	test_coords();
 	test_coord_brute();
 	test_coord_files();
