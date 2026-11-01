@@ -671,6 +671,20 @@ static void test_golden(const char *name, int cw, int ch)
 		return;
 	}
 	h = model_hash(r);
+	/* no image block of an odd size, so the pads of odd blocks cannot
+	 * have changed the output (the bytes below would show it anyway) */
+	{
+		OBJECT	*ob;
+		int	t, k, n, odd = 0;
+
+		for (t = 0; t < rsc_ntrees(r); t++)
+			for (ob = rsc_tree_objects(r, t, &n), k = 0; k < n; k++)
+				odd += rsc_obj_spec_kind(&ob[k]) == RSC_SPEC_BITBLK && ob[k].ob_spec.bitblk
+				       && rsc_bitblk_bytes(ob[k].ob_spec.bitblk) % 2;
+		for (k = 0; k < rsc_nfrimg(r); k++)
+			odd += rsc_bitblk_bytes(rsc_frimg(r, k)) % 2;
+		CHECK(odd == 0);
+	}
 	CHECK(wr(r, cw, ch, &o1, &l1, &e) == 0);
 	CHECK(o1 && same_bytes(what, o1, l1, g.b, g.len));
 	/* the model is unchanged, and written twice gives the same bytes */
@@ -795,9 +809,9 @@ static void test_sample(void)
 	CHECK(rd32(o, ob + 17 * 24 + 12) == 1);
 	/* the root of tree 2 in file form */
 	CHECK(rd16(o, ob + 18 * 24 + 16) == 0xffff && rd16(o, ob + 18 * 24 + 18) == 0x7fff);
-	/* the colour icon extension */
-	/* the colour icon extension (the tree index ends odd: a 9-byte image) */
-	CHECK(hw(o, H_TRINDEX) % 2 == 1 && hw(o, H_RSSIZE) == hw(o, H_TRINDEX) + 12 + 1);
+	/* the colour icon extension (the 9-byte image of tree 1 is padded, so
+	 * the tree index ends even and no pad precedes the extension) */
+	CHECK(hw(o, H_TRINDEX) % 2 == 0 && hw(o, H_RSSIZE) == hw(o, H_TRINDEX) + 12);
 	cb = hw(o, H_RSSIZE);
 	CHECK(rd32(o, cb) == len && rd32(o, cb + 4) == cb + 12 && rd32(o, cb + 8) == 0);
 	CHECK(rd32(o, cb + 12) == cb + 24 && rd32(o, cb + 20) == FILE_NULL);
@@ -1036,6 +1050,75 @@ static void test_tedinfo_lengths(void)
 	CHECK(rsc_test_live_blocks() == 0);
 }
 
+static uint8_t *round_trip(struct rsc *r, size_t *len);
+
+/* Image data of an odd size is followed by a zero pad, so every block and
+ * record after it, and every header offset, stays even (a 68000 cannot
+ * read a record at an odd address); the content reads back the same.  An
+ * icon plane is always even (rsc_plane_bytes), so only BITBLKs can be
+ * odd. */
+static void test_odd_images(void)
+{
+	static const int	sizes[][2] = { { 3, 3 }, { 1, 1 }, { 5, 7 }, { 2, 3 }, { 0, 9 } };
+	BITBLK	bb = { NULL, 3, 3, 1, 2, 3 };
+	struct rsc_error	e;
+	struct rsc	*r, *r2;
+	uint8_t	*o;
+	size_t	len, img, k;
+	int	i, h, w;
+
+	for (w = 1; w <= 33; w++)
+		for (h = 0; h <= 5; h++)
+			CHECK(rsc_plane_bytes(w, h) % 2 == 0);
+	for (k = 0; k < sizeof sizes / sizeof sizes[0]; k++)
+	{
+		r = rsc_new();
+		rsc_tree_add(r, 1);
+		i = rsc_obj_add(r, 0, 0, G_IMAGE);
+		set_image(r, 0, i, sizes[k][0], sizes[k][1], pat + 3);
+		i = rsc_obj_add(r, 0, 0, G_ICON);
+		set_icon(r, 0, i, 16, 3, pat, pat + 10, "odd");
+		i = rsc_obj_add(r, 0, 0, G_TEXT);
+		CHECK(set_tedinfo(r, 0, i, "ab", NULL, "c") == 0);	/* strings end odd */
+		bb.bi_wb = (short)sizes[k][1];
+		bb.bi_hl = (short)sizes[k][0];
+		bb.bi_pdata = pat + 20;
+		CHECK(rsc_frimg_add(r, &bb) == 0);
+		bb.bi_pdata = NULL;
+		CHECK(rsc_frimg_add(r, &bb) == 1);
+		CHECK(rsc_frstr_add(r, "x") == 0);
+		o = round_trip(r, &len);
+		CHECK(o != NULL);
+		if (o)
+		{
+			size_t	n = (size_t)(sizes[k][0] * sizes[k][1]), pad = n & 1;
+
+			for (h = H_OBJECT; h <= H_TRINDEX; h++)
+				CHECK(hw(o, h) % 2 == 0);
+			CHECK(len % 2 == 0 && hw(o, H_RSSIZE) == len);
+			/* the image section: the BITBLK data, its pad, the icon's
+			 * mask and data, then the two free images */
+			img = hw(o, H_IMDATA);
+			CHECK(rd32(o, hw(o, H_BITBLK)) == img);
+			CHECK(!pad || o[img + n] == 0);
+			CHECK(rd32(o, hw(o, H_ICONBLK)) == img + n + pad);
+			CHECK(rd32(o, hw(o, H_ICONBLK) + 4) == img + n + pad + 6);
+			CHECK(rd32(o, hw(o, H_BITBLK) + 14) == img + n + pad + 12);
+			CHECK(rd32(o, hw(o, H_BITBLK) + 28) == img + 2 * (n + pad) + 12);
+			CHECK(hw(o, H_FRSTR) == img + 3 * (n + pad) + 12);
+			/* and reads back as written */
+			r2 = rd(o, len, 0, 0, &e);
+			CHECK(r2 && fixed_point("odd images", o, len, 0, 0));
+			CHECK(r2 && rsc_bitblk_bytes(rsc_frimg(r2, 0)) == n
+			      && data_eq(rsc_frimg(r2, 0)->bi_pdata, pat + 20, n));
+			rsc_free(r2);
+		}
+		rsc_mfree(o);
+		rsc_free(r);
+	}
+	CHECK(rsc_test_live_blocks() == 0);
+}
+
 static void test_limits(void)
 {
 	struct rsc	*r;
@@ -1044,9 +1127,10 @@ static void test_limits(void)
 	size_t	len;
 	int	t, k;
 
-	/* 36 + 65448 + 1 + 4 + 14 + 4 + 24 + 4 = 65535: the largest file */
-	r = sized(65447, 1);
-	CHECK(wr(r, 0, 0, &o, &len, &e) == 0 && len == 65535 && hw(o, H_RSSIZE) == 65535);
+	/* 36 + 65446 + 1 + 1 (pad) + 4 + 14 + 4 + 24 + 4 = 65534: the largest
+	 * file (every section ends even, so 65535 bytes cannot be reached) */
+	r = sized(65445, 1);
+	CHECK(wr(r, 0, 0, &o, &len, &e) == 0 && len == 65534 && hw(o, H_RSSIZE) == 65534);
 	if (o)
 	{
 		struct rsc	*r2 = rd(o, len, 0, 0, &e);
@@ -1056,9 +1140,9 @@ static void test_limits(void)
 	}
 	rsc_mfree(o);
 	rsc_free(r);
-	/* two bytes more: the tree index ends at 65537; it starts at 65533 */
-	r = sized(65449, 1);
-	EXPECT_FAIL(r, 0, 0, RSC_ETOOBIG, 65533);
+	/* two bytes more: the tree index ends at 65536; it starts at 65532 */
+	r = sized(65447, 1);
+	EXPECT_FAIL(r, 0, 0, RSC_ETOOBIG, 65532);
 	rsc_free(r);
 	/* 65536 bytes (36 + 65468 + 4 + 24 + 4): the tree index at 65532 */
 	r = sized(65467, 0);
@@ -1072,12 +1156,18 @@ static void test_limits(void)
 	r = sized(70000, 0);
 	EXPECT_FAIL(r, 0, 0, RSC_ETOOBIG, 36);
 	rsc_free(r);
-	/* with a colour icon, the pad before the extension counts: a classic
-	 * part of 65535 bytes cannot have one */
+	/* with a colour icon: a classic part of 65534 bytes, then the
+	 * extension at 65534 without a pad; two bytes more do not fit */
+	r = sized(65445 - 24, 1);
+	k = rsc_obj_add(r, 0, 0, G_CICON);
+	set_cicon(r, 0, k, 16, 1, NULL, NULL, "x");
+	CHECK(wr(r, 0, 0, &o, &len, &e) == 0 && o && hw(o, H_RSSIZE) == 65534 && rd32(o, 65534) == len);
+	rsc_mfree(o);
+	rsc_free(r);
 	r = sized(65447 - 24, 1);
 	k = rsc_obj_add(r, 0, 0, G_CICON);
 	set_cicon(r, 0, k, 16, 1, NULL, NULL, "x");
-	EXPECT_FAIL(r, 0, 0, RSC_ETOOBIG, 65535);
+	EXPECT_FAIL(r, 0, 0, RSC_ETOOBIG, 65532);
 	CHECK(rsc_frstr_set(r, 0, "short") == 0);
 	CHECK(wr(r, 0, 0, &o, &len, &e) == 0);
 	rsc_mfree(o);
@@ -1931,6 +2021,7 @@ int main(int argc, char **argv)
 	test_tree_order();
 	test_null_data();
 	test_tedinfo_lengths();
+	test_odd_images();
 	test_limits();
 	test_errors();
 	test_negative();

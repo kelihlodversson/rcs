@@ -14,7 +14,9 @@
  *		TEDINFO; then the free strings; each with its NUL; one 0x00 pad
  *		when that ends at an odd offset
  *   images	in the same order: the data of a BITBLK, the mask then the data
- *		of an ICONBLK; then the data of the free images; no padding
+ *		of an ICONBLK; then the data of the free images; a block of an
+ *		odd number of bytes (only a BITBLK can have one) is followed by
+ *		one 0x00 pad
  *   frstr	the free string table (a long per free string), if any
  *   BITBLKs	those of the trees (preorder), then those of the free images
  *   frimg	the free image table (offsets of the free BITBLKs), if any
@@ -131,6 +133,13 @@
  *    normalised to 1 and 0 and sel_data made to agree with the planes;
  *  - rsh_frstr and rsh_frimg are 0 for empty lists (the old value was
  *    stale);
+ *  - image data of an odd number of bytes (a BITBLK with bi_wb * bi_hl
+ *    odd) is followed by a zero pad byte; the old writer packed the
+ *    blocks, so everything after such a block was at odd offsets, and a
+ *    68000 takes an address error reading a record there.  The records
+ *    hold explicit offsets, so readers are not affected.  With it every
+ *    section, and so the classic part, ends even (the pad before the
+ *    colour icon extension remains as a safety net);
  *  - a classic part over 65535 bytes is an error, not a silent wrap.
  */
 #include <string.h>
@@ -346,15 +355,16 @@ static void put_bytes(struct wr *w, size_t at, const void *p, size_t n)
 }
 
 /* n bytes of words in the machine's order at p into section s, big-endian
- * (an odd last byte copied as it is); NULL p: zero words (the buffer starts
- * zeroed).  *at := where. */
+ * (an odd last byte copied as it is, then a zero pad byte so that what
+ * follows stays even); NULL p: zero words (the buffer starts zeroed).
+ * *at := where. */
 static int put_words(struct wr *w, int s, const short *p, size_t n, size_t *at)
 {
 	const unsigned char	*b = (const unsigned char *)p;
-	size_t	k;
+	size_t	k, pad;
 	short	v;
 
-	if (adv(w, s, n, at))
+	if (adv(w, s, n, at) || ((n & 1) && adv(w, s, 1, &pad)))
 		return -1;
 	if (!p || !can_put(w, *at, n))
 		return 0;

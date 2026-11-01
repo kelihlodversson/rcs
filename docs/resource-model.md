@@ -252,12 +252,16 @@ Trees go in index order and objects in preorder, renumbered, with `OF_LASTOB`
 only on the last object of each tree. Strings are never shared: a string used
 twice is written twice. A NULL string is written as `0xFFFFFFFF`; NULL image
 data is a blank image and is written as zero words behind a real pointer.
+Image data of an odd number of bytes (a BITBLK whose `bi_wb * bi_hl` is odd;
+icon planes are always even) is followed by one zero byte, so that every
+block and record after it stays at an even offset.
 `te_txtlen` and `te_tmplen` are written as stored; a `te_ptext` or
 `te_ptmplt` of 32767 characters or more (which only a caller breaking the
 contract can store) is `RSC_ETOOBIG` at the TEDINFO, since the reader would
 refuse it.
 
-The classic part may not exceed 65535 bytes (16-bit offsets): that is
+The classic part may not exceed 65535 bytes (16-bit offsets; since every
+section ends even, the largest is 65534): that is
 `RSC_ETOOBIG` at the offset of the first item that ends beyond it, not a
 silent wrap. Colour icons follow it, after a pad to an even offset, with
 32-bit offsets (`rsh_rssize` is then the offset of the extension). The whole
@@ -288,6 +292,9 @@ All deliberate.
   and 0 for the last, and `sel_data` is non-zero exactly when selected planes
   follow.
 - Negative sizes are refused, by the reader and by the writer.
+- Image data of an odd size is padded to an even size; the old writer packed
+  it, which put every following block and record at an odd offset (a 68000
+  takes an address error reading such a record).
 - Coordinates that the old `unfix_chpos` wrapped are written so that they
   read back, or refused.
 - The 4 GB limit of the whole file, and checked 32-bit offsets, are new.
