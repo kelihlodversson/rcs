@@ -933,6 +933,21 @@ static void test_cfile(void)
 	len = build_cfile(b, sizeof b, 1, 0, 2, 0);
 	put32(b, 104, rd32(b, 100));	/* the table is at 100 */
 	CHECK(read_code(b, len, &off) == RSC_ECICON && off == 104);
+	/* a block at an odd offset (inside the file: only its oddness is
+	 * wrong), reported at its table entry */
+	len = build_cfile(b, sizeof b, 1, 0, 1, 0);
+	CHECK(rd32(b, 100) == 108);
+	put32(b, 100, 109);
+	CHECK(read_code(b, len, &off) == RSC_ECICON && off == 100);
+	/* the total length of the extension may be shorter than the buffer
+	 * (pTOS wants it equal; trailing bytes are ignored), not longer */
+	len = build_cfile(b, sizeof b, 1, 0, 1, 0);
+	memset(b + len, 0x5a, 6);
+	r = read_copy(b, len + 6, 0, 0, &err);
+	CHECK(r && rsc_obj_cicon(r, 0, 1) && rsc_cicon_nversions(rsc_obj_cicon(r, 0, 1)) == 2);
+	rsc_free(r);
+	put32(b, 36 + 48 + 4, (uint32_t)len + 7);
+	CHECK(read_code(b, len + 6, &off) == RSC_ECICON && off == 36 + 48 + 4);
 
 	/* more than 254 colour icons */
 	len = build_cfile(b, sizeof b, 300, 0, 300, 0);
@@ -1236,8 +1251,9 @@ static void test_hostile(void)
  * refuses once k (objects, versions or table entries) passes a boundary,
  * and each family leans on some charges of the reader: dropping one of
  * them would move the boundary out of its window.  The windows were
- * measured on a 64-bit host (struct sizes enter the charges) and are
- * +-5 %; a family's boundary k comes from a binary search. */
+ * measured on a 64-bit (LP64) host, struct sizes enter the charges, so
+ * the test is skipped with a message where pointers are not 8 bytes; they
+ * are +-5 %; a family's boundary k comes from a binary search. */
 
 static int	family;		/* which file build_family makes */
 
@@ -1437,6 +1453,14 @@ static void test_charges(void)
 	};
 	long	k;
 
+	/* the windows were measured with 8-byte pointers: struct sizes enter
+	 * the charges, so elsewhere the boundaries move */
+	if (sizeof(void *) != 8)
+	{
+		printf("  budget boundaries skipped: measured on 64-bit hosts, this one has %u-byte pointers\n",
+		       (unsigned)sizeof(void *));
+		return;
+	}
 	for (family = 0; family < 15; family++)
 	{
 		k = boundary(1, most[family]);
