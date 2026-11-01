@@ -1470,12 +1470,16 @@ static const short *rdata(void)
 	return rnd(4) == 0 ? NULL : pat + rnd(1000);
 }
 
+/* the object an edit gave a coordinate without file form, or -1 */
+static int geom_t = -1, geom_i = -1;
+
 static void edit(struct rsc *r)
 {
 	char	b1[32], b2[32], b3[32];
-	int	nt = rsc_ntrees(r), t = (int)rnd((unsigned)nt), n = 0, i;
+	int	nt = rsc_ntrees(r), t = (int)rnd((unsigned)nt), n = 0, i, cw, ch;
 	struct rsc_cicon	*c;
 
+	rsc_cell(r, &cw, &ch);
 	if (nt)
 		rsc_tree_objects(r, t, &n);
 	i = (int)rnd((unsigned)n);
@@ -1504,9 +1508,22 @@ static void edit(struct rsc *r)
 			rsc_obj_set_state(r, t, i, rnd(0x10000));
 		break;
 	case 7:
-		if (nt)
+		if (nt && !cw)
 			rsc_obj_set_geom(r, t, i, (short)rnd(0x10000), (short)rnd(0x10000),
 					 (short)rnd(0x10000), (short)rnd(0x10000));
+		else if (nt)
+		{
+			/* at 8x16 the reader's range is -127 .. 2168 and 4208;
+			 * now and then one past it */
+			int	bad = rnd(40) == 0;
+
+			if (rsc_obj_set_geom(r, t, i, (int)rnd(2296) - 127, (int)rnd(4336) - 127,
+					     bad ? 2169 : (int)rnd(2296) - 127, (int)rnd(4336) - 127) == 0 && bad)
+			{
+				geom_t = t;
+				geom_i = i;
+			}
+		}
 		break;
 	case 8:
 		if (nt)
@@ -1618,34 +1635,58 @@ static void edit(struct rsc *r)
 	}
 }
 
+/* 5000 edits, alternately of a model in file form and of one at 8x16,
+ * each followed by a write, a read and a comparison. */
 static void test_fuzz(void)
 {
-	struct rsc	*r = build_sample(), *r2;
+	struct rsc	*m[2], *r, *r2;
 	struct rsc_error	e;
 	uint8_t	*o, *o2;
 	size_t	len, len2;
 	long	live;
-	int	k, bad = 0, ncicon = 0;
+	int	k, bad = 0, ncicon = 0, refused = 0, cw;
 	unsigned	maxobj = 0;
 	size_t	bytes = 0;
 
+	m[0] = build_sample();
+	m[1] = build_sample();
+	CHECK(rsc_set_cell(m[1], 8, 16) == 0);
+	CHECK(rsc_obj_set_geom(m[1], 2, 0, -1, 0, 8, 16) == 0);	/* 0x7fff has no file form */
 	for (k = 0; k < 5000 && bad < 5; k++)
 	{
+		r = m[k & 1];
+		cw = k & 1 ? 8 : 0;
+		geom_t = geom_i = -1;
 		edit(r);
 		live = rsc_test_live_blocks();
-		if (wr(r, 0, 0, &o, &len, &e))
+		if (wr(r, cw, cw * 2, &o, &len, &e))
 		{
-			/* edits through the API cannot make an unwritable resource */
 			CHECK(e.code != RSC_OK && o == NULL && rsc_test_live_blocks() == live);
+			if (geom_t >= 0 && e.code == RSC_ETOOBIG && e.offset >= 36 && strstr(e.msg, "ob_width"))
+			{
+				/* the coordinate just set is refused: put it back */
+				refused++;
+				CHECK(rsc_obj_set_geom(r, geom_t, geom_i, 0, 0, 8, 16) == 0);
+				continue;
+			}
+			/* otherwise edits through the API cannot make an unwritable resource */
 			fprintf(stderr, "fuzz %d: write failed: %s\n", k, e.msg);
 			bad++;
 			continue;
+		}
+		if (geom_t >= 0)
+		{
+			/* the object was unreachable: its coordinates are not written */
+			int	n;
+
+			CHECK(rsc_tree_preorder(rsc_tree_objects(r, geom_t, &n), n, NULL) >= 0);
+			CHECK(rsc_obj_set_geom(r, geom_t, geom_i, 0, 0, 8, 16) == 0);
 		}
 		bytes += len;
 		ncicon += (hw(o, H_VRSN) & RSC_VRSN_FORMAT_BITS) != 0;
 		if (hw(o, H_NOBS) > maxobj)
 			maxobj = hw(o, H_NOBS);
-		r2 = rd(o, len, 0, 0, &e);
+		r2 = rd(o, len, cw, cw * 2, &e);
 		if (!r2 || !same_model(r, r2))
 		{
 			fprintf(stderr, "fuzz %d: %s\n", k, r2 ? "content differs" : e.msg);
@@ -1653,17 +1694,18 @@ static void test_fuzz(void)
 		}
 		else
 		{
-			if (wr(r2, 0, 0, &o2, &len2, &e) || !fixed_point("fuzz rewrite", o2, len2, 0, 0))
+			if (wr(r2, cw, cw * 2, &o2, &len2, &e) || !fixed_point("fuzz rewrite", o2, len2, cw, cw * 2))
 				bad++;
 			rsc_mfree(o2);
 		}
 		rsc_free(r2);
 		rsc_mfree(o);
 	}
-	CHECK(bad == 0 && k == 5000);
-	printf("  fuzz: %d edits written and read back, %zu bytes, up to %u objects, %d with colour icons\n",
-	       k, bytes, maxobj, ncicon);
-	rsc_free(r);
+	CHECK(bad == 0 && k == 5000 && refused > 0);
+	printf("  fuzz: %d edits (half at 8x16) written and read back, %zu bytes, up to %u objects, "
+	       "%d with colour icons, %d coordinates refused\n", k, bytes, maxobj, ncicon, refused);
+	rsc_free(m[0]);
+	rsc_free(m[1]);
 }
 
 int main(int argc, char **argv)
