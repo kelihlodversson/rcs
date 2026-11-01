@@ -1044,35 +1044,78 @@ static size_t build_shared_ted(int nobj, size_t slen, size_t tlen)
 	return at;
 }
 
-/* A colour icon file of one block of nver versions of a 0 x 0 icon,
- * named by every one of ntab table entries.  Returns the length. */
-static size_t build_dup_table(long nver, long ntab)
+/* A colour icon file in b (room bytes) of one block of nver versions of a
+ * 0 x 0 icon, named by every one of ntab table entries.  Returns the
+ * length. */
+static size_t build_dup_table_in(uint8_t *b, size_t room, long nver, long ntab)
 {
 	size_t	objs = 36, tr = objs + 24, ext = tr + 4, tab = ext + 12;
 	size_t	blk = tab + 4 * (size_t)ntab + 4, p, end;
 	long	k;
 
 	end = blk + 38 + 12 + 22 * (size_t)nver;
-	if (end > sizeof big)
+	if (end > room)
 		exit(2);
-	memset(big, 0, end);
-	put16(big, 0, 4);
-	put16(big, 2, (unsigned)objs);
-	put16(big, 18, (unsigned)tr);
-	put16(big, 20, 1);
-	put16(big, 22, 1);
-	put16(big, 34, (unsigned)ext);
-	put_obj(big, objs, -1, -1, -1, G_IBOX, OF_LASTOB, 0, 0, 0, 10, 5);
-	put32(big, tr, (uint32_t)objs);
-	put32(big, ext, (uint32_t)end);
-	put32(big, ext + 4, (uint32_t)tab);
+	memset(b, 0, end);
+	put16(b, 0, 4);
+	put16(b, 2, (unsigned)objs);
+	put16(b, 18, (unsigned)tr);
+	put16(b, 20, 1);
+	put16(b, 22, 1);
+	put16(b, 34, (unsigned)ext);
+	put_obj(b, objs, -1, -1, -1, G_IBOX, OF_LASTOB, 0, 0, 0, 10, 5);
+	put32(b, tr, (uint32_t)objs);
+	put32(b, ext, (uint32_t)end);
+	put32(b, ext + 4, (uint32_t)tab);
 	for (k = 0; k < ntab; k++)
-		put32(big, tab + 4 * (size_t)k, (uint32_t)blk);
-	put32(big, tab + 4 * (size_t)ntab, FILE_NULL);
-	put32(big, blk + 34, (uint32_t)nver);
+		put32(b, tab + 4 * (size_t)k, (uint32_t)blk);
+	put32(b, tab + 4 * (size_t)ntab, FILE_NULL);
+	put32(b, blk + 34, (uint32_t)nver);
 	for (k = 0, p = blk + 50; k < nver; k++, p += 22)
-		put16(big, p, 1);
+		put16(b, p, 1);
 	return end;
+}
+
+static size_t build_dup_table(long nver, long ntab)
+{
+	return build_dup_table_in(big, sizeof big, nver, ntab);
+}
+
+/* The colour version cap: a block of RSC_MAX_VERSIONS versions reads, one
+ * of RSC_MAX_VERSIONS + 1 is refused at the block, and so is the 4 MB file
+ * of one block of 190000 versions, at once: the count is checked before
+ * any version (it took 20 s when versions were appended at the end of the
+ * chain one by one; the clock bound is only a safety net). */
+static void test_versions_cap(void)
+{
+	size_t	room = 4300000, len, off, blk = 36 + 24 + 4 + 12 + 8;
+	uint8_t	*b = malloc(room);
+	struct rsc_error	err;
+	struct rsc	*r;
+	clock_t	t0;
+
+	if (!b)
+		exit(2);
+	len = build_dup_table_in(b, room, RSC_MAX_VERSIONS, 1);
+	r = read_copy(b, len, 0, 0, &err);
+	CHECK(r && rsc_obj_cicon(r, 0, 0) == NULL);	/* the block is only listed */
+	rsc_free(r);
+	/* named by an object as well: every version decoded */
+	put16(b, 36 + 6, G_CICON);
+	r = read_copy(b, len, 0, 0, &err);
+	CHECK(r && rsc_obj_cicon(r, 0, 0) && rsc_cicon_nversions(rsc_obj_cicon(r, 0, 0)) == RSC_MAX_VERSIONS);
+	rsc_free(r);
+	len = build_dup_table_in(b, room, RSC_MAX_VERSIONS + 1, 1);
+	CHECK(read_code(b, len, &off) == RSC_ECICON && off == blk);
+	t0 = clock();
+	len = build_dup_table_in(b, room, 190000, 1);
+	CHECK(len > 4000000);
+	r = read_copy(b, len, 0, 0, &err);
+	CHECK(r == NULL && err.code == RSC_ECICON && err.offset == blk);
+	CHECK(strncmp(err.msg, "too many colour versions", 24) == 0);
+	CHECK(clock() - t0 < 2 * CLOCKS_PER_SEC);
+	free(b);
+	CHECK(rsc_test_live_blocks() == 0);
 }
 
 /* A colour icon file of one 16 x 1 block with one version of planes
@@ -1162,15 +1205,15 @@ static void test_hostile(void)
 	len = build_cfile(big, sizeof big, 20, -1, 1, 0);
 	CHECK(big_code(len, &off, NULL) == RSC_OK);
 
-	/* a table naming one block of 40000 versions 60000 times: 1 MB, refused
-	 * at the second entry, so the block is checked once (the clock bound
-	 * is only a safety net) */
+	/* a table naming one block of RSC_MAX_VERSIONS versions 250000 times:
+	 * 1 MB, refused at the second entry, so the block is checked once (the
+	 * clock bound is only a safety net) */
 	t0 = clock();
-	len = build_dup_table(40000, 60000);
+	len = build_dup_table(RSC_MAX_VERSIONS, 250000);
 	CHECK(len > 1000000);
 	CHECK(big_code(len, &off, msg) == RSC_ECICON && off == 36 + 24 + 4 + 12 + 4);
 	CHECK(strncmp(msg, "colour icon block listed twice", 30) == 0);
-	len = build_dup_table(40000, 1);
+	len = build_dup_table(RSC_MAX_VERSIONS, 1);
 	CHECK(big_code(len, &off, NULL) == RSC_OK);
 	CHECK(clock() - t0 < 10 * CLOCKS_PER_SEC);
 
@@ -1296,8 +1339,8 @@ static size_t build_family(long k)
 	case 7:		/* G_CICON objects sharing a block 64 x 64, a selected version */
 	case 8:		/* the same 0 x 0 without versions */
 	case 9:		/* the same 0 x 0 with one version */
-	case 10:	/* one G_CICON object, a 0 x 0 block of k versions */
-		p = put_tree(40, family == 10 ? 1 : k, G_CICON, 0);
+	case 10:	/* the same 0 x 0 with RSC_MAX_VERSIONS versions */
+		p = put_tree(40, k, G_CICON, 0);
 		put16(big, 0, 4);
 		put16(big, 34, (unsigned)p);
 		put32(big, p + 4, (uint32_t)(p + 12));
@@ -1306,7 +1349,7 @@ static size_t build_family(long k)
 		if (family == 7)
 			end = put_cblock(p + 20, 64, 64, 1, 1);
 		else
-			end = put_cblock(p + 20, 0, 0, family == 8 ? 0 : family == 9 ? 1 : k, 0);
+			end = put_cblock(p + 20, 0, 0, family == 8 ? 0 : family == 9 ? 1 : RSC_MAX_VERSIONS, 0);
 		put32(big, p, (uint32_t)end);
 		return end;
 	case 11:	/* k free strings naming one empty string */
@@ -1383,14 +1426,14 @@ static void test_charges(void)
 	/* family: the measured boundary */
 	static const long	want[] =
 	{
-		1160, 209, 2793, 105, 13489, 336, 5091, 13, 840, 347, 1189, 7301, 7, 1175, 955
+		1160, 209, 2793, 105, 13489, 336, 5091, 13, 698, 320, 19, 7301, 7, 1175, 563
 	};
 	/* the largest k a family can have (16-bit header offsets, 32767
 	 * objects in a tree, the size of big) */
 	static const long	most[] =
 	{
 		32000, 32000, 32000, 32000, 32000, 32000, 32000, 2500, 2500, 2500,
-		40000, 15000, 15000, 15000, 9000
+		2500, 15000, 15000, 15000, 9000
 	};
 	long	k;
 
@@ -1460,6 +1503,7 @@ int main(int argc, char **argv)
 	test_cfile();
 	test_coords();
 	test_hostile();
+	test_versions_cap();
 	test_charges();
 	test_truncation();
 	test_mutations();

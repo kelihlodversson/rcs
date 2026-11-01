@@ -1500,6 +1500,29 @@ static void test_cicons(void)
 	}
 	rsc_mfree(o);
 	rsc_free(r);
+	/* RSC_MAX_VERSIONS versions round trip; one more (linked behind the
+	 * model's back) is refused, as the reader would refuse it */
+	r = rsc_new();
+	rsc_tree_add(r, 1);
+	i = rsc_obj_add(r, 0, 0, G_CICON);
+	c = set_cicon(r, 0, i, 16, 1, pat, pat + 1, "cap");
+	for (k = 0; k < RSC_MAX_VERSIONS; k++)
+		CHECK(rsc_cicon_add_version(c, 1 + k % RSC_MAX_PLANES, pat + k, pat, k % 2 ? pat : NULL,
+					    k % 2 ? pat : NULL) == k);
+	CHECK(rsc_cicon_add_version(c, 1, pat, pat, NULL, NULL) == -1);
+	o = round_trip(r, &len);
+	CHECK(o && rd32(o, rd32(o, hw(o, H_RSSIZE) + 12) + 34) == RSC_MAX_VERSIONS);
+	rsc_mfree(o);
+	{
+		struct rsc_cicon_version	extra;
+
+		memset(&extra, 0, sizeof extra);
+		extra.c.num_planes = 1;
+		c->last->c.next_res = &extra.c;
+		EXPECT_FAIL(r, 0, 0, RSC_ECICON, 0);
+		c->last->c.next_res = NULL;
+	}
+	rsc_free(r);
 	/* more than 254 colour icons (the old limit) */
 	r = rsc_new();
 	rsc_tree_add(r, 1);

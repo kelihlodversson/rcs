@@ -1012,12 +1012,7 @@ int rsc_frimg_resize(struct rsc *r, int k, int wb, int hl)
 
 int rsc_cicon_nversions(const struct rsc_cicon *c)
 {
-	const CICON	*p;
-	int	n = 0;
-
-	for (p = c->blk.mainlist; p; p = p->next_res)
-		n++;
-	return n;
+	return c->nver;
 }
 
 struct rsc_cicon_version *rsc_cicon_version(const struct rsc_cicon *c, int v)
@@ -1036,11 +1031,10 @@ int rsc_cicon_add_version(struct rsc_cicon *c, int planes,
 			  const short *sel_data, const short *sel_mask)
 {
 	struct rsc_cicon_version	*v;
-	CICON	**tail;
 	size_t	pb = rsc_plane_bytes(c->blk.monoblk.ib_wicon, c->blk.monoblk.ib_hicon);
-	int	n = 0;
 
-	if (planes < 1 || planes > RSC_MAX_PLANES || !col_data || !col_mask || !sel_data != !sel_mask)
+	if (planes < 1 || planes > RSC_MAX_PLANES || !col_data || !col_mask || !sel_data != !sel_mask
+	    || c->nver >= RSC_MAX_VERSIONS)
 		return -1;
 	v = rsc_malloc(sizeof *v);
 	if (!v)
@@ -1056,24 +1050,32 @@ int rsc_cicon_add_version(struct rsc_cicon *c, int planes,
 		free_version(v);
 		return -1;
 	}
-	for (tail = &c->blk.mainlist; *tail; tail = &(*tail)->next_res)
-		n++;
-	*tail = &v->c;
-	return n;
+	if (c->last)
+		c->last->c.next_res = &v->c;
+	else
+		c->blk.mainlist = &v->c;
+	c->last = v;
+	return c->nver++;
 }
 
 int rsc_cicon_remove_version(struct rsc_cicon *c, int v)
 {
-	CICON	**pp, *p;
+	CICON	**pp, *p, *prev = NULL;
 
 	if (v < 0)
 		return -1;
 	for (pp = &c->blk.mainlist; *pp && v > 0; pp = &(*pp)->next_res)
+	{
+		prev = *pp;
 		v--;
+	}
 	p = *pp;
 	if (!p)
 		return -1;
 	*pp = p->next_res;
+	if (c->last == (struct rsc_cicon_version *)p)
+		c->last = (struct rsc_cicon_version *)prev;
+	c->nver--;
 	free_version((struct rsc_cicon_version *)p);
 	return 0;
 }

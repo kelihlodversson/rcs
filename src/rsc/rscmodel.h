@@ -256,12 +256,18 @@ struct rsc_cicon_version
  * block in the file (ib_pmask, ib_pdata, ib_ptext) as read, opaque; the API
  * sets them to 0.  PLACEHOLDER as for rsc_cicon_version.file_ptr.
  *
+ * last and nver are the model's (read them through rsc_cicon_nversions and
+ * rsc_cicon_version, never write them): the last version of the chain, so
+ * that appending is O(1), and the number of versions.
+ *
  * The struct points into itself (ib_ptext): it is never copied by value. */
 struct rsc_cicon
 {
 	CICONBLK	blk;		/* must stay the first member */
 	char		text[13];
 	uint32_t	file_head[3];
+	struct rsc_cicon_version *last;	/* the model's: NULL without versions */
+	int		nver;		/* the model's */
 };
 
 /* ---- the kind of spec an object type has: THE ownership rule ------------- */
@@ -465,17 +471,28 @@ struct rsc_cicon *rsc_obj_cicon(const struct rsc *r, int t, int i);
  * accepted 1..16 only, and so does the model for now. */
 #define RSC_MAX_PLANES	16
 
+/* The most colour versions a colour icon may have.  The AES draws the one
+ * whose plane count suits the screen, so a sensible icon has one version
+ * per plane count, at most RSC_MAX_PLANES (16) of them; 32 leaves room.
+ * The cap keeps the cost of a colour icon bounded: rsc_cicon_add_version
+ * refuses a version beyond it, the reader refuses a block that has more
+ * (RSC_ECICON, before decoding any version) and so does the writer. */
+#define RSC_MAX_VERSIONS	32
+
 /* Appends a colour version (planes 1..RSC_MAX_PLANES) to colour icon c, copying the
  * planes (sizes as for struct rsc_cicon_version; col_data and col_mask
  * required, sel_data and sel_mask both or neither).  Returns its index, or
- * -1. */
+ * -1 (and then c is unchanged), also when c has RSC_MAX_VERSIONS versions
+ * already.  It takes constant time. */
 int rsc_cicon_add_version(struct rsc_cicon *c, int planes,
 			  const short *col_data, const short *col_mask,
 			  const short *sel_data, const short *sel_mask);
 /* Removes and frees version v of c.  Returns 0 or -1. */
 int rsc_cicon_remove_version(struct rsc_cicon *c, int v);
+/* The number of versions of c (constant time). */
 int rsc_cicon_nversions(const struct rsc_cicon *c);
-/* Version v of c, or NULL. */
+/* Version v of c, or NULL.  It walks the chain: at most RSC_MAX_VERSIONS
+ * steps. */
 struct rsc_cicon_version *rsc_cicon_version(const struct rsc_cicon *c, int v);
 
 /* ---- free strings and free images ---------------------------------------- */

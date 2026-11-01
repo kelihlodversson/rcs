@@ -93,12 +93,13 @@
  *    otherwise 1 or 0 is written; next_res is always written 1 when
  *    another version follows and 0 on the last (pTOS's legacy loader
  *    chains only on 1, aes/rsload_legacy.c), so other stored values are
- *    normalised.  The 12
- *    text bytes are written as stored.  A version with NULL planes writes
- *    zero words; selected planes are written when sel_data or sel_mask is
- *    set.  A version with a number of planes outside 1..RSC_MAX_PLANES, or
- *    a version chain that loops, is RSC_ECICON.  There is no limit on the
- *    number of colour icons but the 32-bit offsets.
+ *    normalised.  The 12 text bytes are written as stored.  A version
+ *    with NULL planes writes zero words; selected planes are written when
+ *    sel_data or sel_mask is set.  A version with a number of planes
+ *    outside 1..RSC_MAX_PLANES, a version chain that loops, or a colour
+ *    icon with more than RSC_MAX_VERSIONS versions (the reader would
+ *    refuse it) is RSC_ECICON.  There is no limit on the number of colour
+ *    icons but the 32-bit offsets.
  *  - Limits: the classic part may not exceed 65535 bytes (with colour icons
  *    that includes the pad before the extension): RSC_ETOOBIG at the
  *    offset of the first item (string, image, record, table entry or pad)
@@ -512,6 +513,8 @@ static int put_cicon(struct wr *w, int t, int i, const struct rsc_cicon *c, uint
 		return fail_in(w, RSC_EARG, "negative colour icon size", "tree", t, i);
 	if (nversions(c, &nv))
 		return fail_in(w, RSC_ECICON, "colour version chain loops", "tree", t, i);
+	if (nv > RSC_MAX_VERSIONS)
+		return fail_in(w, RSC_ECICON, "too many colour versions", "tree", t, i);
 	pb = rsc_plane_bytes(ib->ib_wicon, ib->ib_hicon);
 	if (adv(w, S_CTAB, 4, &tab) || adv(w, S_CBLK, CBLK_SIZE, &at))
 		return -1;

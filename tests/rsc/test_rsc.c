@@ -615,13 +615,14 @@ static void test_cicon_versions(void)
 	struct rsc	*r = rsc_new();
 	ICONBLK	ib;
 	struct rsc_cicon	*c;
-	short	col[8 * 16], mask[16];
+	short	col[16 * 16], mask[16];
 	long	live;
+	int	k;
 
 	memset(&ib, 0, sizeof ib);
 	ib.ib_wicon = 16;
 	ib.ib_hicon = 16;
-	fill(col, 8 * 16, 1);
+	fill(col, 16 * 16, 1);
 	fill(mask, 16, 2);
 	CHECK(rsc_tree_add(r, 1) == 0);
 	CHECK(rsc_obj_add(r, 0, 0, G_CICON) == 1);
@@ -665,7 +666,30 @@ static void test_cicon_versions(void)
 	CHECK(rsc_obj_set_cicon(r, 0, 1, &ib, NULL) == 0);
 	c = rsc_obj_cicon(r, 0, 1);
 	CHECK(rsc_cicon_add_version(c, 3, col, mask, col, mask) == 0);
-	rsc_free(r);					/* frees it with its version */
+	/* RSC_MAX_VERSIONS versions, not one more; the tail stays right after
+	 * removing the last and the first */
+	for (k = 1; k < RSC_MAX_VERSIONS; k++)
+		CHECK(rsc_cicon_add_version(c, 1 + k % RSC_MAX_PLANES, col, mask, NULL, NULL) == k);
+	CHECK(rsc_cicon_nversions(c) == RSC_MAX_VERSIONS);
+	live = rsc_test_live_blocks();
+	CHECK(rsc_cicon_add_version(c, 1, col, mask, NULL, NULL) == -1);
+	CHECK(rsc_test_live_blocks() == live && rsc_cicon_nversions(c) == RSC_MAX_VERSIONS);
+	CHECK(rsc_cicon_version(c, RSC_MAX_VERSIONS - 1)->c.next_res == NULL);
+	CHECK(rsc_cicon_remove_version(c, RSC_MAX_VERSIONS - 1) == 0);
+	CHECK(rsc_cicon_remove_version(c, 0) == 0);
+	CHECK(rsc_cicon_nversions(c) == RSC_MAX_VERSIONS - 2);
+	CHECK(rsc_cicon_add_version(c, 5, col, mask, NULL, NULL) == RSC_MAX_VERSIONS - 2);
+	CHECK(rsc_cicon_version(c, RSC_MAX_VERSIONS - 3)->c.next_res
+	      == &rsc_cicon_version(c, RSC_MAX_VERSIONS - 2)->c);
+	CHECK(rsc_cicon_version(c, RSC_MAX_VERSIONS - 2)->c.num_planes == 5);
+	CHECK(rsc_cicon_add_version(c, 6, col, mask, NULL, NULL) == RSC_MAX_VERSIONS - 1);
+	CHECK(rsc_cicon_add_version(c, 6, col, mask, NULL, NULL) == -1);
+	for (k = RSC_MAX_VERSIONS - 1; k >= 0; k--)
+		CHECK(rsc_cicon_remove_version(c, k) == 0);
+	CHECK(c->blk.mainlist == NULL && c->last == NULL && rsc_cicon_nversions(c) == 0);
+	CHECK(rsc_cicon_add_version(c, 2, col, mask, NULL, NULL) == 0);
+	CHECK(c->blk.mainlist == &c->last->c);
+	rsc_free(r);					/* frees it with its versions */
 	CHECK(rsc_test_live_blocks() == 0);
 }
 

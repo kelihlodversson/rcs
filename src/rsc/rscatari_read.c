@@ -35,10 +35,13 @@
  *		selected data and mask likewise
  *
  * Every offset and count is checked here, once, before it is used: every
- * read of the buffer goes through a range check, every sum of offsets is
- * computed so that it cannot overflow, and nothing loops more often than
- * the buffer has bytes.  A violation fails the whole read with a code and
- * the position in the file; what was built so far is freed.
+ * read of the buffer goes through a range check and every sum of offsets is
+ * computed so that it cannot overflow.  Every loop is bounded by the
+ * buffer length or by a fixed limit (RSC_MAX_VERSIONS versions of a colour
+ * icon, checked from the block's count before any version is looked at),
+ * and the work done per step of a loop over the file is either constant or
+ * charged to the budget below.  A violation fails the whole read with a
+ * code and the position in the file; what was built so far is freed.
  *
  * The budget.  A small file could still name one big record from many
  * objects, and every object gets its own copy.  So every allocation the
@@ -48,8 +51,10 @@
  * at its size plus BLOCK_COST bytes, and so is the work of checking the
  * colour icon blocks (their heads and version headers).  When the total
  * would exceed 4 * len + 65536 bytes the read fails with RSC_ETOOBIG at
- * the object being decoded.  The time of a read is proportional to what
- * it charges.  Since records are copied per object, a file in which k
+ * the object being decoded.  So the time of a read is proportional to len
+ * plus what it charges, which is at most the budget: linear in len (a
+ * colour version is appended in constant time and checking one is
+ * charged).  Since records are copied per object, a file in which k
  * objects share one big record or colour block is refused once k is above
  * about 2.  Legitimate files stay well inside: measured up to about 3x
  * len for tiny objects (15000 one-object trees: 3.04x) and about 2x for
@@ -84,6 +89,8 @@
  *  - A cell size above RSC_MAX_CELL (127, rscfile.h) is refused
  *    (RSC_EARG), so that a converted coordinate (low byte * cell + high
  *    byte, at most 255 * 127 + 128 = 32513) always fits a short.
+ *  - A colour icon block with more than RSC_MAX_VERSIONS (32) versions is
+ *    refused (RSC_ECICON at the block), before any version is checked.
  *  - Colour icons, where pTOS's loader is stricter: the total length of
  *    the extension is accepted when it is at most len (pTOS: equal to
  *    len); a G_CICON index of 0xFFFFFFFF is accepted as no colour icon
@@ -402,6 +409,8 @@ static int check_cblk(struct rd *d, uint32_t off, size_t field)
 		return fail(d, RSC_ECICON, off, "colour icon block truncated");
 	pos += words * 4 + CTEXT_SIZE;
 	count = be32(d, off + 34);
+	if (count > RSC_MAX_VERSIONS)
+		return fail(d, RSC_ECICON, off, "too many colour versions");
 	if (count > (d->len - pos) / CICON_SIZE)
 		return fail(d, RSC_ECICON, off + 34, "bad number of colour versions");
 	for (i = 0; i < count; i++)
@@ -608,7 +617,7 @@ static int add_version(struct rd *d, struct rsc_cicon *c, size_t *pos, size_t wo
 {
 	size_t	hdr = *pos, pb = words * 2;
 	unsigned	planes = be16(d, hdr);
-	int	sel = be32(d, hdr + 10) != 0, v, k, rc = -1;
+	int	sel = be32(d, hdr + 10) != 0, k, rc = -1;
 	short	*p[4] = { NULL, NULL, NULL, NULL };
 	struct rsc_cicon_version	*ver;
 
@@ -627,13 +636,12 @@ static int add_version(struct rd *d, struct rsc_cicon *c, size_t *pos, size_t wo
 			goto out;
 		*pos += pb * (planes + 1);
 	}
-	v = rsc_cicon_add_version(c, (int)planes, p[0], p[1], p[2], p[3]);
-	if (v < 0)
+	if (rsc_cicon_add_version(c, (int)planes, p[0], p[1], p[2], p[3]) < 0)
 	{
 		nomem(d);
 		goto out;
 	}
-	ver = rsc_cicon_version(c, v);
+	ver = c->last;		/* the version just added */
 	for (k = 0; k < 5; k++)
 		ver->file_ptr[k] = be32(d, hdr + 2 + 4 * (size_t)k);
 	rc = 0;
@@ -653,6 +661,8 @@ static int build_cicon(struct rd *d, int t, int i, size_t off)
 	struct rsc_cicon	*c;
 	int	k, rc = -1;
 
+	if (count > RSC_MAX_VERSIONS)	/* check_cblk refused it: a safety net */
+		return fail(d, RSC_ECICON, off, "too many colour versions");
 	iconblk_words(d, off, &mono);
 	mono.ib_ptext = NULL;
 	mono.ib_pmask = NULL;

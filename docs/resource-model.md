@@ -71,7 +71,9 @@ A colour icon is a `struct rsc_cicon` that a `G_CICON` object points to: the
 mono ICONBLK with its data, mask and text, and a chain of
 `struct rsc_cicon_version` (planes, colour data and mask, optional selected
 data and mask), all as word arrays and in file order. Up to `RSC_MAX_PLANES`
-(16) planes. The pointer fields of the file records are kept as opaque
+(16) planes and up to `RSC_MAX_VERSIONS` (32) versions per icon: the AES uses
+one version per plane count, and the cap bounds what a colour icon costs
+(the model, the reader and the writer all refuse more). The pointer fields of the file records are kept as opaque
 `uint32_t` fields (`file_head`, `file_ptr`).
 
 Coordinates: `rsc_cell` is 0, 0 when the objects are in file form (low byte
@@ -201,9 +203,13 @@ NULL. The offset is a position in the file (reader) or in the output
 ## The reader and untrusted files
 
 Every offset and count is checked against the buffer once, before it is
-used; sums are computed so that they cannot overflow and nothing loops more
-often than the buffer has bytes. A violation fails the read with a code and
-the position and frees what was built. `rsh_rssize` is not trusted: for a
+used, and sums are computed so that they cannot overflow. Every loop is
+bounded by the buffer length or by a fixed limit (a colour icon block with
+more than `RSC_MAX_VERSIONS` versions is refused from its count, before any
+version is looked at), and the work per step is constant or charged to the
+budget below, so the time of a read is linear in the length of the file. A
+violation fails the read with a code and the position and frees what was
+built. `rsh_rssize` is not trusted: for a
 plain file the buffer length decides and trailing bytes are ignored.
 
 Records are copied per object, so a small file could name one big record from
