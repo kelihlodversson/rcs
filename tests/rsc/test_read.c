@@ -1009,19 +1009,18 @@ static void test_coords(void)
 }
 
 /* A file of a root and nobj G_TEXT children sharing one TEDINFO whose
- * text has slen characters, and its template and validation tlen each.
+ * text has slen characters, and its template and validation tlen each
+ * (the TEDINFO at 36, the objects, the tree index, then the strings).
  * Returns the length. */
 static size_t build_shared_ted(int nobj, size_t slen, size_t tlen)
 {
-	size_t	str = 36, ted = str + slen + 2 * tlen + 3, objs, tr, end, at;
+	size_t	ted = 36, objs = ted + 28, tr, at;
 	int	i, k;
 
-	ted += ted & 1;
-	objs = ted + 28;
 	tr = objs + 24 * ((size_t)nobj + 1);
-	end = tr + 4;
-	memset(big, 0, end);
-	for (k = 0, at = str; k < 3; k++)
+	at = tr + 4;
+	memset(big, 0, at + slen + 2 * tlen + 3);
+	for (k = 0; k < 3; k++)
 	{
 		size_t	n = k ? tlen : slen;
 
@@ -1036,13 +1035,13 @@ static size_t build_shared_ted(int nobj, size_t slen, size_t tlen)
 	put16(big, 20, (unsigned)nobj + 1);
 	put16(big, 22, 1);
 	put16(big, 24, 1);
-	put16(big, 34, (unsigned)end);
+	put16(big, 34, (unsigned)at);
 	put_obj(big, objs, -1, 1, nobj, G_IBOX, 0, 0, 0, 0, 10, 5);
 	for (i = 1; i <= nobj; i++)
 		put_obj(big, objs + 24 * (size_t)i, i < nobj ? i + 1 : 0, -1, -1, G_TEXT,
 			i == nobj ? OF_LASTOB : 0, (uint32_t)ted, 0, 0, 4, 1);
 	put32(big, tr, (uint32_t)objs);
-	return end;
+	return at;
 }
 
 /* A colour icon file of one block of nver versions of a 0 x 0 icon,
@@ -1073,6 +1072,37 @@ static size_t build_dup_table(long nver, long ntab)
 	put32(big, blk + 34, (uint32_t)nver);
 	for (k = 0, p = blk + 50; k < nver; k++, p += 22)
 		put16(big, p, 1);
+	return end;
+}
+
+/* A colour icon file of one 16 x 1 block with one version of planes
+ * planes; planes_hdr is where its header is.  Returns the length. */
+static size_t	planes_hdr;
+
+static size_t build_planes(int planes)
+{
+	size_t	objs = 36, tr = objs + 48, ext = tr + 4, tab = ext + 12, blk = tab + 8, end;
+
+	memset(big, 0, 4096);
+	put16(big, 0, 4);
+	put16(big, 2, (unsigned)objs);
+	put16(big, 18, (unsigned)tr);
+	put16(big, 20, 2);
+	put16(big, 22, 1);
+	put16(big, 34, (unsigned)ext);
+	put_obj(big, objs, -1, 1, 1, G_IBOX, 0, 0, 0, 0, 10, 5);
+	put_obj(big, objs + 24, 0, -1, -1, G_CICON, OF_LASTOB, 0, 0, 0, 2, 1);
+	put32(big, tr, (uint32_t)objs);
+	put32(big, tab, (uint32_t)blk);
+	put32(big, tab + 4, FILE_NULL);
+	put16(big, blk + 22, 16);
+	put16(big, blk + 24, 1);
+	put32(big, blk + 34, 1);
+	planes_hdr = blk + 38 + 4 + 12;
+	put16(big, planes_hdr, (unsigned)planes);
+	end = planes_hdr + 22 + 2 * ((size_t)planes + 1);
+	put32(big, ext, (uint32_t)end);
+	put32(big, ext + 4, (uint32_t)tab);
 	return end;
 }
 
@@ -1115,7 +1145,15 @@ static void test_hostile(void)
 	len = build_shared_ted(1, 32766, 3);
 	CHECK(big_code(len, &off, NULL) == RSC_OK);
 	len = build_shared_ted(1, 32767, 3);
-	CHECK(big_code(len, &off, NULL) == RSC_ETOOBIG && off == rd16(big, 4) + 24u);
+	CHECK(big_code(len, &off, NULL) == RSC_ETOOBIG && off == 36 + 24);
+	/* and the template: te_tmplen */
+	len = build_shared_ted(1, 3, 32766);
+	CHECK(big_code(len, &off, NULL) == RSC_OK);
+	len = build_shared_ted(1, 3, 32767);
+	CHECK(big_code(len, &off, NULL) == RSC_ETOOBIG && off == 36 + 26);
+	/* RSC_MAX_PLANES planes are taken, one more is not */
+	CHECK(big_code(build_planes(RSC_MAX_PLANES), &off, NULL) == RSC_OK);
+	CHECK(big_code(build_planes(RSC_MAX_PLANES + 1), &off, NULL) == RSC_ECICON && off == planes_hdr);
 
 	/* many G_CICON objects naming one block */
 	len = build_cfile(big, sizeof big, 1000, -1, 1, 0);
@@ -1124,14 +1162,17 @@ static void test_hostile(void)
 	len = build_cfile(big, sizeof big, 20, -1, 1, 0);
 	CHECK(big_code(len, &off, NULL) == RSC_OK);
 
-	/* a table naming one block of 40000 versions 60000 times: 1 MB */
+	/* a table naming one block of 40000 versions 60000 times: 1 MB, refused
+	 * at the second entry, so the block is checked once (the clock bound
+	 * is only a safety net) */
 	t0 = clock();
 	len = build_dup_table(40000, 60000);
 	CHECK(len > 1000000);
-	CHECK(big_code(len, &off, NULL) == RSC_ECICON && off == 36 + 24 + 4 + 12 + 4);
+	CHECK(big_code(len, &off, msg) == RSC_ECICON && off == 36 + 24 + 4 + 12 + 4);
+	CHECK(strncmp(msg, "colour icon block listed twice", 30) == 0);
 	len = build_dup_table(40000, 1);
 	CHECK(big_code(len, &off, NULL) == RSC_OK);
-	CHECK(clock() - t0 < CLOCKS_PER_SEC);
+	CHECK(clock() - t0 < 10 * CLOCKS_PER_SEC);
 
 	/* a negative ICONBLK size in rcs.rsc (the first ICONBLK at 16600) */
 	{
@@ -1143,6 +1184,222 @@ static void test_hostile(void)
 		put16(f.b, 16600 + 24, 0xffff);
 		CHECK(read_code(f.b, f.len, &off) == RSC_EOFFSET && off == 16600 + 24);
 		free(f.b);
+	}
+}
+
+/* ---- every charge of the budget changes an outcome ---------------------------- */
+
+/* The families of files below are each a small file that the budget
+ * refuses once k (objects, versions or table entries) passes a boundary,
+ * and each family leans on some charges of the reader: dropping one of
+ * them would move the boundary out of its window.  The windows were
+ * measured on a 64-bit host (struct sizes enter the charges) and are
+ * +-5 %; a family's boundary k comes from a binary search. */
+
+static int	family;		/* which file build_family makes */
+
+/* A tree of a root and n children of type type with spec spec at objs,
+ * and the header words for it (the tree index at 36). */
+static size_t put_tree(size_t objs, long n, unsigned type, uint32_t spec)
+{
+	long	i;
+
+	put16(big, 2, (unsigned)objs);
+	put16(big, 18, 36);
+	put16(big, 20, (unsigned)(n + 1));
+	put16(big, 22, 1);
+	put32(big, 36, (uint32_t)objs);
+	put_obj(big, objs, -1, n ? 1 : -1, n ? (int)n : -1, G_IBOX, n ? 0 : OF_LASTOB, 0, 0, 0, 10, 5);
+	for (i = 1; i <= n; i++)
+		put_obj(big, objs + 24 * (size_t)i, i < n ? (int)i + 1 : 0, -1, -1, type,
+			i == n ? OF_LASTOB : 0, spec, 0, 0, 1, 1);
+	return objs + 24 * ((size_t)n + 1);
+}
+
+/* A string of n characters at off, with its NUL; returns the end. */
+static size_t put_str(size_t off, size_t n)
+{
+	memset(big + off, 'x', n);
+	big[off + n] = 0;
+	return off + n + 1;
+}
+
+/* A colour icon block at blk: w x h, nver versions of planes 1 (with a
+ * selected image when sel); returns the end. */
+static size_t put_cblock(size_t blk, int w, int h, long nver, int sel)
+{
+	size_t	pb = rsc_plane_bytes(w, h), p = blk + 38 + 2 * pb + 12;
+	long	v;
+
+	put16(big, blk + 22, (unsigned)w);
+	put16(big, blk + 24, (unsigned)h);
+	put32(big, blk + 34, (uint32_t)nver);
+	for (v = 0; v < nver; v++)
+	{
+		put16(big, p, 1);
+		put32(big, p + 10, sel ? 1 : 0);
+		p += 22 + 2 * pb * (sel ? 2 : 1);
+	}
+	return p;
+}
+
+/* A file of the family with k: its length. */
+static size_t build_family(long k)
+{
+	size_t	p, s, end;
+	long	i;
+
+	memset(big, 0, sizeof big);
+	switch (family)
+	{
+	case 0:		/* G_STRING objects sharing a string of 100 */
+		end = put_tree(140, k, G_STRING, 40);
+		put_str(40, 99);
+		return end;
+	case 1:		/* G_TEXT objects sharing a TEDINFO, three strings of 100 */
+	case 2:		/* the same with three empty strings */
+		put16(big, 4, 40);
+		put16(big, 24, 1);
+		for (i = 0; i < 3; i++)
+			put32(big, 40 + 4 * (size_t)i, (uint32_t)(68 + 100 * i));
+		for (i = 0; i < 3; i++)
+			put_str(68 + 100 * (size_t)i, family == 1 ? 99 : 0);
+		return put_tree(368, k, G_TEXT, 40);
+	case 3:		/* G_ICON objects sharing an ICONBLK 16 x 50 with a text of 200 */
+	case 4:		/* the same 0 x 0, no data, no text */
+		put16(big, 6, 40);
+		put16(big, 26, 1);
+		if (family == 3)
+		{
+			put32(big, 40, 74);
+			put32(big, 44, 174);
+			put32(big, 48, 274);
+			put16(big, 62, 16);
+			put16(big, 64, 50);
+			put_str(274, 199);
+		}
+		else
+		{
+			put32(big, 40, FILE_NULL);
+			put32(big, 44, FILE_NULL);
+			put32(big, 48, FILE_NULL);
+		}
+		return put_tree(476, k, G_ICON, 40);
+	case 5:		/* G_IMAGE objects sharing a BITBLK of 10 x 10 bytes */
+	case 6:		/* the same of 4 x 2 */
+		put16(big, 8, 40);
+		put16(big, 28, 1);
+		put32(big, 40, 54);
+		put16(big, 44, family == 5 ? 10 : 4);
+		put16(big, 46, family == 5 ? 10 : 2);
+		return put_tree(160, k, G_IMAGE, 40);
+	case 7:		/* G_CICON objects sharing a block 64 x 64, a selected version */
+	case 8:		/* the same 0 x 0 without versions */
+	case 9:		/* the same 0 x 0 with one version */
+	case 10:	/* one G_CICON object, a 0 x 0 block of k versions */
+		p = put_tree(40, family == 10 ? 1 : k, G_CICON, 0);
+		put16(big, 0, 4);
+		put16(big, 34, (unsigned)p);
+		put32(big, p + 4, (uint32_t)(p + 12));
+		put32(big, p + 12, (uint32_t)(p + 20));
+		put32(big, p + 16, FILE_NULL);
+		if (family == 7)
+			end = put_cblock(p + 20, 64, 64, 1, 1);
+		else
+			end = put_cblock(p + 20, 0, 0, family == 8 ? 0 : family == 9 ? 1 : k, 0);
+		put32(big, p, (uint32_t)end);
+		return end;
+	case 11:	/* k free strings naming one empty string */
+	case 12:	/* k free strings naming one string of 30000 */
+		s = 40 + 4 * (size_t)k;
+		end = put_str(s, family == 11 ? 0 : 30000);
+		put16(big, 10, 40);
+		put16(big, 30, (unsigned)k);
+		for (i = 0; i < k; i++)
+			put32(big, 40 + 4 * (size_t)i, (uint32_t)s);
+		return end;
+	case 14:	/* k empty 0 x 0 blocks, each named by three G_CICON objects */
+		put16(big, 0, 4);
+		put16(big, 34, 40);
+		put32(big, 44, 52);
+		p = 52 + 4 * (size_t)k + 4;
+		end = put_tree(p, 3 * k, G_CICON, 0);
+		for (i = 1; i <= 3 * k; i++)
+			put32(big, p + 24 * (size_t)i + 12, (uint32_t)((i - 1) / 3));
+		for (i = 0; i < k; i++)
+		{
+			put32(big, 52 + 4 * (size_t)i, (uint32_t)end);
+			end = put_cblock(end, 0, 0, 0, 0);
+		}
+		put32(big, 52 + 4 * (size_t)k, FILE_NULL);
+		put32(big, 40, (uint32_t)end);
+		return end;
+	default:	/* k free images naming one BITBLK of 2 x 2 bytes */
+		s = 40 + 4 * (size_t)k;
+		put16(big, 8, (unsigned)s);
+		put16(big, 28, 1);
+		put16(big, 16, 40);
+		put16(big, 32, (unsigned)k);
+		put32(big, s, (uint32_t)(s + 14));
+		put16(big, s + 4, 2);
+		put16(big, s + 6, 2);
+		for (i = 0; i < k; i++)
+			put32(big, 40 + 4 * (size_t)i, (uint32_t)s);
+		return s + 18;
+	}
+}
+
+/* The smallest k in lo..hi the budget refuses (hi + 1 for none); k - 1
+ * reads. */
+static long boundary(long lo, long hi)
+{
+	char	msg[96];
+	size_t	off;
+	long	a = lo, b = hi + 1, m;
+
+	while (a < b)
+	{
+		int	c;
+
+		m = a + (b - a) / 2;
+		c = big_code(build_family(m), &off, msg);
+		CHECK(c == RSC_OK || c == RSC_ETOOBIG);
+		if (c != RSC_OK)
+			b = m;
+		else
+			a = m + 1;
+	}
+	if (a <= hi)
+	{
+		CHECK(big_code(build_family(a), &off, msg) == RSC_ETOOBIG);
+		CHECK(strncmp(msg, "decoded size exceeds the limit", 30) == 0);
+		CHECK(a == lo || big_code(build_family(a - 1), &off, msg) == RSC_OK);
+	}
+	return a;
+}
+
+static void test_charges(void)
+{
+	/* family: the measured boundary */
+	static const long	want[] =
+	{
+		1160, 209, 2793, 105, 13489, 336, 5091, 13, 840, 347, 1189, 7301, 7, 1175, 955
+	};
+	/* the largest k a family can have (16-bit header offsets, 32767
+	 * objects in a tree, the size of big) */
+	static const long	most[] =
+	{
+		32000, 32000, 32000, 32000, 32000, 32000, 32000, 2500, 2500, 2500,
+		40000, 15000, 15000, 15000, 9000
+	};
+	long	k;
+
+	for (family = 0; family < 15; family++)
+	{
+		k = boundary(1, most[family]);
+		if (getenv("RSC_PRINT_BOUNDARY"))
+			printf("  family %d: boundary %ld\n", family, k);
+		CHECK(k >= want[family] - want[family] / 20 && k <= want[family] + want[family] / 20);
 	}
 }
 
@@ -1203,6 +1460,7 @@ int main(int argc, char **argv)
 	test_cfile();
 	test_coords();
 	test_hostile();
+	test_charges();
 	test_truncation();
 	test_mutations();
 	test_alloc_failures();

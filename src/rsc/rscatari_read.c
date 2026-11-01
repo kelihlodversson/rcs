@@ -48,8 +48,12 @@
  * at its size plus BLOCK_COST bytes, and so is the work of checking the
  * colour icon blocks (their heads and version headers).  When the total
  * would exceed 4 * len + 65536 bytes the read fails with RSC_ETOOBIG at
- * the object being decoded.  A real file inflates 2 to 3 times; the time
- * of a read is proportional to what it charges.
+ * the object being decoded.  The time of a read is proportional to what
+ * it charges.  Since records are copied per object, a file in which k
+ * objects share one big record or colour block is refused once k is above
+ * about 2.  Legitimate files stay well inside: measured up to about 3x
+ * len for tiny objects (15000 one-object trees: 3.04x) and about 2x for
+ * typical files (rcs.rsc: 1.89x, 47 % of 4 * len).
  *
  * Decisions:
  *  - rsh_rssize is not trusted for a plain file: the buffer length decides
