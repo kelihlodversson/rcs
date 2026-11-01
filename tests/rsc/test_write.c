@@ -7,10 +7,14 @@
  * form.  Then the stability of write and read, resources built through the
  * editing API (checked against hand-computed bytes and read back), the
  * errors and limits, failed allocations, colour icons and a deterministic
- * mini-fuzz of edits followed by a write and a read. */
+ * mini-fuzz of edits followed by a write and a read.  When the environment
+ * variable RSC_TEST_EXTERNAL names a directory, every *.rsc in it is read,
+ * written, read back and written again too (CI does not set it: real
+ * files are not part of the tree). */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 #include "rscmodel.h"
 #include "rscfile.h"
 
@@ -40,14 +44,12 @@ struct file
 	size_t	len;
 };
 
-static struct file load(const char *name)
+static struct file load_path(const char *path)
 {
 	struct file	f = { NULL, 0 };
-	char	path[512];
 	FILE	*fp;
 	long	n;
 
-	snprintf(path, sizeof path, "%s/%s", golden_dir, name);
 	fp = fopen(path, "rb");
 	if (!fp)
 	{
@@ -63,6 +65,14 @@ static struct file load(const char *name)
 	fclose(fp);
 	f.len = (size_t)n;
 	return f;
+}
+
+static struct file load(const char *name)
+{
+	char	path[512];
+
+	snprintf(path, sizeof path, "%s/%s", golden_dir, name);
+	return load_path(path);
 }
 
 static unsigned rd16(const uint8_t *b, size_t off)
@@ -2106,6 +2116,113 @@ static void test_fuzz(void)
 	rsc_free(m[1]);
 }
 
+/* ---- (h) real files, when RSC_TEST_EXTERNAL names a directory ---------------------- */
+
+/* What r holds, on one line. */
+static void summary(const struct rsc *r, char *buf, size_t size)
+{
+	struct rsc_cicon	*c;
+	int	t, k, v, n, nobj = 0, nci = 0, vmin = 0, vmax = 0;
+	unsigned	planes = 0;
+	size_t	at;
+
+	for (t = 0; t < rsc_ntrees(r); t++)
+		for (rsc_tree_objects(r, t, &n), k = 0; k < n; k++)
+		{
+			nobj++;
+			c = rsc_obj_cicon(r, t, k);
+			if (!c)
+				continue;
+			v = rsc_cicon_nversions(c);
+			vmin = nci == 0 || v < vmin ? v : vmin;
+			vmax = v > vmax ? v : vmax;
+			nci++;
+			while (v-- > 0)
+				planes |= 1u << (rsc_cicon_version(c, v)->c.num_planes & 31);
+		}
+	at = (size_t)snprintf(buf, size, "%d trees, %d objects, %d free strings, %d free images, "
+			      "%d colour icons", rsc_ntrees(r), nobj, rsc_nfrstr(r), rsc_nfrimg(r), nci);
+	if (nci && at < size)
+	{
+		at += (size_t)snprintf(buf + at, size - at, " (%d..%d versions, planes", vmin, vmax);
+		for (k = 0; k < 32 && at < size; k++)
+			if (planes & 1u << k)
+				at += (size_t)snprintf(buf + at, size - at, " %d", k);
+		if (at < size)
+			snprintf(buf + at, size - at, ")");
+	}
+}
+
+/* The file at path read with the cell size cw x ch, written, read back
+ * (the same content) and written again (the same bytes). */
+static void external_file(const char *path, int cw, int ch)
+{
+	struct file	f = load_path(path);
+	struct rsc	*r, *r2 = NULL;
+	struct rsc_error	e;
+	uint8_t	*o1 = NULL, *o2 = NULL;
+	size_t	l1 = 0, l2 = 0;
+	char	sum[256];
+	const char	*name = strrchr(path, '/') ? strrchr(path, '/') + 1 : path;
+	int	same = 0, fixed = 0;
+
+	r = rd(f.b, f.len, cw, ch, &e);
+	if (!r)
+	{
+		printf("  external %s at %dx%d: refused: %s\n", name, cw, ch, e.msg);
+		CHECK(r != NULL);
+		free(f.b);
+		return;
+	}
+	summary(r, sum, sizeof sum);
+	if (wr(r, cw, ch, &o1, &l1, &e) == 0)
+	{
+		r2 = rd(o1, l1, cw, ch, &e);
+		same = r2 && same_model(r, r2);
+		fixed = r2 && wr(r2, cw, ch, &o2, &l2, &e) == 0 && same_bytes(path, o2, l2, o1, l1);
+	}
+	else
+		printf("  external %s at %dx%d: write failed: %s\n", name, cw, ch, e.msg);
+	printf("  external %s at %dx%d: %s; %zu bytes in, %zu out; same content %s, fixed point %s\n",
+	       name, cw, ch, sum, f.len, l1, same ? "yes" : "no", fixed ? "yes" : "no");
+	CHECK(same && fixed);
+	rsc_mfree(o1);
+	rsc_mfree(o2);
+	rsc_free(r);
+	rsc_free(r2);
+	free(f.b);
+}
+
+/* Every *.rsc in the directory RSC_TEST_EXTERNAL names (not its
+ * subdirectories), at 8x16 and in file form; nothing when it is not set.
+ * Real files are not part of the tree: this is for checking them by
+ * hand. */
+static void test_external(void)
+{
+	const char	*dir = getenv("RSC_TEST_EXTERNAL");
+	DIR	*dp;
+	struct dirent	*de;
+	char	path[1024];
+	size_t	n;
+
+	if (!dir || !*dir)
+		return;
+	dp = opendir(dir);
+	CHECK(dp != NULL);
+	if (!dp)
+		return;
+	while ((de = readdir(dp)) != NULL)
+	{
+		n = strlen(de->d_name);
+		if (n < 5 || strcmp(de->d_name + n - 4, ".rsc") != 0)
+			continue;
+		snprintf(path, sizeof path, "%s/%s", dir, de->d_name);
+		external_file(path, 8, 16);
+		external_file(path, 0, 0);
+	}
+	closedir(dp);
+}
+
 int main(int argc, char **argv)
 {
 	static const char	*goldens[] = { "rcs", "rcslow", "cicon" };
@@ -2138,6 +2255,7 @@ int main(int argc, char **argv)
 	test_alloc();
 	test_cicons();
 	test_fuzz();
+	test_external();
 	CHECK(rsc_test_live_blocks() == live0);
 	printf("test_write: %ld checks, %ld failures\n", checks, failures);
 	return failures ? 1 : 0;
