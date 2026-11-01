@@ -3,6 +3,9 @@
 #   make m68k      build/m68k/RCS.PRG and its resource files (Atari TOS, EmuTOS, pTOS on m68k)
 #   make arm       build/arm/RCS.PRG and its resource files (pTOS on ARM)
 #   make libs      only gemlib and libcmini, for both targets
+#   make rsc-test  the tests of the resource library (src/rsc) on this machine
+#                  (RSC_SAN=1: with AddressSanitizer and UBSan)
+#   make host-test the load/save round trip of the old code on this machine
 #   make clean
 #
 # Needs GNU make, python3 and rsync, and the m68k-atari-mintelf- toolchain on
@@ -32,8 +35,17 @@ all: m68k
 # program, but RCS needs them when one of the resource files is edited.
 RES_FILES = RCS.RSC RCSLOW.RSC RCS.DFN RCSLOW.DFN
 
-m68k: build/m68k/$(PRG_NAME) $(addprefix build/m68k/,$(RES_FILES))
-arm: build/arm/$(PRG_NAME) $(addprefix build/arm/,$(RES_FILES))
+# The resource library (src/rsc, #29) is compiled for both targets so that
+# it keeps building there, but not linked into RCS.PRG yet.
+RSC_LIB_SRC = src/rsc/rscmodel.c src/rsc/rscatari_read.c src/rsc/rscatari_write.c
+RSC_LIB_H   = $(wildcard src/rsc/*.h)
+
+m68k: build/m68k/$(PRG_NAME) $(addprefix build/m68k/,$(RES_FILES)) \
+    $(patsubst %.c,build/m68k/%.o,$(RSC_LIB_SRC))
+arm: build/arm/$(PRG_NAME) $(addprefix build/arm/,$(RES_FILES)) \
+    $(patsubst %.c,build/arm/%.o,$(RSC_LIB_SRC))
+
+$(patsubst %.c,build/m68k/%.o,$(RSC_LIB_SRC)) $(patsubst %.c,build/arm/%.o,$(RSC_LIB_SRC)): $(RSC_LIB_H)
 
 build/%/RCS.RSC: src/atari/rcs.rsc
 	@mkdir -p $(dir $@)
@@ -184,3 +196,32 @@ host-test: build/host/roundtrip
 build/host/roundtrip: $(HOST_SRC) $(wildcard src/*.h src/host/*.h src/host/mint/*.h)
 	@mkdir -p build/host
 	$(HOST_CC) $(HOST_FLAGS) -o $@ $(HOST_SRC)
+
+# ---- the resource library on the host ---------------------------------------
+#
+#   make rsc-test            build the tests of tests/rsc with the library and run them
+#   make rsc-test RSC_SAN=1  the same with AddressSanitizer and UBSan
+#
+# The library defines the AES structures itself on the host (RSC_HOST); it
+# does not use src/host.  Each test program is one file of tests/rsc; the
+# reader tests read the files of tests/golden.
+
+RSC_SAN        =
+RSC_TESTS      = test_rsc test_read test_write
+RSC_TEST_FLAGS = -std=gnu99 -fno-strict-aliasing -Wall -Wextra -DRSC_HOST -DRSC_TEST \
+                 -Isrc/rsc -g
+ifeq ($(RSC_SAN),1)
+RSC_TEST_FLAGS += -fsanitize=address,undefined -fno-sanitize-recover=undefined
+RSC_TEST_SUFFIX = -san
+else
+RSC_TEST_SUFFIX =
+endif
+RSC_TEST_BINS  = $(patsubst %,build/host/rsc/%$(RSC_TEST_SUFFIX),$(RSC_TESTS))
+
+.PHONY: rsc-test
+rsc-test: $(RSC_TEST_BINS)
+	@set -e; for t in $(RSC_TEST_BINS); do echo "./$$t"; ./$$t; done
+
+build/host/rsc/%$(RSC_TEST_SUFFIX): tests/rsc/%.c $(RSC_LIB_SRC) $(RSC_LIB_H)
+	@mkdir -p $(dir $@)
+	$(HOST_CC) $(RSC_TEST_FLAGS) -o $@ $(RSC_LIB_SRC) $<

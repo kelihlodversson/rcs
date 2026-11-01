@@ -1,0 +1,82 @@
+/* RSCFILE.H	what the resource file readers and writers share: the format
+ *		selector and the error report */
+#ifndef RSCFILE_H
+#define RSCFILE_H
+
+#include <stddef.h>
+#include <stdint.h>
+#include "rscmodel.h"
+
+/* The on-disk formats.  Reserved: nothing takes or returns it yet; it is
+ * for phase 3 of #29, which adds RSC_FORMAT_RSX (RSXHDR) and the functions
+ * that choose between the formats. */
+enum rsc_format
+{
+	RSC_FORMAT_CLASSIC		/* Atari big-endian RSHDR, with the colour icon extension */
+};
+
+/* Error codes of struct rsc_error.  0 is success. */
+enum rsc_errcode
+{
+	RSC_OK = 0,
+	RSC_ENOMEM,		/* an allocation failed */
+	RSC_EARG,		/* a bad argument (NULL buffer, bad cell size, ...) */
+	RSC_ETRUNC,		/* the file ends before the data it describes */
+	RSC_EHEADER,		/* the reader refuses a version 3 (RSXHDR) header,
+				 * not supported yet; otherwise reserved for phase
+				 * 3 of #29 (an inconsistent RSXHDR); the classic
+				 * reader reports a bad header field as
+				 * RSC_EOFFSET or RSC_ETRUNC */
+	RSC_EOFFSET,		/* an offset or count points outside the file */
+	RSC_ESTRING,		/* a string has no NUL inside the file */
+	RSC_ELINK,		/* an object link is out of range */
+	RSC_ECYCLE,		/* the links of a tree form a cycle */
+	RSC_ECICON,		/* a colour icon block or its table is bad */
+	RSC_ETOOBIG		/* the data does not fit the format (16-bit offsets, counts),
+				 * or, reading, the decoded model would exceed the budget
+				 * of 4 * len + 65536 bytes (allocations charged at their
+				 * size plus a small cost each; see rscatari_read.c) */
+};
+
+/* What went wrong and where: offset is the position in the file (reader)
+ * or in the output (writer) the error refers to; msg is a NUL-terminated
+ * text for the user. */
+struct rsc_error
+{
+	int	code;		/* enum rsc_errcode */
+	size_t	offset;
+	char	msg[96];
+};
+
+/* The largest character cell size the readers and writers take: a file
+ * coordinate converted to pixels (low byte * cell + high byte, the high
+ * byte -127..128) is then at most 255 * 127 + 128 = 32513 and fits a
+ * short.  A larger cell is RSC_EARG. */
+#define RSC_MAX_CELL	127
+
+/* The classic Atari format (rscatari_read.c, rscatari_write.c).
+ *
+ * rsc_atari_read decodes len bytes at buf into a new model, or returns NULL
+ * and fills *err.  cell_w and cell_h are the character cell size the object
+ * coordinates are converted with (as rsrc_obfix does); 0, 0 keeps them in
+ * file form.  Nothing of buf is referenced by the result.
+ *
+ * rsc_atari_write encodes r into a buffer (*out, *len; allocated with
+ * rsc_malloc, the caller frees it with rsc_mfree) and returns
+ * 0, or returns -1 and fills *err; it does not modify r.  On failure, bad
+ * arguments included, *out is NULL and *len is 0 (when out and len are
+ * not NULL); err may be NULL.  cell_w and cell_h are the cell size pixel
+ * coordinates are converted back to file form with (the inverse of the
+ * reader's conversion); they must be the cell size r holds (rsc_cell). */
+struct rsc *rsc_atari_read(const uint8_t *buf, size_t len, int cell_w, int cell_h,
+			   struct rsc_error *err);
+int rsc_atari_write(const struct rsc *r, int cell_w, int cell_h,
+		    uint8_t **out, size_t *len, struct rsc_error *err);
+
+#ifdef RSC_TEST
+/* The writer's conversion of a pixel coordinate v to its file word with
+ * cell size cell (1..RSC_MAX_CELL): returns 0, or -1 when v has none. */
+int rsc_test_coord_to_file(int v, int cell, unsigned *word);
+#endif
+
+#endif

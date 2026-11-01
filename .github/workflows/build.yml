@@ -58,3 +58,22 @@ jobs:
             build/arm/RCSLOW.RSC
             build/arm/RCS.DFN
             build/arm/RCSLOW.DFN
+
+  host-tests:
+    name: Host tests (resource library, round trip)
+    # the system C compiler only: these tests use neither gemlib nor
+    # libcmini, so the submodules are not fetched
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resource library tests
+        run: make rsc-test
+      # AddressSanitizer fails at random with the high mmap randomisation of
+      # recent kernels; 28 bits is what it supports.  The step only guards
+      # ASAN, so a runner without this sysctl must not fail the job.
+      - name: Allow AddressSanitizer
+        run: sudo sysctl -w vm.mmap_rnd_bits=28 || true
+      - name: Resource library tests with AddressSanitizer and UBSan
+        run: make rsc-test RSC_SAN=1
+      - name: Load/save round trip
+        run: make host-test

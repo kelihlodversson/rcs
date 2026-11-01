@@ -99,6 +99,22 @@ compared, and the golden files of `rcs` and `rcslow` were made with a `.dfn`
 file while the host run has none (the `.rsc` is equal anyway). So the reading
 and writing of `.DFN` files is not tested on the host.
 
+## The resource library
+
+`src/rsc/` holds a library that keeps a resource file in memory in the native
+form of the AES (real pointers, no arena, no `RP()`) and reads and writes the
+classic Atari `.RSC` format. It is built and tested on the host and compiled
+for m68k and ARM, but `RCS.PRG` does not use it yet; the old arena and `RP()`
+are still what the program is built on until the GUI is migrated (phases of
+issue #29).
+
+    gmake rsc-test
+    gmake rsc-test RSC_SAN=1
+
+`RSC_SAN=1` adds AddressSanitizer and UBSan; CI runs both, and `make host-test`,
+on every pull request. `docs/resource-model.md` describes
+the model, the ownership rules and the limits.
+
 ## State of the port
 
 The sources include `<gem.h>` of gemlib and the C headers of libcmini; the
