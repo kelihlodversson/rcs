@@ -641,6 +641,13 @@ static void test_hrd(void)
 	CHECK(code_of(HRD, b, len, &off) == RSC_ESTRING && off == p + 6);
 	b[p + 6 + 18] = 'E';
 	CHECK(code_of(HRD, b, len, &off) == RSC_OK);
+	/* the object word of the free image record (type 4) */
+	p += (6 + 21) + (6 + 1) + (6 + 8) + (6 + 6);	/* it, the empty prefix, ALNOWIN, TFREE */
+	CHECK(b[p] == 4 && b[p + 6] == 'I');
+	put16be(b, p + 4, 0x100);
+	CHECK(code_of(HRD, b, len, &off) == RSC_EOFFSET && off == p + 4);
+	put16be(b, p + 4, 0);
+	CHECK(code_of(HRD, b, len, &off) == RSC_OK);
 	CHECK(live() == 0);
 }
 
@@ -1283,6 +1290,46 @@ static void test_guess_alert0(void)
 	alert0_case(zk, ct, zo, zn, "ALERT0");
 }
 
+/* Generated names are taken too: a generated name that is the start of a
+ * later node pushes that node on.  Worked out by hand from the rules:
+ *  - strings 3, 4 and 6 are alerts, ALERT3 exists: 3 -> ALERT4 (3 taken),
+ *    4 -> ALERT5 (4 is now taken), 6 -> ALERT6;
+ *  - trees 0 to 5 are dialogs, DIALOG2 and DIALOG3 exist: 0 -> DIALOG1,
+ *    1 -> DIALOG4 (2, 3 taken), 2 -> DIALOG5 (3, 4 taken), 3 -> DIALOG6,
+ *    4 -> DIALOG7, 5 -> DIALOG8.
+ * The alert shape is checked without reading past the NUL: the strings are
+ * exact-size copies, so the sanitizer sees any over-read. */
+static void test_guess_chain(void)
+{
+	static const char	*str[] = { "[", "[x", "[]x", "[x]", "[x]y", "plain", "[3]" };
+	struct rsc	*r = rsc_new();
+	struct rsc_names	*n = rsc_names_new();
+	char	buf[400];
+	int	t, a;
+	size_t	k;
+
+	for (t = 0; t < 6; t++)
+	{
+		rsc_tree_add(r, 1);
+		a = rsc_obj_add(r, t, 0, G_BUTTON);
+		rsc_obj_set_flags(r, t, a, OF_EXIT);
+	}
+	for (k = 0; k < sizeof str / sizeof str[0]; k++)
+		rsc_frstr_add(r, str[k]);
+	CHECK(rsc_names_add(n, RSC_NAME_TREE, RSC_TKIND_DIAL, 9, 0, "ALERT3", 0) == 0);
+	CHECK(rsc_names_add(n, RSC_NAME_OBJ, RSC_TKIND_UNKN, 0, 1, "DIALOG2", 0) == 0);
+	CHECK(rsc_names_add(n, RSC_NAME_OBJ, RSC_TKIND_UNKN, 1, 1, "DIALOG3", 0) == 0);
+	CHECK(rsc_names_guess(n, r) == 3 + 6);
+	names_from(n, 3, 9, buf, sizeof buf);
+	CHECK(strcmp(buf, "ALERT4 ALERT5 ALERT6 DIALOG1 DIALOG4 DIALOG5 DIALOG6 DIALOG7 DIALOG8") == 0);
+	if (strcmp(buf, "ALERT4 ALERT5 ALERT6 DIALOG1 DIALOG4 DIALOG5 DIALOG6 DIALOG7 DIALOG8"))
+		printf("  chain: %s\n", buf);
+	CHECK(entry(n, 3).obj == 3 && entry(n, 4).obj == 4 && entry(n, 5).obj == 6);
+	rsc_names_free(n);
+	rsc_free(r);
+	CHECK(live() == 0);
+}
+
 /* ---- lookup ---------------------------------------------------------------------------- */
 
 static void test_lookup(void)
@@ -1625,6 +1672,7 @@ int main(void)
 	test_guess_rcs();
 	test_guess_desk();
 	test_guess_alert0();
+	test_guess_chain();
 	test_budget();
 	test_limit();
 	test_truncation();
