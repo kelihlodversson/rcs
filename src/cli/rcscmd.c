@@ -178,11 +178,11 @@ static const char *state_str(char *buf, size_t size, unsigned state)
 
 static const char *kind_names[] = { "UNKN", "PANL", "MENU", "DIAL", "ALRT" };
 
-/* The kind of a tree with "~" when guessed, "-" when unknown. */
+/* The kind of a tree with "~" when guessed; UNKN when it is not known. */
 static const char *kind_str(char *buf, size_t size, const struct rcs_desc *d)
 {
 	if (d->tkind < 0 || d->tkind > 4)
-		snprintf(buf, size, "-");
+		snprintf(buf, size, "UNKN");
 	else
 		snprintf(buf, size, "%s%s", kind_names[d->tkind], d->tkind_guessed ? "~" : "");
 	return buf;
@@ -679,7 +679,7 @@ static int do_stat(struct rcs_ctx *c, const struct rcs_node *nd)
 		kv("entries", "%d", d.count);
 		break;
 	case RCS_NODE_TREE:
-		kv("kind", "%s", d.tkind >= 0 && d.tkind <= 4 ? kind_names[d.tkind] : "-");
+		kv("kind", "%s", d.tkind >= 0 && d.tkind <= 4 ? kind_names[d.tkind] : "UNKN");
 		kv("kind-source", "%s", d.tkind < 0 ? "none" : d.tkind_guessed ? "guessed" : "file");
 		kv_name("name", d.name);
 		kv("index", "%d", d.tree);

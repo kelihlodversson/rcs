@@ -169,8 +169,9 @@ component (the name or `#N`).
 - **State**: `SELECTED` `CROSSED` `CHECKED` `DISABLED` `OUTLINED` `SHADOWED`
   (bits 0 to 5), then the other set bits (0xFFC0) as one `0xNNNN`; `-` for 0.
 - **Tree kind**: `DIAL`, `MENU`, `PANL`, `UNKN` from the first tree entry of
-  the names, with `~` appended when `rsc_names_guess` made it (`DIAL~`); `-`
-  when the tree has no entry (with `--no-guess`).
+  the names, with `~` appended when `rsc_names_guess` made it (`DIAL~`);
+  `UNKN` (without `~`) when the tree has no entry (with `--no-guess`), the same
+  as an entry of kind UNKN; `stat` tells the two apart by `kind-source`.
 - **Box spec** (the 32-bit spec of `G_BOX`, `G_IBOX`, `G_BOXCHAR` without
   `INDIRECT`, from the high bit down): bits 31-24 the character
   (`G_BOXCHAR`), 23-16 the frame thickness (signed: positive inward,
@@ -259,7 +260,7 @@ Text values are quoted (or `-` for a NULL string), names as in columns
 |---|---|
 | root | `path`, `trees`, `strings`, `images`, `cell` (`file`, or `WxH` with `--pixels`), `vrsn` (`0xNNNN`, without the format bits) |
 | `.strings`, `.images` | `path`, `entries` |
-| tree | `path`, `kind` (`DIAL` `MENU` `PANL` `UNKN`, `-` for none), `kind-source` (`file`, `guessed`, `none`), `name`, `index`, `objects`, `root-children` |
+| tree | `path`, `kind` (`DIAL` `MENU` `PANL` `UNKN`; `UNKN` also for no entry), `kind-source` (`file`, `guessed`, `none` when there is no entry), `name`, `index`, `objects`, `root-children` |
 | object | `path`, `tree`, `index`, `name`, `reachable` (`yes`/`no`), `parent` (index, `-` for the root and unreachable objects), `children` (child objects, not colour icon entries), `next`, `head`, `tail` (the raw links), `type` (`0xNNNN` then the type as above), `flags` (`0xNNNN` then the list), `state` (likewise), `x`, `y`, `w`, `h`, then the spec below |
 | free string | `path`, `index`, `name`, `length`, `text`, `alert` (`yes`/`no`) |
 | free image | `path`, `index`, `name`, `wb`, `hl`, `bi-x`, `bi-y`, `color`, `data-bytes` |
