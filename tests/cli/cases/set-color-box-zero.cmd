@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/#0 color=0' -c 'stat /DIALOG/#0'

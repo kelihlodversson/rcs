@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c "set /DIALOG/EDIT text=$(head -c 32766 /dev/zero | tr '\0' a)" -c 'ls -l /DIALOG/EDIT'
