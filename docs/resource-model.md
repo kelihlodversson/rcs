@@ -77,6 +77,15 @@ use `src/host/gem.h`.
   one or more directories (separated by `:`) it also reads every `*.dfn`,
   `*.def`, `*.rsd` and `*.hrd` in them with the `*.rsc` of the same base
   name, and requires that the check drops nothing.
+- `test_image` tests the section "Images as pictures": the palette tables
+  (hand-checked entries and the nearest search against a naive one), planar
+  words and pixels (all sizes 1x1 to 65x33 at 1 to 8 planes), conversions,
+  the PNM writer and parser (every header form, comments, error paths,
+  truncation sweeps, hostile dimensions and numbers, a random-byte fuzz),
+  export-import-export round trips, the images of a model object by object
+  (versions, selected images, odd `bi_wb`, the limits), a failing allocation
+  at every point of each call, and a trip through `rsc_atari_write` and
+  `rsc_atari_read`.
 
 ## The model
 
