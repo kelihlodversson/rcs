@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc mkdir ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789

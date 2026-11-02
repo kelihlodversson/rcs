@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'set /.strings/HELLO text=Bye' -c 'cat /.strings/HELLO'

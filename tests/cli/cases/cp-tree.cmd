@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'cp -r /DIALOG /DLG2' -c 'ls -l /' -c 'tree /DLG2'

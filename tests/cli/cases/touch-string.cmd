@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'touch /.strings/NEWS' -c 'ls -l /.strings'

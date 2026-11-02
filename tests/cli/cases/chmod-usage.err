@@ -1,0 +1,1 @@
+rcs-cli: chmod: usage: chmod [--state] [+-=]NAME[,NAME...]... PATH

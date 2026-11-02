@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'touch /PANEL3/X' -c 'mv /DIALOG/EDIT /PANEL3/#1/X'

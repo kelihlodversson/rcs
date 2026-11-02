@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'cp -r /DIALOG/BUTTONS /PANEL3/B3' -c 'mv /DIALOG/BUTTONS /PANEL3/B4'

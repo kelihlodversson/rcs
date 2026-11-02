@@ -1,0 +1,1 @@
+rcs-cli: mv: $ROOT/tests/golden/cicon.rsc:/x: a second file is read-only (it is never written)

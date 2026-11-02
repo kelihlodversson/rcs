@@ -1,0 +1,36 @@
+#0     DIALOG       DIAL  20
+#1     MAINMENU     MENU  9
+#2     PANEL3       PANL~ 2
+#3     TREE4        UNKN~ 1
+#4     BIG          PANL  321
+#5     .images      UNKN  2
+#6     UNREACH      DIAL  4
+#7     DLG2         DIAL  20
+-      .strings     DIR   5
+-      .images      DIR   2
+/DLG2
+|-- #1 Title G_TEXT - -
+|-- #2 TITLE G_BOXTEXT - -
+|-- #3 DUP G_IMAGE - -
+|-- #4 DUP G_PROGDEF - -
+|-- #5 BUTTONS G_IBOX - -
+|   |-- #6 OK G_BUTTON SELECTABLE,DEFAULT,EXIT -
+|   `-- #7 CANCEL G_BUTTON SELECTABLE,EXIT SELECTED
+|-- #8 BOXCHAR G_BOXCHAR - -
+|-- #9 #3 G_STRING - -
+|-- #10 F\x9b\xe4 G_FTEXT - -
+|-- #11 EDIT G_FBOXTEXT EDITABLE -
+|-- #12 ICON G_ICON - -
+|-- #13 dup G_TITLE - -
+|-- #14 CICON G_CICON - -
+|   |-- mono 1 no
+|   |-- 4 4 no
+|   |-- 4.sel 4 yes
+|   |-- 8 8 no
+|   |-- 4#2 4 no
+|   `-- 4#2.sel 4 yes
+|-- #15 - 0x50 - -
+|-- #16 - G_BUTTON:17 FL3DACT,0x2800 CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0
+|-- #17 - G_STRING RBUTTON,TOUCHEXIT,HIDETREE,INDIRECT -
+|-- #18 - G_BOX FL3DIND -
+`-- #19 - G_BOX LASTOB,FL3DBAK -

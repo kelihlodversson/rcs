@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc touch /PANEL3/B --type 0x10000

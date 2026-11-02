@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'mkdir /NEW2' -c 'ls /'

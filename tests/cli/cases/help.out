@@ -6,6 +6,9 @@ options (before FILE.rsc):
   --no-names       read no name file
   --no-guess       do not guess names and tree kinds
   --pixels[=WxH]   coordinates in pixels, cell WxH (default 8x16)
+  -o OUT.rsc       write the result of the edit commands to OUT.rsc
+  -n               dry run: run the commands, write nothing
+  --names-out FILE write the names to FILE (.dfn)
   --help           this text
 
 commands:
@@ -14,3 +17,10 @@ commands:
   stat PATH             every property of a node
   cat [-v] PATH         the text of a node
   convert -o OUT.rsc    write the resource with the library's writer
+  cp [-r] SRC DST       copy (SRC may be FILE.rsc:/PATH)
+  mv SRC DST            move or rename
+  rm [-r] PATH          remove
+  mkdir NAME [--type dialog|menu|panel|alert]   new tree
+  touch PATH [--type T] new object, string or image
+  chmod [--state] [+-=]NAME[,NAME...]... PATH   flags and states
+  set PATH key=value... change an object

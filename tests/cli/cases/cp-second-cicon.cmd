@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'cp $ROOT/tests/golden/cicon.rsc:/PANEL1/#1 /PANEL3/ICON2' -c 'tree /PANEL3' -c 'stat /PANEL3/ICON2/4'

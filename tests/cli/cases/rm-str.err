@@ -1,0 +1,2 @@
+rcs-cli: note: rm: 4 free strings were renumbered (from #0 on)
+rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13254 bytes, and the names to $FIX/kinds.dfn)

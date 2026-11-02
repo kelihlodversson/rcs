@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'mkdir NEW' -c 'ls -l /' -c 'stat /NEW' -c 'stat /NEW/#0'

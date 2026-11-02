@@ -1,0 +1,11 @@
+#5     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 0,0,0,0
+#6     CANCEL       G_BUTTON   SELECTABLE,EXIT SELECTED 0,0,0,0
+#0     DIALOG       DIAL  19
+#1     MAINMENU     MENU  9
+#2     PANEL3       PANL~ 2
+#3     TREE4        UNKN~ 1
+#4     BIG          PANL  321
+#5     .images      UNKN  2
+#6     UNREACH      DIAL  4
+-      .strings     DIR   5
+-      .images      DIR   2

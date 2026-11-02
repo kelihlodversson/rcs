@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT font=small' -c 'stat /DIALOG/EDIT'

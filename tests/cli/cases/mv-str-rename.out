@@ -1,0 +1,5 @@
+#0     HI              12 -     "Hello, world"
+#1     ALERT1          37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+#2     ASK             21 ALERT "[2][Question][Yes|No]"
+#3     -               19 -     "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+#4     -              100 -     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...

@@ -419,16 +419,13 @@ static int dfn_misfits(const struct rsc_names *n, const struct rsc *r, char *fir
 		if (!ok || (strlen(e.name) <= 8 && !(e.kind == RSC_NAME_OBJ && (e.tree > 255 || e.obj > 255))))
 			continue;
 		if (!bad)
-			snprintf(first, size, "'%s' (%s %d%s)", esc(eb, sizeof eb, e.name),
-				 e.kind == RSC_NAME_TREE ? "tree" : e.kind == RSC_NAME_OBJ ? "tree" :
-				 e.kind == RSC_NAME_FRSTR ? "free string" : "free image",
-				 e.kind == RSC_NAME_OBJ ? e.tree : e.kind == RSC_NAME_TREE ? e.tree : e.obj,
-				 e.kind == RSC_NAME_OBJ ? ", object " : "");
-		if (!bad && e.kind == RSC_NAME_OBJ)
 		{
-			size_t	l = strlen(first);
-
-			snprintf(first + l, size - l, "%d", e.obj);
+			if (e.kind == RSC_NAME_OBJ)
+				snprintf(first, size, "'%s' (tree %d, object %d)", esc(eb, sizeof eb, e.name), e.tree, e.obj);
+			else
+				snprintf(first, size, "'%s' (%s %d)", esc(eb, sizeof eb, e.name),
+					 e.kind == RSC_NAME_TREE ? "tree" : e.kind == RSC_NAME_FRSTR ? "free string"
+					 : "free image", e.kind == RSC_NAME_TREE ? e.tree : e.obj);
 		}
 		bad++;
 	}

@@ -1,0 +1,1 @@
+-n --names-out $TMP/dry.dfn $FIX/kinds.rsc -c 'mkdir Z' -c 'touch /Z/B'

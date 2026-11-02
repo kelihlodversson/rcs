@@ -1,0 +1,14 @@
+/MENU2
+|-- #1 - G_BOX - -
+|   `-- #2 - G_IBOX - -
+|       `-- #3 - G_TITLE - -
+`-- #4 - G_IBOX - -
+    `-- #5 - G_BOX - -
+        `-- #6 - G_STRING LASTOB -
+path: /MENU2
+kind: MENU
+kind-source: file
+name: MENU2
+index: 7
+objects: 7
+root-children: 2

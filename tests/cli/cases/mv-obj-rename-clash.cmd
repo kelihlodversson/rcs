@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc mv /DIALOG/OK /DIALOG/CANCEL

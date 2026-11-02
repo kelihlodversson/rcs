@@ -1,0 +1,1 @@
+-o $TMP/x.rsh $FIX/kinds.rsc ls /

@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'chmod --state =shadowed /DIALOG/CANCEL' -c 'ls -l /DIALOG/CANCEL'

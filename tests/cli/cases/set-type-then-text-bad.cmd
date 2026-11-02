@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc set /DIALOG/OK type=G_BOX text=Hi

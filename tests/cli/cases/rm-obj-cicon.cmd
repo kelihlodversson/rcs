@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'rm /DIALOG/CICON' -c 'ls /DIALOG'

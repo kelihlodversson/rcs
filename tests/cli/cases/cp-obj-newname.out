@@ -1,0 +1,19 @@
+#20    OK2          G_BUTTON   SELECTABLE,DEFAULT,EXIT,LASTOB - 0,0,0,0
+path: /DIALOG/OK2
+tree: 0
+index: 20
+name: OK2
+reachable: yes
+parent: 0
+children: 0
+next: 0
+head: -1
+tail: -1
+type: 0x001A G_BUTTON
+flags: 0x0027 SELECTABLE,DEFAULT,EXIT,LASTOB
+state: 0x0000 -
+x: 0
+y: 0
+w: 0
+h: 0
+text: "OK"

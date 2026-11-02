@@ -1,0 +1,10 @@
+#0     DIALOG       DIAL  20
+#1     PANEL3       PANL~ 2
+#2     TREE4        UNKN~ 1
+#3     BIG          PANL  321
+#4     .images      UNKN  2
+#5     UNREACH      DIAL  4
+-      .strings     DIR   5
+-      .images      DIR   2
+OK
+CANCEL

@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'chmod -INDIRECT /DIALOG/#17' -c 'stat /DIALOG/#17'

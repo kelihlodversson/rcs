@@ -1,0 +1,1 @@
+rcs-cli: touch: $ROOT/tests/golden/cicon.rsc:/PANEL1/x: a second file is read-only (it is never written)

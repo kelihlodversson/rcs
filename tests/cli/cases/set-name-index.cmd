@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc set /DIALOG/OK name=#4

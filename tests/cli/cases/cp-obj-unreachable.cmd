@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds-lost.rsc cp /UNREACH/LOST /PANEL3

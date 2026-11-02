@@ -1,0 +1,11 @@
+PANEL1
+.strings
+.images
+CICON test
+path: /PANEL1
+kind: PANL
+kind-source: guessed
+name: PANEL1
+index: 0
+objects: 2
+root-children: 1

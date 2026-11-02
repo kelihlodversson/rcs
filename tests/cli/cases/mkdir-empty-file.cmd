@@ -1,0 +1,1 @@
+--selfcheck -n --no-guess --no-names $FIX/disc/d1/x.rsc -c 'mkdir A' -c 'mkdir B --type menu' -c 'ls -lR'

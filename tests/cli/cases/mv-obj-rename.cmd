@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG/OK /DIALOG/FINE' -c 'ls -l /DIALOG/BUTTONS' -c 'stat /DIALOG/FINE'

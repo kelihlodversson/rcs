@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG /ABOUT' -c 'ls -l /' -c 'ls /ABOUT/BUTTONS'

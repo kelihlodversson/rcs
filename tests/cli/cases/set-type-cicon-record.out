@@ -1,0 +1,27 @@
+path: /DIALOG/OK
+tree: 0
+index: 6
+name: OK
+reachable: yes
+parent: 5
+children: 0
+next: 7
+head: -1
+tail: -1
+type: 0x0021 G_CICON
+flags: 0x0007 SELECTABLE,DEFAULT,EXIT
+state: 0x0000 -
+x: 0
+y: 0
+w: 0
+h: 0
+text: "T"
+char: '\x00'
+fg-color: 1
+bg-color: 0
+char-pos: 0,0
+icon: 0,0,32,32
+text-box: 0,32,32,8
+data-bytes: 128
+mask-bytes: 128
+versions: 0

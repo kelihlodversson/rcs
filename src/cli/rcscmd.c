@@ -1029,7 +1029,11 @@ static int arg_side(struct rcs_ctx *c, const char *cmd, const char *arg, struct 
 	size_t		len;
 	int		i;
 
-	p = arg[0] == '/' ? NULL : strstr(arg, ":/");
+	/* FILE must end in .rsc: "/a:/b" is a path of the main file */
+	for (p = strstr(arg, ":/"); p; p = strstr(p + 1, ":/"))
+		if ((size_t)(p - arg) >= 4 && lower_c((unsigned char)p[-4]) == '.' && lower_c((unsigned char)p[-3]) == 'r'
+		    && lower_c((unsigned char)p[-2]) == 's' && lower_c((unsigned char)p[-1]) == 'c')
+			break;
 	if (!p)
 	{
 		main_src(c, s);
@@ -2330,6 +2334,11 @@ static int do_touch(struct rcs_ctx *c, int argc, char **argv)
 	tree = t.node.tree;
 	if (name_free(c, "touch", RSC_NAME_OBJ, tree, t.name, -1) != 0)
 		return 1;
+	if (rsc_names_count(c->n) >= RSC_NAMES_MAX)
+	{
+		rcs_error("touch: the name list is full (at most %d entries)", RSC_NAMES_MAX);
+		return 1;
+	}
 	idx = rsc_obj_add(c->r, tree, parent, type);
 	if (idx < 0 || init_object(c->r, tree, idx, type) != 0
 	    || rsc_names_add(c->n, RSC_NAME_OBJ, 0, tree, idx, t.name, 0) != 0)
@@ -2718,14 +2727,18 @@ static int do_set(struct rcs_ctx *c, int argc, char **argv)
 		case K_TEXT:
 			if (sk == RSC_SPEC_STRING || sk == RSC_SPEC_ICONBLK)
 				break;
-			if (sk == RSC_SPEC_TEDINFO && strlen(op->val) < 32767)
-				break;
-			if (sk == RSC_SPEC_CICON && strlen(op->val) <= 12)
+			if (sk == RSC_SPEC_TEDINFO && strlen(op->val) >= 32767)
+				goto toolong;
+			if (sk == RSC_SPEC_CICON && strlen(op->val) > 12)
+				goto toolong;
+			if (sk == RSC_SPEC_TEDINFO || sk == RSC_SPEC_CICON)
 				break;
 			goto notapply;
 		case K_TEMPLATE:
 		case K_VALID:
-			if (sk == RSC_SPEC_TEDINFO && strlen(op->val) < 32767)
+			if (sk == RSC_SPEC_TEDINFO && strlen(op->val) >= 32767)
+				goto toolong;
+			if (sk == RSC_SPEC_TEDINFO)
 				break;
 			goto notapply;
 		case K_X:
@@ -2789,9 +2802,13 @@ badvalue:
 		rcs_error("set: bad value '%s'", op->bad);
 		return 1;
 notapply:
-		rcs_error("set: %s: %s does not apply to a %s object", sb, kb,
-			  sk == RSC_SPEC_VALUE && lo >= G_BOX && lo <= G_CICON ? type_names[lo - G_BOX]
-			  : "this kind of");
+		type_str(eb, sizeof eb, simtype);
+		rcs_error("set: %s: %s does not apply to a %s object%s", sb, kb, eb,
+			  (simflags & OF_INDIRECT) ? " with INDIRECT" : "");
+		return 1;
+toolong:
+		rcs_error("set: %s: the value of %s is too long (at most %d characters)", sb, kb,
+			  sk == RSC_SPEC_CICON ? 12 : 32766);
 		return 1;
 	}
 	/* pass 2: nothing can be refused any more but for memory */

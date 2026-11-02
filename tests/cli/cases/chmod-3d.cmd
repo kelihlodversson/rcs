@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'chmod +FL3DACT,rbutton /PANEL3/#1' -c 'ls -l /PANEL3'

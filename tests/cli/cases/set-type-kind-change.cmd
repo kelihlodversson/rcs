@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK type=G_FTEXT text=Hi' -c 'stat /DIALOG/OK'

@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc chmod "+$(printf 'a\033b')" /DIALOG/OK

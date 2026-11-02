@@ -2,6 +2,13 @@
  *
  *	mkfix all DIR			write every fixture into DIR (which must exist)
  *	mkfix flip IN OUT OFFSET XOR	copy IN to OUT with the byte at OFFSET xor'ed
+ *	mkfix merge A B OUT		A with every tree, free string and free image of B
+ *					appended (the library's calls, no names): the merge the
+ *					GUI did, for the cp -r regression
+ *	mkfix cicon-equal A TA OA B TB OB
+ *					exit status 0 when object OA of tree TA of A and object OB
+ *					of tree TB of B hold the same colour icon, all versions
+ *					and planes included
  *
  * The resource files are built with the editing API of the library and
  * written with rsc_atari_write, then patched where a file must have what
@@ -736,13 +743,95 @@ static int flip(const char *in, const char *out, long off, long x)
 	return 0;
 }
 
+/* ---- merge and cicon-equal ------------------------------------------------------- */
+
+static struct rsc *read_rsc(const char *name)
+{
+	static uint8_t	buf[1 << 22];
+	struct rsc_error	err;
+	struct rsc	*r;
+	FILE		*f = fopen(name, "rb");
+	size_t		len;
+
+	check(f != NULL, name);
+	len = fread(buf, 1, sizeof buf, f);
+	fclose(f);
+	r = rsc_atari_read(buf, len, 0, 0, &err);
+	if (!r)
+	{
+		fprintf(stderr, "mkfix: %s: %s\n", name, err.msg);
+		exit(1);
+	}
+	return r;
+}
+
+static int merge(const char *an, const char *bn, const char *out)
+{
+	struct rsc	*a = read_rsc(an), *b = read_rsc(bn);
+	int		i, n;
+
+	n = rsc_ntrees(b);
+	for (i = 0; i < n; i++)
+		check(rsc_tree_copy(a, -1, b, i, NULL) >= 0, "rsc_tree_copy");
+	n = rsc_nfrstr(b);
+	for (i = 0; i < n; i++)
+		check(rsc_frstr_add(a, rsc_frstr(b, i)) >= 0, "rsc_frstr_add");
+	n = rsc_nfrimg(b);
+	for (i = 0; i < n; i++)
+		check(rsc_frimg_add(a, rsc_frimg(b, i)) >= 0, "rsc_frimg_add");
+	rsc_free(b);
+	dir = "";
+	write_rsc(a, out, NULL);
+	return 0;
+}
+
+static int same_bytes(const void *x, const void *y, size_t n)
+{
+	return (x == NULL && y == NULL) || (x != NULL && y != NULL && memcmp(x, y, n) == 0);
+}
+
+static int cicon_equal(char **v)
+{
+	struct rsc		*a = read_rsc(v[0]), *b = read_rsc(v[3]);
+	struct rsc_cicon	*x = rsc_obj_cicon(a, atoi(v[1]), atoi(v[2]));
+	struct rsc_cicon	*y = rsc_obj_cicon(b, atoi(v[4]), atoi(v[5]));
+	int			i, n, ok = 1;
+	size_t			pb;
+
+	if (!x || !y)
+		return 1;
+	ok = x->blk.monoblk.ib_wicon == y->blk.monoblk.ib_wicon && x->blk.monoblk.ib_hicon == y->blk.monoblk.ib_hicon
+	    && x->blk.monoblk.ib_char == y->blk.monoblk.ib_char && strcmp(x->text, y->text) == 0
+	    && rsc_cicon_nversions(x) == rsc_cicon_nversions(y);
+	pb = rsc_plane_bytes(x->blk.monoblk.ib_wicon, x->blk.monoblk.ib_hicon);
+	ok = ok && same_bytes(x->blk.monoblk.ib_pdata, y->blk.monoblk.ib_pdata, pb)
+	    && same_bytes(x->blk.monoblk.ib_pmask, y->blk.monoblk.ib_pmask, pb);
+	n = rsc_cicon_nversions(x);
+	for (i = 0; ok && i < n; i++)
+	{
+		struct rsc_cicon_version	*p = rsc_cicon_version(x, i), *q = rsc_cicon_version(y, i);
+		size_t				db = pb * (size_t)p->c.num_planes;
+
+		ok = p->c.num_planes == q->c.num_planes && same_bytes(p->c.col_data, q->c.col_data, db)
+		    && same_bytes(p->c.col_mask, q->c.col_mask, pb)
+		    && (p->c.sel_data == NULL) == (q->c.sel_data == NULL)
+		    && same_bytes(p->c.sel_data, q->c.sel_data, db) && same_bytes(p->c.sel_mask, q->c.sel_mask, pb);
+	}
+	return ok ? 0 : 1;
+}
+
 int main(int argc, char **argv)
 {
 	if (argc == 6 && strcmp(argv[1], "flip") == 0)
 		return flip(argv[2], argv[3], strtol(argv[4], NULL, 0), strtol(argv[5], NULL, 0));
+	if (argc == 5 && strcmp(argv[1], "merge") == 0)
+		return merge(argv[2], argv[3], argv[4]);
+	if (argc == 8 && strcmp(argv[1], "cicon-equal") == 0)
+		return cicon_equal(argv + 2);
 	if (argc != 3 || strcmp(argv[1], "all") != 0)
 	{
-		fprintf(stderr, "usage: mkfix all DIR | mkfix flip IN OUT OFFSET XOR\n");
+		fprintf(stderr, "usage: mkfix all DIR | mkfix flip IN OUT OFFSET XOR | mkfix merge A B OUT\n"
+			"       mkfix cicon-equal A TA OA B TB OB\n");
 		return 2;
 	}
 	dir = argv[2];

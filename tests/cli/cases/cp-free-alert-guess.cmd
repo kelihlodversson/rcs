@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'cp /.strings/#1 /.strings' -c 'ls -l /.strings'

@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK text=a=b' -c 'cat /DIALOG/OK'

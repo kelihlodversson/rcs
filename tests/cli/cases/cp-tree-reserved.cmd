@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc cp -r /PANEL3 /.strings2/x

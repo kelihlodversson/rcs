@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'chmod -default,exit /DIALOG/OK' -c 'ls -l /DIALOG/BUTTONS'

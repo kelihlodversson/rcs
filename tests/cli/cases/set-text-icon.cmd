@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/ICON text=IC2' -c 'cat /DIALOG/ICON'

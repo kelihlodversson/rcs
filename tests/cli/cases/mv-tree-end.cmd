@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG /' -c 'ls -l /' -c 'ls /MAINMENU'

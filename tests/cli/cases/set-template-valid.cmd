@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT template=__:__ valid=99' -c 'cat -v /DIALOG/EDIT' -c 'stat /DIALOG/EDIT'

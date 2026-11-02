@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT color=1180' -c 'stat /DIALOG/EDIT'

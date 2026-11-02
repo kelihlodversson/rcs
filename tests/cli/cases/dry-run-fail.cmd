@@ -1,0 +1,1 @@
+-n $FIX/deep.rsc -c 'touch /TREE/N1'

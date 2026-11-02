@@ -1,0 +1,3 @@
+#6     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 0,0,0,0
+#7     CANCEL       G_BUTTON   SELECTABLE,EXIT SELECTED 0,0,0,0
+#20    B3           G_BOX      LASTOB - 0,0,8,1

@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc cp /DIALOG/#16 /PANEL3/#1

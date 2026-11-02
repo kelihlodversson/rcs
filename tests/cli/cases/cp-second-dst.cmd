@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc cp /PANEL3 $ROOT/tests/golden/cicon.rsc:/

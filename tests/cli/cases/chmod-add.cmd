@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'chmod +SELECTABLE,EXIT /PANEL3/#1' -c 'ls -l /PANEL3'
