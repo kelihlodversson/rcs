@@ -1461,7 +1461,7 @@ int rsc_image_copy(struct rsc *r, const struct rsc_imgsel *from, const struct rs
 	err = build_block(&LT, &cv, &nd);
 	if (err)
 		goto done;
-	want_mask = (flags & RSC_COPY_MASK) && LF.mp && (LT.mp || LT.is_new);
+	want_mask = (flags & RSC_COPY_MASK) && LF.mp && LT.mp;
 	if (want_mask)
 	{
 		/* the mask of `from`, whatever the depth, into the mask of `to` */

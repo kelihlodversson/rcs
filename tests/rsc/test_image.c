@@ -815,9 +815,13 @@ static void test_parse_errors(void)
 	CHECK(PARSE("P2\n1000 1000\n255\n1 2 3", &p) == RSC_IMG_ETRUNC);
 	CHECK(PARSE("P1\n1000 1000\n1 0 1", &p) == RSC_IMG_ETRUNC);
 	CHECK(PARSE("P4\n4000 1000\n\0\0\0", &p) == RSC_IMG_ETRUNC);
+	CHECK(PARSE("P2\n8 1\n255\n1 2 3 4", &p) == RSC_IMG_ETRUNC);	/* 8 numbers need 15 bytes, there are 7 */
+	CHECK(PARSE("P3\n3 1\n255\n1 2 3 4 5 6 7 8", &p) == RSC_IMG_ETRUNC);	/* 9 need 17, there are 15 */
 	CHECK(PARSE("P6\n1000 1000\n255\n\0\0\0", &p) == RSC_IMG_ETRUNC);
 	CHECK(rsc_test_alloc_count() == c0);
 	CHECK(live() == 0);
+	CHECK(PARSE("P3\n3 1\n255\n1 2 3 4 5 6 7 8 9", &p) == 0);		/* exactly 17 */
+	rsc_pnm_free(&p);
 	/* the budget argument */
 	CHECK(rsc_image_from_pnm((const unsigned char *)"P5\n4 3\n255\n123456789012", 24, 11, &p)
 	      == RSC_IMG_ETOOBIG);
@@ -2069,6 +2073,33 @@ static void test_copy(void)
 	v = rsc_cicon_version(c, k);
 	CHECK(v->c.sel_data && v->c.sel_mask);
 	CHECK(memcmp(v->c.sel_data, v->c.col_data, 160) == 0 && memcmp(v->c.sel_mask, v->c.col_mask, 20) == 0);
+	/* a source without a mask (a G_IMAGE) with RSC_COPY_MASK: the data is copied, the mask stays */
+	{
+		ICONBLK	b2;
+		short	d2[4], m2[4];
+		uint64_t	f1;
+		struct rsc_pixmap	g;
+		int	o;
+
+		memset(&b2, 0, sizeof b2);
+		words(d2, 4, 21);
+		words(m2, 4, 22);
+		b2.ib_pdata = d2;
+		b2.ib_pmask = m2;
+		b2.ib_wicon = 24;
+		b2.ib_hicon = 2;
+		o = rsc_obj_add(r, 0, 0, G_ICON);
+		CHECK(o == 5 && rsc_obj_set_iconblk(r, 0, o, &b2) == 0);
+		f1 = fp(r);
+		from = S(0, 2, -1, 0, 0);
+		to = S(0, o, -1, 0, 0);
+		CHECK(rsc_image_copy(r, &from, &to, RSC_COPY_MASK, &inex) == 0);
+		CHECK(fp(r) != f1);
+		CHECK(memcmp(rsc_tree_objects(r, 0, NULL)[o].ob_spec.iconblk->ib_pmask, m2, sizeof m2) == 0);
+		CHECK(rsc_image_get(r, &from, &a) == 0 && rsc_image_get(r, &to, &g) == 0 && pm_equal(&a, &g));
+		rsc_pixmap_free(&a);
+		rsc_pixmap_free(&g);
+	}
 	CHECK(rsc_validate(r, NULL) == 0);
 	rsc_free(r);
 	CHECK(live() == 0);
