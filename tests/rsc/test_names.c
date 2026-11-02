@@ -1650,6 +1650,96 @@ static void test_index_work(void)
 	CHECK(live() == 0);
 }
 
+/* 20000 names that are all case variants of one 16-letter name, one per
+ * object: the exact lookups (what the CLI's display-name check does) stay
+ * logarithmic whatever the run of names equal without case, the ambiguity
+ * is still found by distinct nodes, and the case-insensitive fallback is
+ * linear in the run, once per lookup that missed. */
+#define NVARIANT 20000
+
+static void variant_name(char *name, int i)
+{
+	static const char	base[] = "abcdefghijklmnop";
+	int	k;
+
+	for (k = 0; k < 16; k++)
+		name[k] = (i >> k) & 1 ? (char)(base[k] - 'a' + 'A') : base[k];
+	name[16] = '\0';
+}
+
+static void test_index_case_work(void)
+{
+	struct rsc_names	*n = rsc_names_new();
+	char	name[17];
+	long	w;
+	int	i, good = 0, amb = 0, fold_ok = 0;
+
+	for (i = 0; i < NVARIANT; i++)
+	{
+		variant_name(name, i);
+		rsc_names_add(n, RSC_NAME_OBJ, RSC_TKIND_UNKN, 0, i, name, 0);
+	}
+	rsc_test_names_work();
+	for (i = 0; i < NVARIANT; i++)
+	{
+		variant_name(name, i);
+		good += rsc_names_find_obj(n, 0, name, NVARIANT) == i;
+	}
+	w = rsc_test_names_work();
+	printf("  index: %d case-variant names, %d exact lookups: %ld comparisons\n", NVARIANT, NVARIANT, w);
+	CHECK(good == NVARIANT && w < 4000000);
+	/* the same name for two nodes, and once more for the first node:
+	 * ambiguous, by distinct nodes; a node beyond count does not count */
+	variant_name(name, 123);
+	rsc_names_add(n, RSC_NAME_OBJ, RSC_TKIND_UNKN, 0, 123, name, 0);
+	rsc_names_add(n, RSC_NAME_OBJ, RSC_TKIND_UNKN, 0, 30000, name, 0);
+	CHECK(rsc_names_find_obj(n, 0, name, NVARIANT) == 123);
+	CHECK(rsc_names_find_obj(n, 0, name, 30001) == RSC_NAMES_AMBIGUOUS);
+	rsc_names_add(n, RSC_NAME_OBJ, RSC_TKIND_UNKN, 0, 7, name, 0);
+	for (i = 0; i < 1000; i++)
+		rsc_names_add(n, RSC_NAME_OBJ, RSC_TKIND_UNKN, 0, 7, name, 0);
+	rsc_names_find_obj(n, 0, name, NVARIANT);	/* builds the index */
+	rsc_test_names_work();
+	amb += rsc_names_find_obj(n, 0, name, NVARIANT) == RSC_NAMES_AMBIGUOUS;
+	amb += rsc_names_find_obj(n, 0, name, 8) == 7;
+	w = rsc_test_names_work();
+	/* no exact match below count: the other case variants, ambiguous */
+	amb += rsc_names_find_obj(n, 0, name, 7) == RSC_NAMES_AMBIGUOUS;
+	CHECK(amb == 3 && w < 200);
+	/* a name that only matches without case, 10 times: each lookup scans
+	 * the run (linear), none is quadratic */
+	rsc_test_names_work();
+	for (i = 0; i < 10; i++)
+	{
+		strcpy(name, "ABCDEFGHIJKLMNOP");
+		fold_ok += rsc_names_find_obj(n, 0, name, NVARIANT) != RSC_NAMES_NOTFOUND;
+	}
+	w = rsc_test_names_work();
+	CHECK(fold_ok == 10 && w < 10L * 2 * NVARIANT * 2);
+	rsc_names_free(n);
+	/* the worst run for the fallback: all variants name one node, so the
+	 * scan cannot stop at a second node; one miss costs one pass */
+	n = rsc_names_new();
+	for (i = 0; i < NVARIANT; i++)
+	{
+		variant_name(name, i);
+		rsc_names_add(n, RSC_NAME_OBJ, RSC_TKIND_UNKN, 0, 0, name, 0);
+	}
+	rsc_names_find_obj(n, 0, name, 1);	/* builds the index */
+	rsc_test_names_work();
+	fold_ok = 0;
+	for (i = 0; i < 10; i++)
+	{
+		strcpy(name, "ABCDEFGHIJKLMNOP");
+		fold_ok += rsc_names_find_obj(n, 0, name, 1) == 0;
+	}
+	w = rsc_test_names_work();
+	printf("  index: 10 case-insensitive misses in a run of %d: %ld comparisons (%d ok)\n", NVARIANT, w, fold_ok);
+	CHECK(fold_ok == 10 && w < 10L * 2 * NVARIANT * 2);
+	rsc_names_free(n);
+	CHECK(live() == 0);
+}
+
 /* ---- add, check, renumber ------------------------------------------------------------- */
 
 static void test_add(void)
@@ -1879,6 +1969,7 @@ int main(void)
 	test_lookup();
 	test_index();
 	test_index_work();
+	test_index_case_work();
 	test_check();
 	test_renumber();
 	test_guess_rcs();

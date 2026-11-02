@@ -68,15 +68,18 @@
  * two lazily built indexes: by_node (entry positions sorted by kind, tree,
  * object, then position, so the first entry in file order wins) and
  * by_name (sorted by kind, scope, the name with the ASCII letters folded,
- * then position).  Each is one int per entry (4 bytes; 8 per entry for
+ * the exact name, the node, then position).  Each is one int per entry (4 bytes; 8 per entry for
  * both, plus the entries themselves), built by a heap sort in O(n log n)
  * at the first lookup after a change and freed by every change (add,
  * check, guess, renumber, tree_removed).  They are not charged to the
  * reader's budget (made after the read, bounded by RSC_NAMES_MAX entries:
  * at most 512 KB).  When one cannot be allocated, lookups scan the list
- * instead (same results, O(n) each); nothing is reported.  A lookup costs
- * O(log n) plus the entries of the same scope whose name is equal without
- * case.
+ * instead (same results, O(n) each); nothing is reported.  An exact match costs O(log n), whatever
+ * the number of entries equal without case (the run of one exact name is
+ * ordered by node, so its first and last nodes tell whether it is
+ * ambiguous).  Only a lookup that misses exactly scans the entries of
+ * the scope that are equal without case (the case-insensitive fallback);
+ * the display-name checks of the CLI never do.
  *
  * Hostile files: every read of the buffer is range checked, every loop is
  * bounded by the buffer length, and a reader makes two passes over the
@@ -1003,8 +1006,8 @@ static int node_of(const struct entry *e, int kind, int t)
 
 /* The indexes.  by_node orders the entries by (kind, tree, obj), by_name
  * by (kind, the tree of an object or 0, the name with the ASCII letters in
- * lower case); both then by position, so among equal keys the first entry
- * in file order comes first.  Each is an array of n ints (4 bytes per
+ * lower case, then the exact name and the node); both then by position, so
+ * among equal keys the first entry in file order comes first.  Each is an array of n ints (4 bytes per
  * entry, 8 for both) built on the first lookup after a change, in
  * O(n log n) by a heap sort (no recursion, no scratch).  When it cannot be
  * allocated the lookup scans the list instead: the same result, slower;
@@ -1041,14 +1044,35 @@ static int node_cmp(const struct entry *x, int kind, int tree, int obj)
 	return c ? c : cmp_int(x->obj, obj);
 }
 
-/* entry x against the name key kind, scope, name */
-static int name_cmp(const struct entry *x, int kind, int scope, const char *name)
+/* a and b compared byte by byte (as unsigned) */
+static int exact_cmp(const char *a, const char *b)
+{
+	while (*a && *a == *b)
+	{
+		a++;
+		b++;
+	}
+	return cmp_int((unsigned char)*a, (unsigned char)*b);
+}
+
+/* the node of an entry within its kind and scope */
+static int node_key(const struct entry *e)
+{
+	return e->kind == RSC_NAME_TREE ? e->tree : e->obj;
+}
+
+/* entry x against the name key kind, scope, name: with the case folded
+ * (exact == 0) or, when the folded names are equal, also by the exact
+ * name (exact == 1) */
+static int name_cmp(const struct entry *x, int kind, int scope, const char *name, int exact)
 {
 	int	c = cmp_int(x->kind, kind);
 
 	if (!c)
 		c = cmp_int(scope_of(x), scope);
-	return c ? c : fold_cmp(x->name, name);
+	if (!c)
+		c = fold_cmp(x->name, name);
+	return c || !exact ? c : exact_cmp(x->name, name);
 }
 
 /* positions a and b in the order of the index (by name when byname) */
@@ -1059,7 +1083,11 @@ static int pos_cmp(const struct rsc_names *n, int a, int b, int byname)
 
 	WORK(1);
 	if (byname)
-		c = name_cmp(&n->e[a], y->kind, scope_of(y), y->name);
+	{
+		c = name_cmp(&n->e[a], y->kind, scope_of(y), y->name, 1);
+		if (!c)
+			c = cmp_int(node_key(&n->e[a]), node_key(y));
+	}
 	else
 		c = node_cmp(&n->e[a], y->kind, y->tree, y->obj);
 	return c ? c : cmp_int(a, b);
@@ -1110,9 +1138,12 @@ static const int *index_get(const struct rsc_names *cn, int byname)
 	return v;
 }
 
-/* The first place in index v whose entry is not below the key. */
+/* The first place in index v whose entry is not below the key.  By name,
+ * mode 0 compares the folded name only, mode 1 the exact name too (the
+ * first place of the run of that exact name), mode 2 the first place
+ * above that run. */
 static int lower_bound(const struct rsc_names *n, const int *v, int byname,
-		       int kind, int a, int b, const char *name)
+		       int kind, int a, int b, const char *name, int mode)
 {
 	int	lo = 0, hi = n->n, mid, c;
 
@@ -1121,10 +1152,10 @@ static int lower_bound(const struct rsc_names *n, const int *v, int byname,
 		mid = lo + (hi - lo) / 2;
 		WORK(1);
 		if (byname)
-			c = name_cmp(&n->e[v[mid]], kind, a, name);
+			c = name_cmp(&n->e[v[mid]], kind, a, name, mode != 0);
 		else
 			c = node_cmp(&n->e[v[mid]], kind, a, b);
-		if (c < 0)
+		if (c < 0 || (mode == 2 && c == 0))
 			lo = mid + 1;
 		else
 			hi = mid;
@@ -1136,6 +1167,7 @@ static int find(const struct rsc_names *n, int kind, int t, const char *comp, in
 {
 	const int	*v;
 	int	i, k, lo = 0, hi, pass, node, found, scope = kind == RSC_NAME_OBJ ? t : 0;
+	int	elo, ehi;
 
 	if (!comp || count <= 0)
 		return RSC_NAMES_NOTFOUND;
@@ -1144,17 +1176,40 @@ static int find(const struct rsc_names *n, int kind, int t, const char *comp, in
 		return i;
 	if (!n)
 		return RSC_NAMES_NOTFOUND;
-	/* the candidates: with the index, the run of entries of the scope
-	 * whose name matches without case; without it, all */
+	/* with the index: the run of the entries of the exact name is sorted
+	 * by node, so its first valid and last valid entries decide pass 0
+	 * in O(log n); only a miss there scans the run of the entries whose
+	 * name matches without case (pass 1).  Without the index: all */
 	v = index_get(n, 1);
 	hi = n->n;
+	pass = 0;
 	if (v)
 	{
-		lo = lower_bound(n, v, 1, kind, scope, 0, comp);
-		for (hi = lo; hi < n->n && name_cmp(&n->e[v[hi]], kind, scope, comp) == 0; hi++)
+		elo = lower_bound(n, v, 1, kind, scope, 0, comp, 1);
+		ehi = lower_bound(n, v, 1, kind, scope, 0, comp, 2);
+		if (elo < ehi && node_key(&n->e[v[elo]]) < count)
+		{
+			/* the last place of the run whose node is below count */
+			lo = elo;
+			hi = ehi;
+			while (lo + 1 < hi)
+			{
+				k = lo + (hi - lo) / 2;
+				WORK(1);
+				if (node_key(&n->e[v[k]]) < count)
+					lo = k;
+				else
+					hi = k;
+			}
+			found = node_key(&n->e[v[elo]]);
+			return found == node_key(&n->e[v[lo]]) ? found : RSC_NAMES_AMBIGUOUS;
+		}
+		lo = lower_bound(n, v, 1, kind, scope, 0, comp, 0);
+		for (hi = lo; hi < n->n && name_cmp(&n->e[v[hi]], kind, scope, comp, 0) == 0; hi++)
 			WORK(1);
+		pass = 1;
 	}
-	for (pass = 0; pass < 2; pass++)
+	for (; pass < 2; pass++)
 	{
 		found = -1;
 		for (k = lo; k < hi; k++)
@@ -1219,7 +1274,7 @@ static const struct entry *first(const struct rsc_names *n, int kind, int t, int
 	/* the key of the entries of that node (struct rsc_name) */
 	a = kind == RSC_NAME_TREE ? k : kind == RSC_NAME_OBJ ? t : 0;
 	b = kind == RSC_NAME_TREE ? 0 : k;
-	i = lower_bound(n, v, 0, kind, a, b, NULL);
+	i = lower_bound(n, v, 0, kind, a, b, NULL, 0);
 	if (i < n->n && node_cmp(&n->e[v[i]], kind, a, b) == 0)
 		return &n->e[v[i]];
 	return NULL;
