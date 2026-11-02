@@ -1,6 +1,7 @@
 /* RSCATARI.H	private to rscatari_read.c and rscatari_write.c: the record
  *		sizes and header layout of the classic Atari format (see the
- *		top of rscatari_read.c) and the filling of an error report */
+ *		top of rscatari_read.c) and the filling of an error report
+ *		(which the names readers of rscnames.c use too) */
 #ifndef RSCATARI_H
 #define RSCATARI_H
 

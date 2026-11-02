@@ -19,8 +19,9 @@ it yet: the objects are compiled for m68k and ARM but not linked into
 | `src/rsc/rscfile.h` | the format selector (reserved for phase 3), the error type and codes, `RSC_MAX_CELL` |
 | `src/rsc/rscatari_read.c` | the reader of the classic Atari big-endian `.RSC` format |
 | `src/rsc/rscatari_write.c` | the writer of that format |
-| `src/rsc/rscatari.h` | private to those two: record sizes, header words, error filling |
-| `tests/rsc/` | `test_rsc.c`, `test_read.c`, `test_write.c` |
+| `src/rsc/rscatari.h` | private to those two: record sizes, header words, error filling (also used by `rscnames.c`) |
+| `src/rsc/rscnames.h`, `rscnames.c` | the names of a resource: the `.DFN`, `.DEF`/`.RSD` and `.HRD` readers, the check, the guesser, the lookups |
+| `tests/rsc/` | `test_rsc.c`, `test_read.c`, `test_write.c`, `test_names.c` |
 
 The classic format is the 16-bit `RSHDR` with the AES 4 colour icon extension.
 The extended format (`RSXHDR`) is not here yet.
@@ -53,6 +54,14 @@ use `src/host/gem.h`.
   `RSC_TEST_EXTERNAL` set to a directory it also reads, writes, reads back
   and rewrites every `*.rsc` in it (real files are not part of the tree, and
   CI does not set it).
+- `test_names` tests the names: `src/atari/rcs.dfn` and `rcslow.dfn` with
+  their resources, small `.DFN`, `.DEF` and `.HRD` files built with the
+  structure of EmuTOS' and TeraDesk's files, truncations, mutation sweeps,
+  the budget, the entry limit, failing allocations, the guesser, the lookups,
+  `rsc_names_check` and `rsc_names_renumber`. With `RSC_TEST_EXTERNAL` set to
+  one or more directories (separated by `:`) it also reads every `*.dfn`,
+  `*.def`, `*.rsd` and `*.hrd` in them with the `*.rsc` of the same base
+  name, and requires that the check drops nothing.
 
 ## The model
 
@@ -320,6 +329,86 @@ naming the field, tree and object. The cell size passed to the writer must
 be the model's (`rsc_cell`): another one, a mix of 0 and non-0, or a size
 above `RSC_MAX_CELL` is `RSC_EARG`.
 
+## Names
+
+The names of the trees, objects, free strings and free images are kept apart
+from `struct rsc`, in a `struct rsc_names` (`rscnames.h`): an ordered list of
+entries in file order, each with a kind (`RSC_NAME_TREE`, `_OBJ`, `_FRSTR`,
+`_FRIMG`), a tree kind (`RSC_TKIND_UNKN`, `_PANL`, `_MENU`, `_DIAL`, and
+`_ALRT` for a free string that is an alert: there are no pseudo-trees), the
+indices (`tree`, and `obj` for the object or the string or image index), the
+name and a flag for guessed entries. A name has 1 to 32 bytes, no control
+character (below 0x20, and 0x7f); bytes from 0x80 up are kept as they are
+(the Atari character set), and so is the case. The list may hold several
+entries for a node and one name for several nodes, as real files do; the
+display name of a node is the name of its first entry. Names are not written
+yet.
+
+### The formats
+
+| Format | Layout |
+|---|---|
+| `.DFN` (RCS) | a little-endian count, then records of 14 bytes: value, kind (little-endian words), 10 name bytes of which the first 8 count; kinds 0 UNKN, 1 PANL, 2 MENU, 3 DIAL (a tree), 4 ALRT (a free string), 0x100 an object (value `tree << 8 \| object`), 0x101 a free string, 0x102 a free image. The file is exactly `2 + 14 * count` bytes. |
+| `.DEF`, `.RSD` (EmuTOS `tools/erd.c`, rscview) | big-endian records of 16 bytes; record 0 holds the count (bytes 0-1) and flags (2-3, ignored) and is an entry too; `[4]` tree, `[5]` object or index, `[6]` indicator, `[7]` type, `[8..15]` the name. Type 0 is an object with indicator 1 and a tree of kind UNKN with indicator 0; 1 PANL, 2 MENU, 3 DIAL, 4 ALRT, 5 free string, 6 free image. The size is a multiple of 16 and the count the number of records, or one less when the last record is all zero. |
+| `.HRD` (Interface, ORCS, ResourceMaster) | an 8-byte header (big-endian version 1, flags, fillers), then records: type, filler, big-endian tree and object words, a NUL-terminated name (16 characters kept); types 0 DIAL, 1 MENU, 2 ALRT, 3 free string, 4 free image (the index in the tree word, the object word 0), 5 object, 6 the end (required; bytes after it are ignored), 7 prefix (ignored). |
+
+A `.DFN` or `.DEF` name is the bytes up to the first NUL within its 8 bytes,
+or all 8 (real files have stale bytes after the NUL, and names of 8 bytes
+without one). A kind or type the readers do not know (5 FREE of the `.DFN`
+format is never in a file) becomes an entry of kind `RSC_NAME_UNKNOWN`,
+which `rsc_names_check` removes and counts. The old RCS reader refused a
+`.DEF` file without the trailing zero record, so no names loaded for EmuTOS'
+`gem.def` and `mform.def`; this reader takes both forms.
+`rsc_names_read_by_ext` picks the reader from the extension, in any case
+(`.dfn`, `.def`, `.rsd`, `.hrd`; anything else is `RSC_EARG`).
+
+### Untrusted name files
+
+As for the resource reader: every count and offset is checked against the
+length, and a reader makes two passes, the first checking everything without
+allocating, the second building the list. Errors carry a code, the position
+and a message: `RSC_ETRUNC` (the file ends early, or a `.HRD` has no end
+record or a name without its NUL), `RSC_EHEADER` (the size or the count does
+not fit the format, a `.HRD` version other than 1), `RSC_EOFFSET` (a value
+out of range for the format: a `.HRD` object word that should be 0, an object
+index of 32767 or more), `RSC_ESTRING` (an empty name, a control character),
+`RSC_ETOOBIG` (more than 65535 entries, or the budget), `RSC_ENOMEM`. Every
+allocation is charged before it is made, at its size plus 4 bytes, against
+`4 * len + 4096` bytes. Since every entry is made of its own bytes of the
+file, no file can exceed it today (the densest, an `.HRD` of one-character
+names, uses 30 of the 32 bytes each record brings); it keeps memory linear
+should that change, and the tests pin the charges and the boundary.
+
+### Checking, guessing, looking up
+
+`rsc_names_check(names, rsc, &dropped)` removes the entries the resource has
+no node for (a tree, object, string or image index beyond the model, an
+unknown kind) and counts them. `rsc_names_guess(names, rsc)` names what the
+files leave unnamed, as the old RCS did: first each unnamed free string with
+the shape of an alert (`[`, a character, `]`) becomes `ALERT<k>` (tree kind
+ALRT, `k` its 0-based index); then each tree without a tree entry gets a kind
+(MENU if `head(head(head(root)))` is a `G_TITLE`; else DIAL if an object the
+root reaches has `OF_EXIT`, `OF_DEFAULT`, `OF_TOUCHEXIT` or `OF_EDITABLE`;
+else PANL if the root is a `G_BOX`, `G_IBOX` or `G_BOXTEXT`; else UNKN) and
+the name `MENU<n>`, `DIALOG<n>`, `PANEL<n>` or `TREE<n>`, n = tree index + 1.
+Both count up while the name is already in the list; unlike the old RCS the
+comparison ignores the case, because the lookups do. Other free strings and
+free images stay unnamed. The new entries carry the guessed flag. A tree with
+an entry keeps that entry's kind.
+
+`rsc_names_find_tree`, `_find_obj` (in one tree), `_find_str` and
+`_find_img` resolve a path component among `count` nodes: `#` followed by
+digits only is always the index (leading zeros allowed, an index at or above
+`count` is not found, also when it would overflow), so a node named `#3` is
+reachable as `#3` only by its index; `#` alone or followed by anything else
+is a name. A name is matched exactly first, then with the ASCII letters
+compared without case; matches that name two or more nodes are
+`RSC_NAMES_AMBIGUOUS`, none `RSC_NAMES_NOTFOUND` (two entries with the same
+name for the same node are not ambiguous). `rsc_names_renumber` applies the
+map of `rsc_tree_compact` to the object entries of a tree (entries mapped to
+-1 go) and `rsc_names_tree_removed` follows `rsc_tree_delete`; neither
+allocates.
+
 ## Differences from the old code
 
 All deliberate.
@@ -340,7 +429,10 @@ All deliberate.
   entry 0, which is 0.
 - `rsh_frstr` and `rsh_frimg` are 0 for empty lists.
 - Alert-shaped free strings are not moved to the end.
-- Names (`.DEF`, `.RSD`, `.DFN`) are not handled here.
+- Names are read from `.DFN`, `.DEF`/`.RSD` and `.HRD` files into a list of
+  their own (see Names), not into the resource; a `.DEF` file without the
+  trailing zero record is read; generated names avoid existing ones without
+  regard to case.
 - NULL image data is written as a real pointer with zeros, where the old
   writer kept NULL pointers.
 - In a colour version `next_res` is written 1 when another version follows
