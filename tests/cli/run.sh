@@ -148,6 +148,56 @@ rewrite_cases() {
     done
 }
 
+# ---- the host image files of the image cases (tests/cli/cases/images.cases), made here byte by byte
+# (not with the library under test): $TMP/pnm/NAME.  The 16 x 8 stripes a16: even rows
+# 1111000011110000, odd rows 0000111100001111 (1 = black), as P1, P4, P2 (0 black), P5, P3, P6; thr.pgm:
+# every row the grey values 0, 17, ... 255; c4.ppm: the pixel (x + y) & 15 of the 4 plane palette as
+# colours; c4-off.ppm: the same with (5,2) and (1,3) a little off the palette; c2.ppm: (x + y) & 3
+# at 2 planes; copy of the fixture as a second file
+PN=$TMP/pnm
+export PN
+mkdir -p "$PN"
+awk 'BEGIN { print "P1"; print "# stripes"; print "16 8"
+    for (y = 0; y < 8; y++) { s = ""; for (x = 0; x < 16; x++) s = s ((int(x / 4) + y) % 2 == 0 ? "1" : "0"); print s } }' > "$PN/a16.pbm"
+awk 'BEGIN { print "P2"; print "16 8"; print "255"
+    for (y = 0; y < 8; y++) { s = ""; for (x = 0; x < 16; x++) s = s ((int(x / 4) + y) % 2 == 0 ? "0 " : "255 "); print s } }' > "$PN/a16.pgm"
+awk 'BEGIN { print "P3"; print "# colours"; print "16 8"; print "255"
+    for (y = 0; y < 8; y++) { s = ""; for (x = 0; x < 16; x++) s = s ((int(x / 4) + y) % 2 == 0 ? "0 0 0 " : "255 255 255 "); print s } }' > "$PN/a16.ppm3"
+{ printf 'P4\n16 8\n'; for y in 0 1 2 3 4 5 6 7; do if [ $((y % 2)) = 0 ]; then printf '\360\360'; else printf '\017\017'; fi; done; } > "$PN/a16.pbm4"
+{ printf 'P5\n16 8\n1\n'
+  for y in 0 1 2 3 4 5 6 7; do
+      for x in 0 1 2 3; do if [ $(((x + y) % 2)) = 0 ]; then printf '\000\000\000\000'; else printf '\001\001\001\001'; fi; done
+  done; } > "$PN/a16.pgm5"
+{ printf 'P6\n16 8\n255\n'
+  for y in 0 1 2 3 4 5 6 7; do
+      for x in 0 1 2 3; do if [ $(((x + y) % 2)) = 0 ]; then printf '\000\000\000\000\000\000\000\000\000\000\000\000'; else printf '\377\377\377\377\377\377\377\377\377\377\377\377'; fi; done
+  done; } > "$PN/a16.ppm"
+awk 'BEGIN { print "P2"; print "16 8"; print "255"
+    for (y = 0; y < 8; y++) { s = ""; for (x = 0; x < 16; x++) s = s (x * 17) " "; print s } }' > "$PN/thr.pgm"
+awk 'BEGIN {
+    split("255 255 255 255 0 0 0 255 0 255 255 0 0 0 255 255 0 255 0 255 255 182 182 182 109 109 109 255 109 109 109 255 109 255 255 109 109 109 255 255 109 255 109 255 255 0 0 0", c, " ")
+    for (v = 0; v < 2; v++) {
+        name = v ? "c4-off" : "c4"
+        f = ENVIRON["PN"] "/" name ".ppm"
+        print "P3" > f; print "16 8" > f; print "255" > f
+        for (y = 0; y < 8; y++) { s = ""
+            for (x = 0; x < 16; x++) { p = (x + y) % 16
+                if (v && x == 5 && y == 2) s = s "250 5 5 "
+                else if (v && x == 1 && y == 3) s = s "3 250 3 "
+                else s = s c[3 * p + 1] " " c[3 * p + 2] " " c[3 * p + 3] " " }
+            print s > f }
+        close(f) }
+    split("255 255 255 255 0 0 0 255 0 0 0 0", d, " ")
+    f = ENVIRON["PN"] "/c2.ppm"
+    print "P3" > f; print "16 8" > f; print "255" > f
+    for (y = 0; y < 8; y++) { s = ""; for (x = 0; x < 16; x++) { p = (x + y) % 4; s = s d[3 * p + 1] " " d[3 * p + 2] " " d[3 * p + 3] " " } print s > f }
+    close(f) }'
+cp "$FIX/images.rsc" "$FIX/images.dfn" "$PN/"
+# where the export cases write (and two files that are there already)
+mkdir -p "$TMP/exp"
+echo old > "$TMP/exp/exists.pbm"
+echo old > "$TMP/exp/exists2.pbm"
+
 SPLIT=$WORK/cases
 mkdir -p "$SPLIT"
 split_cases "$SPLIT" tests/cli/cases/*.cases || { echo "run.sh: tests/cli/cases/*.cases are malformed" >&2; exit 2; }
@@ -417,6 +467,9 @@ edit wb-cp kinds "$ED/wb-cp/in.rsc" -c 'cp -r /DIALOG/BUTTONS /PANEL3/B2' -c 'cp
 edit wb-mv kinds "$ED/wb-mv/in.rsc" -c 'mv /DIALOG/BUTTONS /PANEL3' -c 'mv /MAINMENU /' -c 'mv /.images/LOGO /.images/PIC'
 edit wb-cp-second kinds "$ED/wb-cp-second/in.rsc" -c "cp -r $ROOT/tests/golden/cicon.rsc:/PANEL1 /ICONS" -c "cp -r $ROOT/tests/golden/rcs.rsc:/#2 /"
 edit wb-pixels kinds --pixels "$ED/wb-pixels/in.rsc" -c 'set /DIALOG/OK x=30 y=16 w=100 h=32' -c 'touch /PANEL3/B1'
+edit wb-img-import images "$ED/wb-img-import/in.rsc" -c "cp host:$PN/c4.ppm /ICONS/CIC0/4.sel" -c "cp --mask host:$PN/a16.pbm /ICONS/CIC0/4" -c "cp host:$PN/a16.pbm /ICONS/BM"
+edit wb-img-versions images "$ED/wb-img-versions/in.rsc" -c 'touch /ICONS/CIC0/8.sel' -c 'rm /ICONS/CIC/4.sel' -c 'rm /ICONS/CIC/2' -c 'cp /ICONS/CIC/8 /ICONS/CIC0/2'
+edit wb-img-set images "$ED/wb-img-set/in.rsc" -c 'set /ICONS/CIC iw=8 ih=4' -c 'set /ICONS/IC20 iw=40' -c 'set /.images/SMALL iw=16 ih=2' -c 'set /ICONS/BM iw=10'
 # -o: the input stays
 edit o-rm kinds -o "$ED/o-rm/out.rsc" "$ED/o-rm/in.rsc" -c 'rm -r /DIALOG/BUTTONS' -c 'mkdir NEWT'
 if bytes_same "$ED/o-rm/in.rsc" "$ED/o-rm/orig.rsc" && bytes_same "$ED/o-rm/in.dfn" "$FIX/kinds.dfn" && [ -f "$ED/o-rm/out.dfn" ]; then
@@ -801,6 +854,211 @@ else
 fi
 "$CLI" "$d/k.rsc" -c 'touch /#0/#6' -c 'chmod +TOUCHEXIT /#0/#7' 2> /dev/null
 if [ $? = 0 ] && ! bytes_same "$d/k.rsc" "$FIX/kinds-lost.rsc"; then ok "a real change after no-op commands is written"; else bad "a real change after no-op commands is written"; fi
+
+# ---- images: host files, write-back, hostile input ----------------------------------------
+IM=$TMP/img
+rm -rf "$IM"
+mkdir -p "$IM"
+IMG=$FIX/images.rsc
+
+# same_as FILE ARGS...: FILE equals the stdout of rcs-cli on images.rsc with ARGS
+same_as() {
+    f=$1
+    shift
+    "$CLI" "$IMG" "$@" > "$IM/same.out" 2> /dev/null && cmp -s "$f" "$IM/same.out"
+}
+# exported files (the cases of images.cases wrote them) are what cat prints
+ck() { # LABEL FILE ARGS...
+    lbl=$1
+    shift
+    if same_as "$@"; then ok "export $lbl equals cat"; else bad "export $lbl equals cat"; fi
+}
+E=$TMP/exp
+ck ic16 "$E/e-ic16.pbm" cat --image /ICONS/IC16
+ck ic16-ascii "$E/e-ic16.pbm1" cat --ascii /ICONS/IC16
+ck ic16-mask "$E/e-ic16m.pbm" cat --mask --image /ICONS/IC16
+ck ic20 "$E/e-ic20.pbm" cat --image /ICONS/IC20
+ck bitmap "$E/e-bm.pbm" cat /ICONS/BM
+ck free-image "$E/e-small.pbm" cat /.images/SMALL
+ck cic4 "$E/e-cic4.ppm" cat /ICONS/CIC/4
+ck cic4-ascii "$E/e-cic4.ppm3" cat --ascii /ICONS/CIC/4
+ck cic4-sel "$E/e-cic4s.ppm" cat /ICONS/CIC/4.sel
+ck cic2 "$E/e-cic2.ppm" cat /ICONS/CIC/2
+ck cic8 "$E/e-cic8.ppm" cat /ICONS/CIC/8
+ck cic4-mask "$E/e-cic4m.pbm" cat --mask /ICONS/CIC/4
+ck mono "$E/e-mono.pbm" cat /ICONS/CIC/mono
+ck second-file "$E/e-second.ppm" cat /ICONS/CIC/2
+# the bytes of a bitmap, written by hand
+printf 'P4\n16 4\n\377\000\017\360\125\252\200\001' > "$IM/bm.want"
+if cmp -s "$IM/bm.want" "$E/e-bm.pbm"; then ok "export of the bitmap is P4 with the right bytes"; else bad "export of the bitmap is P4 with the right bytes"; fi
+# round trips: export, import, export again: the same bytes
+if cmp -s "$E/rt1.ppm" "$E/rt2.ppm" && cmp -s "$E/rt3.pbm" "$E/rt4.pbm"; then ok "export, import, export: identical files"; else bad "export, import, export: identical files"; fi
+# an existing file stays unless -f; failed exports leave nothing
+if [ "$(cat "$E/exists.pbm")" = old ] && cmp -s "$E/exists2.pbm" "$E/e-ic16.pbm"; then ok "export: an existing file is kept, -f replaces it"; else bad "export: an existing file is kept, -f replaces it"; fi
+if [ ! -e "$E/never.pbm" ] && [ ! -e "$E/never.ppm" ] && [ ! -d "$E/nodir" ] && [ -d "$E" ] \
+    && [ "$(ls -A "$E" | grep -c '\.[A-Za-z0-9]\{6\}$')" = 0 ]; then
+    ok "failed exports leave no file and no temporary file"
+else
+    bad "failed exports leave no file and no temporary file"
+fi
+if [ "$(ls -l "$E/e-ic16.pbm" | cut -c1-10)" != "-rw-------" ]; then ok "an exported file has the mode of a new file, not the temporary file's"; else bad "an exported file has the mode of a new file, not the temporary file's"; fi
+# -f keeps the mode of the file it replaces
+echo old > "$IM/mode.pbm"
+chmod 640 "$IM/mode.pbm"
+"$CLI" "$IMG" cp -f /ICONS/IC16 "host:$IM/mode.pbm" && [ "$(ls -l "$IM/mode.pbm" | cut -c1-10)" = "-rw-r-----" ] \
+    && cmp -s "$IM/mode.pbm" "$E/e-ic16.pbm" && ok "-f keeps the mode of the replaced file" || bad "-f keeps the mode of the replaced file"
+# an export is no edit: the resource is not written, also not with the name file
+d=$IM/exp-only
+mkdir -p "$d"
+cp "$FIX/images.rsc" "$FIX/images.dfn" "$d/"
+"$CLI" "$d/images.rsc" cp /ICONS/CIC/4 "host:$d/x.ppm" 2> "$d/err"
+if [ $? = 0 ] && [ ! -s "$d/err" ] && bytes_same "$d/images.rsc" "$FIX/images.rsc" && bytes_same "$d/images.dfn" "$FIX/images.dfn" && [ -f "$d/x.ppm" ]; then
+    ok "an export writes the image and not the resource"
+else
+    bad "an export writes the image and not the resource"
+fi
+
+# write-back and re-read: the image survives a write, an identical import writes nothing
+bytes_same() { cmp -s "$1" "$2"; }
+d=$IM/wb
+mkdir -p "$d"
+cp "$FIX/images.rsc" "$FIX/images.dfn" "$d/"
+"$CLI" --selfcheck "$d/images.rsc" -c "cp host:$PN/c4-off.ppm /ICONS/CIC0/4.sel" -c "cp --mask host:$PN/thr.pgm /ICONS/CIC0/4" \
+    -c "cp host:$PN/a16.pbm /ICONS/IC16" -c "touch /ICONS/CIC0/2" -c "rm /ICONS/CIC/8" -c "set /ICONS/IC20 iw=8 ih=2" \
+    -c "cp /ICONS/CIC/2 /ICONS/CIC0/8" -c 'cat --ascii /ICONS/CIC0/4' -c 'cat --ascii --mask /ICONS/CIC0/4' -c 'cat --ascii /ICONS/CIC0/4.sel' \
+    -c 'cat --ascii /ICONS/IC16' -c 'cat --ascii /ICONS/IC20' -c 'cat --ascii /ICONS/CIC0/8' -c 'ls -l /ICONS/CIC0' > "$d/mem.out" 2> "$d/mem.err"
+mrc=$?
+"$CLI" "$d/images.rsc" -c 'cat --ascii /ICONS/CIC0/4' -c 'cat --ascii --mask /ICONS/CIC0/4' -c 'cat --ascii /ICONS/CIC0/4.sel' \
+    -c 'cat --ascii /ICONS/IC16' -c 'cat --ascii /ICONS/IC20' -c 'cat --ascii /ICONS/CIC0/8' -c 'ls -l /ICONS/CIC0' > "$d/disk.out" 2>&1
+if [ $mrc = 0 ] && [ -s "$d/mem.out" ] && cmp -s "$d/mem.out" "$d/disk.out" && ! bytes_same "$d/images.rsc" "$FIX/images.rsc"; then
+    ok "image edits are written and read back with the same pixels"
+else
+    bad "image edits are written and read back with the same pixels"; cat "$d/mem.err"; diff "$d/mem.out" "$d/disk.out" | head
+fi
+# import of the picture the image has: nothing is written (the file and its time stay)
+cp "$d/images.rsc" "$d/before.rsc"
+touch -t 200001010000 "$d/images.rsc"
+"$CLI" "$d/images.rsc" -c "cp host:$PN/a16.pbm /ICONS/IC16" -c "cp --mask host:$PN/thr.pgm /ICONS/CIC0/4" 2> "$d/err"
+if [ $? = 0 ] && [ ! -s "$d/err" ] && bytes_same "$d/images.rsc" "$d/before.rsc" && [ "$(ls -l "$d/images.rsc" | grep -c 'Jan  1  2000')" = 1 ]; then
+    ok "an import of the same picture does not write the file"
+else
+    bad "an import of the same picture does not write the file"; cat "$d/err"
+fi
+# the same with -o: no OUT, and the note
+rm -f "$d/o.rsc"
+"$CLI" -o "$d/o.rsc" "$d/images.rsc" cp "host:$PN/a16.pbm" /ICONS/IC16 2> "$d/err"
+if [ $? = 0 ] && [ ! -e "$d/o.rsc" ] && grep -q 'no edit command ran' "$d/err"; then ok "-o: an import of the same picture writes no OUT"; else bad "-o: an import of the same picture writes no OUT"; fi
+# a different picture is written, with -o the input stays
+"$CLI" -o "$d/o.rsc" "$d/images.rsc" cp "host:$PN/thr.pgm" /ICONS/IC16 2> "$d/err"
+if [ $? = 0 ] && [ -f "$d/o.rsc" ] && bytes_same "$d/images.rsc" "$d/before.rsc" && ! bytes_same "$d/o.rsc" "$d/before.rsc"; then
+    ok "-o: an image import goes to OUT, the input stays"
+else
+    bad "-o: an image import goes to OUT, the input stays"
+fi
+# all or nothing: a later failure writes nothing, also for the earlier image edits
+for seq in "cp host:$PN/c4-off.ppm /ICONS/CIC/4|cp host:$PN/nosuch /ICONS/IC16" "touch /ICONS/CIC0/4|rm /ICONS/CIC/mono" \
+    "set /ICONS/CIC iw=8|cp /ICONS/IC20 /ICONS/IC16" "rm /ICONS/CIC/4|cat --ascii /ICONS/CIC/4"; do
+    cp "$FIX/images.rsc" "$d/a.rsc"
+    cp "$FIX/images.dfn" "$d/a.dfn"
+    "$CLI" --selfcheck "$d/a.rsc" -c "${seq%%|*}" -c "${seq##*|}" 2> /dev/null
+    if [ $? = 1 ] && bytes_same "$d/a.rsc" "$FIX/images.rsc" && bytes_same "$d/a.dfn" "$FIX/images.dfn"; then
+        ok "all or nothing: ${seq%%|*} then a failing command writes nothing"
+    else
+        bad "all or nothing: ${seq%%|*} then a failing command writes nothing"
+    fi
+done
+# a cp host:FILE into a second file is refused and the main file is not written either
+cp "$FIX/images.rsc" "$d/a.rsc"
+"$CLI" "$d/a.rsc" -c 'touch /ICONS/CIC0/4' -c "cp host:$PN/a16.pbm $PN/images.rsc:/ICONS/IC16" 2> /dev/null
+if [ $? = 1 ] && bytes_same "$d/a.rsc" "$FIX/images.rsc"; then ok "an import into a second file fails, nothing written"; else bad "an import into a second file fails, nothing written"; fi
+
+# hostile host files: refused with one line, never a crash
+H=$IM/hostile
+mkdir -p "$H"
+hostile() { # NAME BYTES(printf format)
+    printf "$2" > "$H/$1"
+    "$CLI" --selfcheck -n "$IMG" cp "host:$H/$1" /ICONS/IC16 > /dev/null 2> "$H/err"
+    hrc=$?
+    if [ $hrc = 1 ] && [ "$(wc -l < "$H/err" | tr -d ' ')" = 1 ] && grep -q '^rcs-cli: cp: host:' "$H/err"; then
+        ok "hostile file $1 is refused"
+    else
+        bad "hostile file $1 is refused (exit status $hrc)"; head -3 "$H/err"
+    fi
+}
+hostile empty ''
+hostile magic 'P7\n16 8\n255\n'
+hostile magic1 'P'
+hostile text 'hello world\n'
+hostile nodims 'P4\n'
+hostile onedim 'P4\n16\n'
+hostile zerodim 'P4\n0 8\n'
+hostile negdim 'P4\n-16 8\n'
+hostile hugedim 'P6\n2147483648 2147483648\n255\n'
+hostile hugedim2 'P4\n32767 32767\n'
+hostile hugedim3 'P6\n32767 32767\n255\nabc'
+hostile overbudget 'P4\n4096 4096\n'
+hostile maxval0 'P5\n16 8\n0\n'
+hostile maxval256 'P5\n16 8\n256\n'
+hostile maxval65535 'P6\n16 8\n65535\n'
+hostile sampleover 'P2\n16 8\n10\n11 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n'
+hostile badchar 'P1\n16 8\n1x\n'
+hostile short 'P4\n16 8\n\001\002'
+hostile shortp6 'P6\n16 8\n255\n\001\002\003'
+hostile onlyws 'P1\n16 8\n       \n\n\n'
+hostile comment 'P1\n# 16 8\n'
+hostile longnum "P4\n$(awk 'BEGIN { for (i = 0; i < 70000; i++) printf "9" }') 8\n"
+# the wrong size
+printf 'P4\n8 8\n\377\377\377\377\377\377\377\377' > "$H/small.pbm"
+"$CLI" -n "$IMG" cp "host:$H/small.pbm" /ICONS/IC16 2> "$H/err"
+if [ $? = 1 ] && grep -q 'the image is 8x8 but /ICONS/IC16 is 16x8 (use --resize' "$H/err"; then ok "a file of the wrong size is refused"; else bad "a file of the wrong size is refused"; fi
+# a file too large is not read (a sparse file of 65 MiB), a directory, a fifo and an unreadable file are refused
+dd if=/dev/null of="$H/big.pbm" bs=1 seek=68157440 2> /dev/null
+"$CLI" -n "$IMG" cp "host:$H/big.pbm" /ICONS/IC16 2> "$H/err"
+if [ $? = 1 ] && grep -q 'file too large' "$H/err"; then ok "a file above 64 MiB is refused"; else bad "a file above 64 MiB is refused"; fi
+rm -f "$H/big.pbm"
+mkfifo "$H/fifo" 2> /dev/null && {
+    "$CLI" -n "$IMG" cp "host:$H/fifo" /ICONS/IC16 2> "$H/err"
+    if [ $? = 1 ] && grep -q 'not a regular file' "$H/err"; then ok "a fifo is refused without opening it"; else bad "a fifo is refused without opening it"; fi
+}
+printf 'P4\n16 8\n' > "$H/noperm.pbm"
+chmod 000 "$H/noperm.pbm"
+if [ -r "$H/noperm.pbm" ]; then
+    :   # running as root: nothing to test
+else
+    "$CLI" -n "$IMG" cp "host:$H/noperm.pbm" /ICONS/IC16 2> "$H/err"
+    if [ $? = 1 ] && grep -q 'cannot open' "$H/err"; then ok "an unreadable file is refused"; else bad "an unreadable file is refused"; fi
+fi
+chmod 644 "$H/noperm.pbm"
+# the same files fed to the sweeps: every prefix and every flipped byte of good files
+sweep pnm-c4-ppm "$PN/c4.ppm" 1 trunc --selfcheck -n "$IMG" -c "cp host:$S.ppm /ICONS/CIC/4"
+sweep pnm-c4-ppm "$PN/c4.ppm" 1 flip --selfcheck -n "$IMG" -c "cp host:$S.ppm /ICONS/CIC/4"
+sweep pnm-c4-resize "$PN/c4-off.ppm" 3 flip --selfcheck -n "$IMG" -c "cp --resize --exact host:$S.ppm /ICONS/CIC/2"
+sweep pnm-a16-p4 "$PN/a16.pbm4" 1 trunc --selfcheck -n "$IMG" -c "cp host:$S.pbm4 /ICONS/IC16"
+sweep pnm-a16-p4 "$PN/a16.pbm4" 1 flip --selfcheck -n "$IMG" -c "cp --resize host:$S.pbm4 /ICONS/IC20"
+sweep pnm-a16-p1 "$PN/a16.pbm" 1 trunc --selfcheck -n "$IMG" -c "cp --mask host:$S.pbm /ICONS/IC16"
+sweep pnm-a16-p1 "$PN/a16.pbm" 1 flip --selfcheck -n "$IMG" -c "cp --mask host:$S.pbm /ICONS/CIC/4.sel"
+sweep pnm-thr "$PN/thr.pgm" 1 flip --selfcheck -n "$IMG" -c "cp --threshold 30 host:$S.pgm /ICONS/CIC0/4"
+sweep images-flip "$IMG" 3 flip --selfcheck -n --no-names $S.rsc -c 'cat --ascii /ICONS/CIC/4' -c 'cp /ICONS/CIC/4 /ICONS/CIC/2' \
+    -c 'touch /ICONS/CIC0/4.sel' -c 'rm /ICONS/CIC/2' -c 'set /ICONS/CIC iw=8' -c 'cat --mask --ascii /ICONS/IC16'
+sweep images-trunc "$IMG" 5 trunc --selfcheck -n --no-names $S.rsc -c 'cat --ascii /ICONS/CIC/8' -c "cp host:$PN/c4.ppm /ICONS/CIC/8"
+
+# a terminal is not sent a binary image (needs script(1); skipped without)
+if script -q /dev/null true > /dev/null 2>&1 < /dev/null; then
+    if [ "$(uname)" = Darwin ]; then
+        script -q /dev/null "$CLI" "$IMG" cat /ICONS/BM > "$IM/tty1" 2>&1 < /dev/null
+        script -q /dev/null "$CLI" "$IMG" cat -f /ICONS/BM > "$IM/tty2" 2>&1 < /dev/null
+        script -q /dev/null "$CLI" "$IMG" cat --ascii /ICONS/BM > "$IM/tty3" 2>&1 < /dev/null
+    else
+        script -qec "'$CLI' '$IMG' cat /ICONS/BM" /dev/null > "$IM/tty1" 2>&1 < /dev/null
+        script -qec "'$CLI' '$IMG' cat -f /ICONS/BM" /dev/null > "$IM/tty2" 2>&1 < /dev/null
+        script -qec "'$CLI' '$IMG' cat --ascii /ICONS/BM" /dev/null > "$IM/tty3" 2>&1 < /dev/null
+    fi
+    if grep -q 'not writing a binary image to a terminal' "$IM/tty1" && ! grep -q P4 "$IM/tty1" && grep -q P4 "$IM/tty2" && grep -q P1 "$IM/tty3"; then
+        ok "cat refuses a binary image on a terminal unless -f or --ascii"
+    else
+        bad "cat refuses a binary image on a terminal unless -f or --ascii"
+    fi
+fi
 
 if [ -n "$UPDATE" ]; then rewrite_cases; fi
 

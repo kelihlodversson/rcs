@@ -678,6 +678,30 @@ static void images(void)
 	write_dfn("images.dfn", names);
 }
 
+/* ---- limit.rsc: one colour icon of 1 x 1 pixels with RSC_MAX_VERSIONS versions of 3 planes ---- */
+static void limit(void)
+{
+	struct rsc	*r = rsc_new();
+	ICONBLK		ib;
+	struct rsc_cicon	*c;
+	short		z[3] = { 0, 0, 0 };
+	int		t, k, v;
+
+	check(r != NULL, "rsc_new");
+	t = rsc_tree_add(r, 1);
+	T(rsc_obj_set_type(r, t, 0, G_BOX));
+	memset(&ib, 0, sizeof ib);
+	ib.ib_wicon = 1;
+	ib.ib_hicon = 1;
+	k = add(r, t, 0, G_CICON);
+	T(rsc_obj_set_cicon(r, t, k, &ib, "FULL"));
+	c = rsc_obj_cicon(r, t, k);
+	check(c != NULL, "cicon");
+	for (v = 0; v < RSC_MAX_VERSIONS; v++)
+		check(rsc_cicon_add_version(c, 3, z, z, NULL, NULL) == v, "version");
+	write_rsc(r, "limit.rsc", NULL);
+}
+
 /* ---- manyicons.rsc: 64 colour icons of 1 x 1 pixels with 32 versions each: it reads
  * back (the reader's budget), but twice as many do not (the CLI checks that) */
 static void manyicons(void)
@@ -994,6 +1018,7 @@ int main(int argc, char **argv)
 	images();
 	discovery();
 	manyicons();
+	limit();
 	big("deep.rsc", RSC_MAX_OBJECTS, 1);
 	big("flat.rsc", 5000, 0);
 	big("huge.rsc", 20000, 0);

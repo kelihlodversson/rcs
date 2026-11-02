@@ -5,8 +5,8 @@ A command line program that shows the structure of a GEM resource file
 resource library (`docs/resource-model.md`), and writes it again with the
 library's writer. Stage 2 of #27 (issue #31) added the read-only commands,
 stage 3 (#32) the editing commands (`cp`, `mv`, `rm`, `mkdir`, `touch`,
-`chmod`, `set`) with write-back and the name file; icon images are stage 4
-(#33).
+`chmod`, `set`) with write-back and the name file; stage 4 (#33) made icon and
+bitmap images files (`cat`, `cp`, `rm`, `touch`, `set`, `stat`: see "Images").
 
 ## Building and testing
 
@@ -279,6 +279,13 @@ Text values are quoted (or `-` for a NULL string), names as in columns
 | free image | `path`, `index`, `name`, `wb`, `hl`, `bi-x`, `bi-y`, `color`, `data-bytes` |
 | colour icon entry | `path`, `tree`, `object`, `entry`, `version` (`-` for mono), `planes`, `selected` (this entry is a selected image), `has-selected` (the version has one), `w`, `h`, `data-bytes` (all planes), `mask-bytes` |
 
+A node with an image (a `G_ICON` or `G_IMAGE` object, a free image, an entry of
+a colour icon) ends with `image: WxH planes=P` (the size of the data and its
+planes, whatever the depth), `mask: yes|no` (the image has a mask with data;
+`no` for a bitmap, which has none, or a mask never set) and, for a colour
+version only, `sel: yes|no` (the version has selected images). A `G_CICON`
+object has no image of its own and no such lines.
+
 The spec of an object, by the kind of spec (`rsc_obj_spec_kind`):
 
 - a plain value (boxes, `G_PROGDEF`, unknown types, any type with
@@ -299,14 +306,20 @@ The spec of an object, by the kind of spec (`rsc_obj_spec_kind`):
 - a colour icon: the ICONBLK keys of the mono icon, then `versions` and per
   version `version-V: planes=P selected=yes|no`; `cicon: -` when none.
 
-### cat [-v] PATH
+### cat [-v] [--image] [--mask] [--ascii] [-f] PATH
 
 The text of a node, then a newline: the string of a `G_STRING`, `G_BUTTON`
 or `G_TITLE`; the text of a TEDINFO (with `-v` also the template and the
 validation, a line each; a NULL string is an empty line); the text of an
 icon or of a colour icon object; a free string. Any other node:
-`rcs-cli: cat: PATH: no text`. A colour icon entry:
-`rcs-cli: cat: PATH: not supported yet` (stage 4).
+`rcs-cli: cat: PATH: no text`.
+
+The image of a node instead (see "Images"): always for a `G_IMAGE`, a free
+image and an entry of a colour icon, and for the others (`G_ICON`, whose text
+`cat` still prints by default) with `--image`, `--mask` or `--ascii`. `--mask`
+prints the mask, `--ascii` the text forms (`P1`/`P3`, for diff and tests).
+Binary output to a terminal is refused unless `-f` (or `--ascii`):
+`rcs-cli: cat: PATH: not writing a binary image to a terminal (use --ascii, or -f to force it)`.
 
 ### convert -o OUT.rsc
 
@@ -411,7 +424,6 @@ Errors (besides the path errors and `cp: usage: cp [-r] SRC DST`,
 | `cp: DST: a free string can only be copied to /.strings`, `... free image ... /.images` | |
 | `cp: DST: already exists` | a tree onto a tree, a string onto a string... |
 | `cp: SRC: cannot be copied` | `/`, `/.strings`, `/.images` |
-| `cp: SRC: colour icon entries cannot be copied yet (copy the object)` | `mono`, `4`... (stage 4) |
 | `cp: cannot copy: the tree would have more than 32767 objects, a link is broken or memory ran out` | |
 | `cp: cannot add the names (the name list is full or memory ran out)` | the copy is undone |
 | `cp: cannot name the copy: the name list has no room (use --no-guess)` | |
@@ -424,6 +436,9 @@ Errors (besides the path errors and `cp: usage: cp [-r] SRC DST`,
 and `cp other.rsc:/.images/#k /.images` for the free items is what the merge
 function of the GUI did (the test compares the listing and the file with the
 merge made by the library's calls).
+
+Images (`host:FILE`, entries of a colour icon, `--mask`, `--image`) are copied
+as described under "Images".
 
 ### mv SRC DST
 
@@ -471,7 +486,7 @@ Errors: `rm: SRC: is a directory (use -r)`, `rm: PATH: the root of a tree
 cannot be removed (remove the tree: rm -r /TREE)`, `rm: PATH: not reachable
 from the root of its tree (a write drops it)`, `rm: /: the root cannot be
 removed`, `rm: /.strings: cannot be removed (remove its entries)`, `rm: PATH:
-colour icon entries cannot be removed yet`, `rm: PATH: a second file is
+the mono image cannot be removed`, `rm: PATH: a second file is
 read-only`, `rm: missing PATH`, `rm: too many arguments`, `rm: unknown option
 'X'`, `rm: cannot remove PATH ...`.
 
@@ -512,6 +527,8 @@ If PATH exists: nothing (and the file is not written). Otherwise a new node name
   Size 8 x 1 cells at 0,0 (icons 4 x 2, images 2 x 1).
 - `/.strings/NAME`: a free string with empty text; `/.images/NAME`: a free
   image of 16 x 16 pixels, blank.
+
+Below a colour icon object, `N` and `N.sel` (N the planes, without a leading zero) create a colour version, see Images.
 
 Names are looked up in the whole tree, so a name that another object of the
 tree has, under another parent, is `touch: the name 'X' is used by object #N
@@ -559,6 +576,7 @@ changes.
 | `just` | `left`, `right`, `center` or 0 to 2 | TEDINFO kinds |
 | `type` | an AES name or a number, as for `touch` | any object (a change of the kind of spec releases the old spec; a later `text=` makes a new record) |
 | `name` | a new name | a tree, object, free string or free image (the same as `mv` within the parent) |
+| `iw` `ih` | the width or height of the icon image in pixels, 1 to 32767 | `G_ICON`, `G_CICON`, `G_IMAGE`, free images: see Images |
 
 Errors: `set: usage: set PATH key=value...`, `set: bad assignment 'X'
 (key=value)`, `set: unknown key 'K'`, `set: bad value 'K=V'` (with, for the
@@ -569,6 +587,109 @@ TEDINFO string), `set: PATH: only name= applies to a tree` (free image;
 `... a free string (and text=) or image`), `set: PATH: not an object`, `set:
 PATH: a second file is read-only`, `set: too many assignments` (more than 64),
 and the name errors.
+
+## Images
+
+Icon and bitmap images are files: PBM/PPM for `cat` and `cp`.
+
+**Which image.** A path addresses an image when it is a `G_ICON` or `G_IMAGE`
+object, a free image (`/.images/K`) or an entry of a colour icon (`mono`, `N`,
+`N.sel`). `--mask` selects the mask instead of the data (always one plane; a
+`G_IMAGE` and a free image have none: `no mask`). A `G_CICON` object itself,
+any other object, a missing or non-existent selected image: `no image`. An
+entry `N.sel` has its own mask, as in the file. `cp` treats a `G_ICON` or
+`G_IMAGE` object or a free image as an image only with `--image` or `--mask`
+(otherwise it copies the object, as in stage 3); an entry of a colour icon, on
+either side, always makes it an image copy.
+
+**Pixels and the palette.** One plane is black (1) on white (0), as the AES
+draws icons: `P4`/`P1`, 1 is black. A colour version has pixel values that
+index the standard VDI palette of its depth through the AES pen mapping: 2
+planes use the pens 0, 2, 3, 1 (white, red, green, black), 4 planes the pens
+0, 2, 3, 6, 4, 7, 5, 8, 9, 10, 11, 14, 12, 15, 13, 1; 8 planes pixels 0-14 as
+at 4 planes, 15 is pen 255 and 255 is pen 1, the others pens 16-255 of the TT
+palette. The colours are the 16 VDI colours (white, black, red, green, blue,
+cyan, yellow, magenta, light grey, grey, light red, green, blue, cyan,
+yellow, magenta; light grey is 182,182,182 and grey 109,109,109 as 8 bits); see
+`docs/resource-model.md`, "Images as pictures", for the tables and their source. It is exported as `P6` (`P3`
+with `--ascii`), maxval 255. The 8-plane palette has duplicate colours; an
+import chooses the lowest pixel value. Depths other than 2, 4, 8 are kept
+untouched by everything but `cat`/`cp` of their data, which say `cmd: P: depth
+N is not supported` (their masks, `ls`, `stat`, `rm` and copying the whole
+object work).
+
+**cp host:FILE PATH (import).** FILE is PBM/PGM/PPM (`P1` to `P6`, comments
+allowed, maxval up to 255; bigger is refused). A mono image or mask thresholds
+the darkness at 50% (`--threshold N`, 1 to 100, mono and masks only); a colour
+version maps each pixel to the nearest palette colour (`--exact` refuses a
+pixel that is not in the palette and names the first; colour only). The size
+must equal the icon size (`ib_wicon` x `ib_hicon`, `bi_wb * 8` x `bi_hl` for a
+bitmap), else `the image is WxH but PATH is WxH (use --resize to scale it)`;
+`--resize` scales by the nearest neighbour (lossy). A version that does not
+exist (`/ICON/4`, `/ICON/4.sel`, below a colour icon whose mono icon has the
+size of the file) is created: blank data (or the file), mask a copy of the
+mono mask (`N.sel`: also a copy of the normal image). Importing the same
+picture as there already is changes nothing and writes nothing.
+
+**cp PATH host:FILE (export).** As `cat`, to a new file; an existing file is
+`host:F: exists already (use -f to replace it)`, `-f` replaces it. The file is
+written to a temporary file next to it and renamed. `--ascii` writes the text
+forms. An export does not change the resource; `-n` and `-o` concern the
+resource file only, so a dry run still writes the exported file.
+
+**cp PATH1 PATH2 (images).** Copies and converts between images, also of
+another file (`FILE.rsc:/PATH`, read only) and also from a mono icon to a
+version, a version to another one, a version to its `.sel`, a colour icon's to
+another's: mono to N planes makes a set pixel pen 1 (black, value
+`(1 << N) - 1`) and a clear pixel 0; N to M planes uses the nearest colour of
+the new palette (`rcs-cli: note: cp: 64 pixels changed colour in the
+conversion to 8 planes` when some pixel's colour is not the same afterwards);
+the mask is copied too (not with `--mask`, which copies the masks only). The
+sizes must be equal (`cp: SRC is WxH but DST is WxH (the sizes must be equal)`)
+and the images different (`cp: A and B are the same image`). A destination
+that does not exist is created like an import. Errors: `no image`, `no mask`,
+`depth N is not supported`, `cp: DST: no image there (a new colour version is
+named N or N.sel below a colour icon)`, `cp: DST: a colour icon has at most 32
+versions`, `cp: --X applies to an import (cp host:FILE PATH) only` (and for
+`--ascii`, `-f`: an export), `cp: host:F: not a regular file`, `cannot open:
+REASON`, `file too large` (64 MiB), `not a PNM file (P1 to P6) or a damaged
+one`, `the file ends before the image does`, `the image is too big (at most
+32767 x 32767 pixels and 4194304 in all)`, `maxval above 255 is not
+supported`, `the colour #rrggbb of the pixel at X,Y is not in the N-plane
+palette`, `cp: --threshold applies to a monochrome image or a mask only`,
+`cp: --exact applies to a colour image only`, `cp: --threshold needs a
+number`, `cp: bad threshold 'X' (1 to 100)`, `cp: host: needs a file name`,
+`cp: one of SRC and DST must be in the resource file`, `cp: host:F: cannot
+write: REASON`.
+
+**rm PATH/N, PATH/N.sel.** `N` removes the version with its selected image,
+`N.sel` the selected image only; the last version may go (the icon stays a
+mono-only colour icon). `mono`: `rm: P: the mono image cannot be removed`.
+
+**touch PATH/N, PATH/N.sel.** A blank version (data colour 0, the mask a copy
+of the mono mask; `N.sel`: copies of the data and mask of `N`, which is
+created blank when missing). Existing: nothing, nothing written. Errors:
+`touch: P: depth N is not supported` (not 2, 4, 8), `a colour icon has at most
+32 versions`, `touch: --type does not apply to a colour version`.
+
+**set PATH iw=W ih=H.** Resizes the icon image (not the object `w`/`h`), the
+top left part kept and the rest zero: the mono icon and mask and every colour
+version (`rsc_cicon_resize`), a `G_ICON` (`rsc_obj_resize_icon`), the bitmap of
+a `G_IMAGE` or a free image (the width rounded up to a multiple of 8, with
+`rcs-cli: note: set: iw=10 was rounded up to 16 (a bitmap is a whole number
+of bytes wide)`). Both keys at once resize once. Errors: `set: bad value
+'iw=0'`, `set: P: iw does not apply to a G_BOX object`, `set: P: only name=
+applies to a tree`, `set: P: iw and ih cannot be set together with type`,
+`set: P: the image would be too big` (a plane of more than 32 MiB),
+`set: P: cannot resize the image (memory ran out or it would be too big)`
+(all planes together above 32 MiB).
+
+Examples:
+
+    $ rcs-cli app.rsc cat --ascii /ICONS/IC16
+    $ rcs-cli app.rsc cp /ICONS/CIC/4 host:cic4.ppm
+    $ rcs-cli app.rsc cp --resize host:big.png.ppm /ICONS/CIC/4
+    $ rcs-cli app.rsc -c 'touch /ICONS/CIC/8.sel' -c 'cp --mask host:m.pbm /ICONS/CIC/8.sel'
 
 ## Writing the result
 
@@ -675,7 +796,7 @@ were not written (the first is ...)`.
 | `rcs-cli: unknown command 'X'` | |
 | `rcs-cli: CMD: unknown option 'X'`, `CMD: too many arguments`, `CMD: missing PATH` | |
 | `rcs-cli: CMD: not found: ...`, `ambiguous name ...`, `not a directory: ...`, `bad path ...` | path errors (above) |
-| `rcs-cli: cat: P: no text`, `cat: P: not supported yet` | |
+| `rcs-cli: cat: P: no text`, `cat: P: no image`, `cat: P: no mask`, `cat: P: depth N is not supported` | see Images |
 | `rcs-cli: convert: ...` | see convert |
 | `rcs-cli: -o needs a file name`, `--names-out needs a FILE`, `-n and -o exclude each other`, `--names-out and --no-names exclude each other` | options of the edit commands |
 | `rcs-cli: CMD: ...` | the errors of each edit command, in its section |
@@ -737,6 +858,18 @@ again), round trips that return to the writer's output byte for byte (`mkdir`
 then `rm`, `cp` then `rm`, `mv A B` then `mv B A`, with `--pixels` too), the
 merge regression, colour icons that arrive intact, and a 32767-level chain and
 65535 names. The sweeps of damaged files also run edit commands.
+The image cases are in `images.cases`: the fixture `images.rsc` (`mkfix`: icons, a
+bitmap and a colour icon with 2, 4 and 8 plane versions whose pixels follow a
+formula, so that every `cat --ascii` output was checked by hand against the
+palette tables) and host files made by `run.sh` itself with `printf` and `awk`
+(`$TMP/pnm`). `run.sh` further checks that exported files equal what `cat`
+prints, export-import-export round trips, that an import of the same picture
+writes nothing, write-back with a re-read of the pixels, all-or-nothing in `-c`
+sequences, hostile host files (wrong magic, huge dimensions, 70,000 digits,
+maxval 0 / 256 / 65535, truncated, a fifo, a file above 64 MiB), sweeps over
+every prefix and flipped byte of good PNM files, and (with `script(1)`) that
+`cat` refuses a binary image on a terminal.
+
 `UPDATE=1 sh tests/cli/run.sh` rewrites the sections and the exit status of
 every block (also the `edit:` ones) from the program's output, keeping the
 `cmd` lines and the order (a new case needs only its `=== NAME` and `cmd`
