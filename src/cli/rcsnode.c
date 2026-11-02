@@ -890,7 +890,7 @@ int rcs_describe(struct rcs_view *v, const struct rcs_node *nd, struct rcs_desc 
 		d->o = &o[nd->obj];
 		d->reachable = tc && tc->parent[nd->obj] != -2;
 		d->parent = tc && tc->parent[nd->obj] >= 0 ? tc->parent[nd->obj] : -1;
-		d->spec_kind = rsc_obj_spec_kind(d->o);
+		d->spec_kind = (int)rsc_obj_spec_kind(d->o);
 		switch (d->spec_kind)
 		{
 		case RSC_SPEC_VALUE:
