@@ -210,6 +210,9 @@ int rsc_names_tree_removed(struct rsc_names *n, int t);
  * restores it), and what the last read charged. */
 void rsc_test_names_budget(long extra);
 size_t rsc_test_names_charged(void);
+/* The comparisons and entries visited by the lookups and the building of
+ * their indexes since the last call. */
+long rsc_test_names_work(void);
 #endif
 
 #endif

@@ -815,7 +815,7 @@ static void test_mutations(void)
 
 /* ---- the budget and the entry limit ---------------------------------------------- */
 
-/* The charges are pinned with the sizes of a 64-bit host (the list 16
+/* The charges are pinned with the sizes of a 64-bit host (the list 32
  * bytes, an entry 24); each allocation costs 4 more. */
 static void test_budget(void)
 {
@@ -833,15 +833,15 @@ static void test_budget(void)
 	rsc_names_free(n);
 	if (sizeof(void *) == 8)
 	{
-		want = 16 + 4 + 293 * 24 + 4 + names;
+		want = 32 + 4 + 293 * 24 + 4 + names;
 		CHECK(rsc_test_names_charged() == want);
 		n = read_copy(HRD, h, hl, &err);
 		rsc_names_free(n);
 		/* names of HRD_N entries, two cut to 16 */
-		CHECK(rsc_test_names_charged() == 16 + 4 + HRD_N * 24 + 4 + (5 + 6 + 17 + 17 + 8 + 6 + 6 + 5 + 11)
+		CHECK(rsc_test_names_charged() == 32 + 4 + HRD_N * 24 + 4 + (5 + 6 + 17 + 17 + 8 + 6 + 6 + 5 + 11)
 		      + HRD_N * 4);
 		n = read_copy(DFN, (const uint8_t *)"\0\0", 2, &err);
-		CHECK(n && rsc_names_count(n) == 0 && rsc_test_names_charged() == 20);
+		CHECK(n && rsc_names_count(n) == 0 && rsc_test_names_charged() == 36);
 		rsc_names_free(n);
 	}
 	else
@@ -1440,6 +1440,216 @@ static void test_lookup(void)
 	CHECK(live() == 0);
 }
 
+/* ---- the lookup indexes against a scan ---------------------------------------------- */
+
+/* The lookups as specified, by a scan of rsc_names_get: the reference. */
+static int naive_find(const struct rsc_names *n, int kind, int t, const char *comp, int count)
+{
+	struct rsc_name	e;
+	int	i, pass, node, found;
+	const char	*s;
+	long	v = 0;
+
+	if (!comp || count <= 0)
+		return RSC_NAMES_NOTFOUND;
+	if (comp[0] == '#' && comp[1])
+	{
+		for (s = comp + 1; *s >= '0' && *s <= '9'; s++)
+			v = v < 1000000000L ? v * 10 + (*s - '0') : v;
+		if (!*s)
+			return v < count ? (int)v : RSC_NAMES_NOTFOUND;
+	}
+	for (pass = 0; pass < 2; pass++)
+	{
+		found = -1;
+		for (i = 0; i < rsc_names_count(n); i++)
+		{
+			rsc_names_get(n, i, &e);
+			if (e.kind != kind || (kind == RSC_NAME_OBJ && e.tree != t))
+				continue;
+			node = kind == RSC_NAME_TREE ? e.tree : e.obj;
+			if (node >= count || (pass ? strcasecmp(e.name, comp) : strcmp(e.name, comp)))
+				continue;
+			if (found >= 0 && found != node)
+				return RSC_NAMES_AMBIGUOUS;
+			found = node;
+		}
+		if (found >= 0)
+			return found;
+	}
+	return RSC_NAMES_NOTFOUND;
+}
+
+/* the name of the first entry of a node, by a scan (into buf; "" for none) */
+static const char *naive_name(const struct rsc_names *n, int kind, int t, int k, char *buf)
+{
+	struct rsc_name	e;
+	int	i;
+
+	buf[0] = '\0';
+	for (i = 0; i < rsc_names_count(n); i++)
+	{
+		rsc_names_get(n, i, &e);
+		if (e.kind == kind && (kind == RSC_NAME_TREE ? e.tree == k
+				       : e.obj == k && (kind != RSC_NAME_OBJ || e.tree == t)))
+		{
+			strcpy(buf, e.name);
+			break;
+		}
+	}
+	return buf;
+}
+
+static const char *const	fuzz_names[] =
+{
+	"a", "A", "b", "B", "ab", "aB", "Ab", "#1", "#", "#x", "ALERT0", "dialog1", "DIALOG1", "TREE3"
+};
+#define NFUZZ	(int)(sizeof fuzz_names / sizeof fuzz_names[0])
+
+/* Every display name and every lookup of the small key space agrees with
+ * the scan.  Returns 1 when all do. */
+static int agree(const struct rsc_names *n)
+{
+	static const int	kinds[4] = { RSC_NAME_TREE, RSC_NAME_OBJ, RSC_NAME_FRSTR, RSC_NAME_FRIMG };
+	char	buf[RSC_NAME_MAX + 1];
+	const char	*got;
+	int	ki, t, k, c, ok = 1;
+
+	for (ki = 0; ki < 4; ki++)
+		for (t = 0; t < (kinds[ki] == RSC_NAME_OBJ ? 5 : 1); t++)
+			for (k = -1; k < 12; k++)
+			{
+				naive_name(n, kinds[ki], t, k, buf);
+				got = kinds[ki] == RSC_NAME_TREE ? rsc_names_tree_name(n, k)
+				      : kinds[ki] == RSC_NAME_OBJ ? rsc_names_obj_name(n, t, k)
+				      : kinds[ki] == RSC_NAME_FRSTR ? rsc_names_str_name(n, k)
+				      : rsc_names_img_name(n, k);
+				ok &= got ? strcmp(got, buf) == 0 : buf[0] == '\0';
+			}
+	for (ki = 0; ki < 4; ki++)
+		for (t = 0; t < (kinds[ki] == RSC_NAME_OBJ ? 5 : 1); t++)
+			for (k = 0; k < NFUZZ; k++)
+				for (c = 0; c < 12; c += 3)
+				{
+					int	want = naive_find(n, kinds[ki], t, fuzz_names[k], c), have;
+
+					have = kinds[ki] == RSC_NAME_TREE ? rsc_names_find_tree(n, fuzz_names[k], c)
+					       : kinds[ki] == RSC_NAME_OBJ ? rsc_names_find_obj(n, t, fuzz_names[k], c)
+					       : kinds[ki] == RSC_NAME_FRSTR ? rsc_names_find_str(n, fuzz_names[k], c)
+					       : rsc_names_find_img(n, fuzz_names[k], c);
+					ok &= want == have;
+				}
+	return ok;
+}
+
+/* Random lists and random sequences of changes: after each change the
+ * indexed lookups equal the scan; then the same with every index build
+ * failing (the lookups scan). */
+static void test_index(void)
+{
+	struct rsc	*r = build_desk();
+	struct rsc_names	*n;
+	int	round, step, op, ok = 1, map[12], k, m, dropped;
+	uint32_t	a, b, c, d;
+	long	with_r = rsc_test_live_blocks();	/* rcs_rsc and r */
+
+	for (round = 0; round < 60; round++)
+	{
+		n = rsc_names_new();
+		for (step = 0; step < 40; step++)
+		{
+			a = rnd();
+			op = (int)(a % 10);
+			if (op < 6)
+			{
+				int	kind;
+
+				b = rnd();
+				c = rnd();
+				d = rnd();
+				kind = (int)(b % 4);
+				rsc_names_add(n, kind, kind == RSC_NAME_FRSTR && (b & 4) ? RSC_TKIND_ALRT : 0,
+					      kind == RSC_NAME_TREE || kind == RSC_NAME_OBJ ? (int)(c % 12) : 0,
+					      kind == RSC_NAME_TREE ? 0 : (int)(c / 16 % 12),
+					      fuzz_names[d % NFUZZ], 0);
+			}
+			else if (op == 6)
+				rsc_names_check(n, r, &dropped);
+			else if (op == 7)
+				rsc_names_guess(n, r);
+			else if (op == 8)
+			{
+				b = rnd();
+				m = (int)(b % 12);
+				for (k = 0; k < m; k++)
+				{
+					c = rnd();
+					map[k] = (int)(c % 13) - 1;
+				}
+				b = rnd();
+				rsc_names_renumber(n, (int)(b % 5), map, m);
+			}
+			else
+			{
+				b = rnd();
+				rsc_names_tree_removed(n, (int)(b % 12));
+			}
+			ok &= agree(n);
+		}
+		/* the index builds fail: the lookups scan, with the same results */
+		rsc_names_add(n, RSC_NAME_TREE, 0, 1, 0, "late", 0);
+		rsc_test_fail_alloc_after(0);
+		ok &= agree(n);
+		ok &= rsc_test_alloc_count() > 0;
+		rsc_test_fail_alloc_after(-1);
+		ok &= agree(n);
+		/* only the second index fails: one of the two is built */
+		rsc_names_add(n, RSC_NAME_OBJ, 0, 2, 3, "later", 0);
+		rsc_test_fail_alloc_after(1);
+		ok &= agree(n);
+		rsc_test_fail_alloc_after(-1);
+		ok &= agree(n);
+		rsc_names_free(n);
+		ok &= rsc_test_live_blocks() == with_r;
+	}
+	CHECK(ok);
+	rsc_free(r);
+	CHECK(live() == 0);
+}
+
+/* 32767 display names and 1000 lookups in a list of 65535 entries: the
+ * work counted by the library (comparisons and entries visited) stays
+ * near n log n, where a scan would visit about 2e9 entries. */
+static void test_index_work(void)
+{
+	struct rsc_names	*n = rsc_names_new();
+	char	name[16];
+	long	w, found = 0;
+	int	i;
+
+	for (i = 0; i < RSC_NAMES_MAX; i++)
+	{
+		snprintf(name, sizeof name, "N%d", i);
+		rsc_names_add(n, RSC_NAME_OBJ, RSC_TKIND_UNKN, i & 1, (i * 7) % 32767, name, 0);
+	}
+	rsc_test_names_work();
+	for (i = 0; i < 32767; i++)
+		found += rsc_names_obj_name(n, 0, i) != NULL;
+	w = rsc_test_names_work();
+	printf("  index: 32767 display names in %d entries: %ld comparisons\n", RSC_NAMES_MAX, w);
+	CHECK(found > 0 && w < 6000000);
+	for (i = 0; i < 1000; i++)
+	{
+		snprintf(name, sizeof name, "n%d", i * 60);
+		found += rsc_names_find_obj(n, 0, name, 32767) >= 0;
+	}
+	w = rsc_test_names_work();
+	printf("  index: 1000 lookups: %ld comparisons\n", w);
+	CHECK(w < 6000000);
+	rsc_names_free(n);
+	CHECK(live() == 0);
+}
+
 /* ---- add, check, renumber ------------------------------------------------------------- */
 
 static void test_add(void)
@@ -1667,6 +1877,8 @@ int main(void)
 	test_by_ext();
 	test_add();
 	test_lookup();
+	test_index();
+	test_index_work();
 	test_check();
 	test_renumber();
 	test_guess_rcs();

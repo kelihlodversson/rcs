@@ -354,9 +354,14 @@ yet.
 
 A `.DFN` or `.DEF` name is the bytes up to the first NUL within its 8 bytes,
 or all 8 (real files have stale bytes after the NUL, and names of 8 bytes
-without one). A kind or type the readers do not know (5 FREE of the `.DFN`
-format is never in a file) becomes an entry of kind `RSC_NAME_UNKNOWN`,
-which `rsc_names_check` removes and counts. The old RCS reader refused a
+without one). A kind or type the readers do not know becomes an entry of
+kind `RSC_NAME_UNKNOWN`, which `rsc_names_check` removes and counts: that
+includes `.DFN` kinds 5 and 6, which rscview reads as a free string and a
+free image but which `erd.c` and the old RCS never write. A `.DEF` or
+`.HRD` record of an unknown type whose name is bad fails the read, where
+rscview ignores such a record: deliberate. Bytes 0x80-0x9f are kept in names
+(the Atari character set), so a program that prints names must escape them
+(the CLI does). The old RCS reader refused a
 `.DEF` file without the trailing zero record, so no names loaded for EmuTOS'
 `gem.def` and `mform.def`; this reader takes both forms.
 `rsc_names_read_by_ext` picks the reader from the extension, in any case
@@ -408,6 +413,18 @@ name for the same node are not ambiguous). `rsc_names_renumber` applies the
 map of `rsc_tree_compact` to the object entries of a tree (entries mapped to
 -1 go) and `rsc_names_tree_removed` follows `rsc_tree_delete`; neither
 allocates.
+
+The display-name accessors and the `rsc_names_find_*` functions use two
+lazily built indexes inside the `struct rsc_names`: entry positions sorted by
+(kind, tree, object) and by (kind, scope, name with the ASCII letters
+folded), ties by position, so the first entry in file order wins and the
+results are exactly those of a scan. An index is one `int` per entry (at most
+256 KB each at 65535 entries), built in O(n log n) by a heap sort at the first
+lookup after a change, and dropped by every change (add, check, guess,
+renumber, tree_removed); a lookup then costs O(log n) plus the entries whose
+name is equal without case. The indexes are made after the read and are not
+charged to its budget. If one cannot be allocated the lookup scans the list:
+the same result, slower.
 
 ## Differences from the old code
 

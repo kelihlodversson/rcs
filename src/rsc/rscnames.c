@@ -14,8 +14,10 @@
  *	2 MENU, 3 DIAL (a tree; the value is its index), 4 ALRT (a free
  *	string that is an alert; the value is its index), 0x100 an object
  *	(value = tree << 8 | object), 0x101 a free string, 0x102 a free
- *	image (the index).  5 (FREE) is never in a file; it and any other
- *	kind become an entry of kind RSC_NAME_UNKNOWN.  The file must be
+ *	image (the index).  Kinds 5 and 6 (rscview reads them as a free
+ *	string and a free image; erd.c and the old RCS never write them) and
+ *	any other kind become an entry of kind RSC_NAME_UNKNOWN, which
+ *	rsc_names_check drops.  The file must be
  *	exactly 2 + 14 * count bytes: shorter is RSC_ETRUNC at the end,
  *	longer RSC_EHEADER where the extra bytes start.
  *
@@ -56,7 +58,25 @@
  * cut) must be 0x20..0x7e or 0x80..0xff, and a name not empty, else
  * RSC_ESTRING at the name; the end and prefix records are not checked.
  * The case is kept.  A file may have several entries for one node and one
- * name for several nodes: kept; the lookups report ambiguity.
+ * name for several nodes: kept; the lookups report ambiguity.  Bytes
+ * 0x80-0x9f are kept in names (Atari character set): a program that
+ * prints names must escape them (the CLI does).  A DEF or HRD record of an
+ * unknown type with a bad name fails the read, where rscview ignores such
+ * a record: deliberate.
+ *
+ * The lookup index.  The display-name accessors and rsc_names_find_* use
+ * two lazily built indexes: by_node (entry positions sorted by kind, tree,
+ * object, then position, so the first entry in file order wins) and
+ * by_name (sorted by kind, scope, the name with the ASCII letters folded,
+ * then position).  Each is one int per entry (4 bytes; 8 per entry for
+ * both, plus the entries themselves), built by a heap sort in O(n log n)
+ * at the first lookup after a change and freed by every change (add,
+ * check, guess, renumber, tree_removed).  They are not charged to the
+ * reader's budget (made after the read, bounded by RSC_NAMES_MAX entries:
+ * at most 512 KB).  When one cannot be allocated, lookups scan the list
+ * instead (same results, O(n) each); nothing is reported.  A lookup costs
+ * O(log n) plus the entries of the same scope whose name is equal without
+ * case.
  *
  * Hostile files: every read of the buffer is range checked, every loop is
  * bounded by the buffer length, and a reader makes two passes over the
@@ -96,11 +116,38 @@ struct entry
 	unsigned char	kind, tkind, guessed;
 };
 
+/* by_node and by_name are the lookup indexes (see Lookup below): NULL
+ * until a lookup builds them, freed by every change of the list. */
 struct rsc_names
 {
 	struct entry	*e;
 	int	n, cap;
+	int	*by_node;	/* entry positions sorted by node */
+	int	*by_name;	/* entry positions sorted by scope and folded name */
 };
+
+#ifdef RSC_TEST
+static long	work;		/* comparisons and entries visited by the lookups */
+
+long rsc_test_names_work(void)
+{
+	long	w = work;
+
+	work = 0;
+	return w;
+}
+#define WORK(k)	(work += (k))
+#else
+#define WORK(k)	((void)0)
+#endif
+
+/* Frees the lookup indexes: every change of the list calls it. */
+static void stale(struct rsc_names *n)
+{
+	rsc_mfree(n->by_node);
+	rsc_mfree(n->by_name);
+	n->by_node = n->by_name = NULL;
+}
 
 /* ---- characters ------------------------------------------------------------- */
 
@@ -152,6 +199,7 @@ struct rsc_names *rsc_names_new(void)
 	{
 		n->e = NULL;
 		n->n = n->cap = 0;
+		n->by_node = n->by_name = NULL;
 	}
 	return n;
 }
@@ -164,6 +212,7 @@ void rsc_names_free(struct rsc_names *n)
 		return;
 	for (i = 0; i < n->n; i++)
 		rsc_mfree(n->e[i].name);
+	stale(n);
 	rsc_mfree(n->e);
 	rsc_mfree(n);
 }
@@ -217,6 +266,7 @@ static int append(struct rsc_names *n, int kind, int tkind, int tree, int obj,
 	e->name = rsc_malloc(len + 1);
 	if (!e->name)
 		return -1;
+	stale(n);
 	memcpy(e->name, s, len);
 	e->name[len] = '\0';
 	e->tree = tree;
@@ -688,6 +738,8 @@ int rsc_names_check(struct rsc_names *n, const struct rsc *r, int *dropped)
 		}
 	}
 	n->n = j;
+	if (drop)
+		stale(n);
 	if (dropped)
 		*dropped = drop;
 	return 0;
@@ -949,9 +1001,141 @@ static int node_of(const struct entry *e, int kind, int t)
 	return kind == RSC_NAME_TREE ? e->tree : e->obj;
 }
 
+/* The indexes.  by_node orders the entries by (kind, tree, obj), by_name
+ * by (kind, the tree of an object or 0, the name with the ASCII letters in
+ * lower case); both then by position, so among equal keys the first entry
+ * in file order comes first.  Each is an array of n ints (4 bytes per
+ * entry, 8 for both) built on the first lookup after a change, in
+ * O(n log n) by a heap sort (no recursion, no scratch).  When it cannot be
+ * allocated the lookup scans the list instead: the same result, slower;
+ * nothing is reported. */
+
+static int cmp_int(int a, int b)
+{
+	return a < b ? -1 : a > b;
+}
+
+/* a and b compared with the ASCII letters in lower case */
+static int fold_cmp(const char *a, const char *b)
+{
+	while (*a && lower((unsigned char)*a) == lower((unsigned char)*b))
+	{
+		a++;
+		b++;
+	}
+	return cmp_int(lower((unsigned char)*a), lower((unsigned char)*b));
+}
+
+static int scope_of(const struct entry *e)
+{
+	return e->kind == RSC_NAME_OBJ ? e->tree : 0;
+}
+
+/* entry x against the node key kind, tree, obj */
+static int node_cmp(const struct entry *x, int kind, int tree, int obj)
+{
+	int	c = cmp_int(x->kind, kind);
+
+	if (!c)
+		c = cmp_int(x->tree, tree);
+	return c ? c : cmp_int(x->obj, obj);
+}
+
+/* entry x against the name key kind, scope, name */
+static int name_cmp(const struct entry *x, int kind, int scope, const char *name)
+{
+	int	c = cmp_int(x->kind, kind);
+
+	if (!c)
+		c = cmp_int(scope_of(x), scope);
+	return c ? c : fold_cmp(x->name, name);
+}
+
+/* positions a and b in the order of the index (by name when byname) */
+static int pos_cmp(const struct rsc_names *n, int a, int b, int byname)
+{
+	const struct entry	*y = &n->e[b];
+	int	c;
+
+	WORK(1);
+	if (byname)
+		c = name_cmp(&n->e[a], y->kind, scope_of(y), y->name);
+	else
+		c = node_cmp(&n->e[a], y->kind, y->tree, y->obj);
+	return c ? c : cmp_int(a, b);
+}
+
+static void sift(const struct rsc_names *n, int *v, int root, int len, int byname)
+{
+	int	child, tmp;
+
+	while ((child = 2 * root + 1) < len)
+	{
+		if (child + 1 < len && pos_cmp(n, v[child], v[child + 1], byname) < 0)
+			child++;
+		if (pos_cmp(n, v[root], v[child], byname) >= 0)
+			return;
+		tmp = v[root];
+		v[root] = v[child];
+		v[child] = tmp;
+		root = child;
+	}
+}
+
+/* The index (by name when byname), built when missing; NULL when it cannot
+ * be (no memory, or no entries). */
+static const int *index_get(const struct rsc_names *cn, int byname)
+{
+	struct rsc_names	*n = (struct rsc_names *)cn;	/* the indexes are a cache */
+	int	**slot = byname ? &n->by_name : &n->by_node;
+	int	*v, i, tmp;
+
+	if (*slot || n->n == 0)
+		return *slot;
+	v = rsc_malloc((size_t)n->n * sizeof *v);
+	if (!v)
+		return NULL;
+	for (i = 0; i < n->n; i++)
+		v[i] = i;
+	for (i = n->n / 2 - 1; i >= 0; i--)
+		sift(n, v, i, n->n, byname);
+	for (i = n->n - 1; i > 0; i--)
+	{
+		tmp = v[0];
+		v[0] = v[i];
+		v[i] = tmp;
+		sift(n, v, 0, i, byname);
+	}
+	*slot = v;
+	return v;
+}
+
+/* The first place in index v whose entry is not below the key. */
+static int lower_bound(const struct rsc_names *n, const int *v, int byname,
+		       int kind, int a, int b, const char *name)
+{
+	int	lo = 0, hi = n->n, mid, c;
+
+	while (lo < hi)
+	{
+		mid = lo + (hi - lo) / 2;
+		WORK(1);
+		if (byname)
+			c = name_cmp(&n->e[v[mid]], kind, a, name);
+		else
+			c = node_cmp(&n->e[v[mid]], kind, a, b);
+		if (c < 0)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+	return lo;
+}
+
 static int find(const struct rsc_names *n, int kind, int t, const char *comp, int count)
 {
-	int	i, pass, node, found;
+	const int	*v;
+	int	i, k, lo = 0, hi, pass, node, found, scope = kind == RSC_NAME_OBJ ? t : 0;
 
 	if (!comp || count <= 0)
 		return RSC_NAMES_NOTFOUND;
@@ -960,15 +1144,28 @@ static int find(const struct rsc_names *n, int kind, int t, const char *comp, in
 		return i;
 	if (!n)
 		return RSC_NAMES_NOTFOUND;
+	/* the candidates: with the index, the run of entries of the scope
+	 * whose name matches without case; without it, all */
+	v = index_get(n, 1);
+	hi = n->n;
+	if (v)
+	{
+		lo = lower_bound(n, v, 1, kind, scope, 0, comp);
+		for (hi = lo; hi < n->n && name_cmp(&n->e[v[hi]], kind, scope, comp) == 0; hi++)
+			WORK(1);
+	}
 	for (pass = 0; pass < 2; pass++)
 	{
 		found = -1;
-		for (i = 0; i < n->n; i++)
+		for (k = lo; k < hi; k++)
 		{
-			node = node_of(&n->e[i], kind, t);
+			const struct entry	*e = &n->e[v ? v[k] : k];
+
+			WORK(1);
+			node = node_of(e, kind, t);
 			if (node < 0 || node >= count)
 				continue;
-			if (pass == 0 ? !str_eq(n->e[i].name, comp) : !fold_eq(n->e[i].name, comp))
+			if (pass == 0 ? !str_eq(e->name, comp) : !fold_eq(e->name, comp))
 				continue;
 			if (found >= 0 && found != node)
 				return RSC_NAMES_AMBIGUOUS;
@@ -1003,11 +1200,28 @@ int rsc_names_find_img(const struct rsc_names *n, const char *comp, int count)
 /* the first entry of node k in the scope, or NULL */
 static const struct entry *first(const struct rsc_names *n, int kind, int t, int k)
 {
-	int	i;
+	const int	*v;
+	int	i, a, b;
 
-	for (i = 0; n && i < n->n; i++)
-		if (node_of(&n->e[i], kind, t) == k && k >= 0)
-			return &n->e[i];
+	if (!n || k < 0)
+		return NULL;
+	v = index_get(n, 0);
+	if (!v)
+	{
+		for (i = 0; i < n->n; i++)
+		{
+			WORK(1);
+			if (node_of(&n->e[i], kind, t) == k)
+				return &n->e[i];
+		}
+		return NULL;
+	}
+	/* the key of the entries of that node (struct rsc_name) */
+	a = kind == RSC_NAME_TREE ? k : kind == RSC_NAME_OBJ ? t : 0;
+	b = kind == RSC_NAME_TREE ? 0 : k;
+	i = lower_bound(n, v, 0, kind, a, b, NULL);
+	if (i < n->n && node_cmp(&n->e[v[i]], kind, a, b) == 0)
+		return &n->e[v[i]];
 	return NULL;
 }
 
@@ -1072,6 +1286,7 @@ int rsc_names_renumber(struct rsc_names *n, int t, const int *map, int nmap)
 		n->e[j++] = *e;
 	}
 	n->n = j;
+	stale(n);
 	return 0;
 }
 
@@ -1097,5 +1312,6 @@ int rsc_names_tree_removed(struct rsc_names *n, int t)
 		n->e[j++] = *e;
 	}
 	n->n = j;
+	stale(n);
 	return 0;
 }
