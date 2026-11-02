@@ -79,10 +79,10 @@ stdout. `rcs-cli` writes no file but the one named by `convert -o`.
 
 A resource file is a filesystem. A path is `/` followed by components
 separated by `/`. There are no relative paths: a path that does not start
-with `/` is an error (`bad path 'x': paths start with /`), except the empty
-path, which is `/`. One trailing `/` is ignored; an empty component is an
-error (`bad path '/a//b': empty component (//)`). A component is at most 255
-bytes, a path less than 512.
+with `/` is an error (`bad path 'x': paths start with /`), and so is the
+empty path (`bad path '': paths start with /`). One trailing `/` is ignored;
+an empty component is an error (`bad path '/a//b': empty component (//)`). A
+component is at most 255 bytes, a path less than 512.
 
 | Node | Children | Component |
 |---|---|---|

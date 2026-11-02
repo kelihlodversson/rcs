@@ -806,11 +806,6 @@ int rcs_resolve(struct rcs_view *v, const char *path, struct rcs_node *out,
 
 	msg[0] = 0;
 	node_set(&cur, RCS_NODE_ROOT, 0, 0, 0, 0);
-	if (path[0] == 0)
-	{
-		*out = cur;
-		return 0;
-	}
 	if (path[0] != '/')
 		return bad_path(path, "paths start with /", msg, msgsize);
 	if (strlen(path) >= RCS_PATH_MAX)
