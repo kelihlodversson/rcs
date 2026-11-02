@@ -15,4 +15,4 @@ x: 0
 y: 0
 w: 0
 h: 0
-text: "Tab\there\x01 \xe9 end"
+text: "Tab\there\x01\x7f \xe9 end"

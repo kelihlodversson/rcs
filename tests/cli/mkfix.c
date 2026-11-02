@@ -302,7 +302,7 @@ static void tree_dialog(struct rsc *r)
 	k = add(r, t, 0, G_BOXCHAR);					/* 8 */
 	T(rsc_obj_set_value(r, t, k, 0x41FF1172));
 	k = add(r, t, 0, G_STRING);					/* 9 */
-	T(rsc_obj_set_str(r, t, k, RSC_STR_SPEC, "Tab\there\001 \351 end"));
+	T(rsc_obj_set_str(r, t, k, RSC_STR_SPEC, "Tab\there\001\177 \351 end"));
 	k = add(r, t, 0, G_FTEXT);					/* 10 */
 	ted(r, t, k, "12", "Age: __", "99", 3, 0, 0x1100, 0);
 	k = add(r, t, 0, G_FBOXTEXT);					/* 11 */
@@ -426,7 +426,7 @@ static void kinds(void)
 	check(rsc_frstr_add(r, "Hello, world") == 0, "frstr 0");
 	check(rsc_frstr_add(r, "[1][Delete this?|Really][ OK |Cancel]") == 1, "frstr 1");
 	check(rsc_frstr_add(r, "[2][Question][Yes|No]") == 2, "frstr 2");
-	check(rsc_frstr_add(r, "Say \"hi\"\\ \033[0m \344 \233") == 3, "frstr 3");
+	check(rsc_frstr_add(r, "Say \"hi\"\\ \033[0m \344 \233\177") == 3, "frstr 3");
 	for (i = 0; i < 100; i++)
 		longs[i] = (char)('a' + i % 26);
 	longs[100] = 0;
