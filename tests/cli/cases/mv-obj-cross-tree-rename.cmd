@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG/BUTTONS /PANEL3/BTNS' -c 'tree /PANEL3'

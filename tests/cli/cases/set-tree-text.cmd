@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc set /DIALOG text=x

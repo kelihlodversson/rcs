@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc set /.images/LOGO text=x

@@ -1,1 +1,0 @@
---pixels=128x16 $FIX/kinds.rsc ls

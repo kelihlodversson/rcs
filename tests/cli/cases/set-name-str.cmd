@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'set /.strings/HELLO name=HI' -c 'ls -l /.strings'

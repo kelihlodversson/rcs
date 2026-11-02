@@ -1,1 +1,0 @@
---no-guess $FIX/kinds.rsc stat /#2

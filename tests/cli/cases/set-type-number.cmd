@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK type=0x1a' -c 'ls -l /DIALOG/OK'

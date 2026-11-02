@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'mkdir WARN --type alert' -c 'ls -l /.strings' -c 'stat /.strings/WARN'

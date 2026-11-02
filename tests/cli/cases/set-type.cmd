@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK type=G_STRING' -c 'cat /DIALOG/OK' -c 'ls -l /DIALOG/OK'

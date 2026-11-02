@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'touch /.images/NEWI' -c 'ls -l /.images' -c 'stat /.images/NEWI'

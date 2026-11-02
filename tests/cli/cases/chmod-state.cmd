@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'chmod --state +SELECTED,os_checked /DIALOG/OK' -c 'ls -l /DIALOG/OK'

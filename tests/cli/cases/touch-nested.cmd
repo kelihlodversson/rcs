@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'touch /DIALOG/BUTTONS/B3' -c 'ls -l /DIALOG/BUTTONS'

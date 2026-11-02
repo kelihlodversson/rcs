@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds-lost.rsc mv /UNREACH/LOST /UNREACH

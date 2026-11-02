@@ -1,1 +1,0 @@
---pixels=8x8 $ROOT/tests/golden/cicon.rsc stat /PANEL1/#1

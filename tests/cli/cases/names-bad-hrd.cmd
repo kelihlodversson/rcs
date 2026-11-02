@@ -1,1 +1,0 @@
---names $FIX/bad.hrd $FIX/kinds.rsc ls

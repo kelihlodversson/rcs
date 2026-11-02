@@ -1,1 +1,0 @@
---pixels=8x8 $ROOT/src/atari/rcs.rsc ls -l /ABOUTREE

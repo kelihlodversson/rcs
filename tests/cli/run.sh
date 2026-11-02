@@ -8,14 +8,32 @@
 # RCS_CLI names the program (default build/host/rcs-cli), MKFIX the fixture
 # writer (default build/host/mkfix).
 #
-# A case is tests/cli/cases/NAME.cmd: one line, the arguments of one rcs-cli
-# invocation, split by the shell (quotes work) after $ROOT, $FIX and $TMP
-# are replaced by the repository root, the fixture directory and a scratch
-# directory (none of them may contain spaces or quotes).  Expected: stdout
-# in NAME.out (or its cksum in NAME.cksum), the exit status in NAME.rc (0
-# when absent), stderr in NAME.err (empty when absent).  The output is
-# compared after the three directories are replaced back by $ROOT, $FIX and
-# $TMP, so the expected files do not depend on where the tree is.
+# The cases are in tests/cli/cases/AREA.cases, one file per area (ls-tree,
+# stat, cp, paths, ...).  A file is a list of blocks, one per case:
+#
+#   === NAME              starts a case (NAME: letters, digits and . _ : + -)
+#   cmd ARGUMENTS         the rest of the line: the arguments of one rcs-cli
+#                         invocation, split by the shell (quotes work) after
+#                         $ROOT, $FIX and $TMP are replaced by the repository
+#                         root, the fixture directory and a scratch directory
+#                         (none of them may contain spaces or quotes)
+#   rc STATUS             the exit status (0 when absent)
+#   cksum SUM LENGTH      the cksum of stdout, instead of an "out" section
+#   out                   the expected stdout: every line of it follows,
+#   err                   the expected stderr (empty when absent), the same way
+#   |TEXT                 one line of a section, "|" followed by the exact
+#                         line; a section is the lines "|..." after its name
+#   \                     (alone on a line, after the last "|" line of a
+#                         section) the section does not end in a newline
+#
+# Every line of a section starts with "|", so no output can look like a
+# marker, and the bytes are kept as they are.  Empty lines and lines starting
+# with "#" between the blocks are ignored (UPDATE=1 does not keep them).
+# A block "=== edit:NAME" with only an "out" section is the expected re-read
+# listing of the write-back test "edit NAME" below.  The output is compared
+# after the three directories are replaced back by $ROOT, $FIX and $TMP, so
+# the expected files do not depend on where the tree is.  UPDATE=1 rewrites
+# the sections and the rc of every block (the cmd lines are kept).
 
 if [ ! -f tests/cli/run.sh ] || [ ! -d tests/cli/cases ]; then
     echo "run.sh: run this from the root of the repository" >&2
@@ -57,7 +75,84 @@ unexpand() {
     sed -e "s|$TMP|\$TMP|g" -e "s|$FIX|\$FIX|g" -e "s|$ROOT|\$ROOT|g" "$1"
 }
 
-for cmd in tests/cli/cases/*.cmd; do
+# split_cases DIR FILE...: writes every block of the .cases files as DIR/NAME.cmd, .rc, .cksum, .out
+# and .err (a file exists when the block has the line or section), keeping the bytes
+split_cases() {
+    sdir=$1
+    shift
+    awk -v dir="$sdir" '
+    function fail(msg) { print FILENAME ":" FNR ": " msg > "/dev/stderr"; bad = 1; exit 2 }
+    function endsec(   f) {
+        if (sec == "") return
+        f = dir "/" name "." sec
+        printf "%s", buf > f
+        close(f)
+        sec = ""
+        buf = ""
+    }
+    function put(ext, text,   f) { f = dir "/" name "." ext; printf "%s\n", text > f; close(f) }
+    FNR == 1 { endsec(); name = "" }
+    /^\|/ {
+        if (sec == "") fail("a line starting with | outside a section")
+        buf = buf substr($0, 2) "\n"
+        next
+    }
+    $0 == "\\" {
+        if (sec == "" || buf == "") fail("\\ must follow the lines of a section")
+        buf = substr(buf, 1, length(buf) - 1)
+        endsec()
+        next
+    }
+    { endsec() }
+    /^$/ || /^#/ { next }
+    /^=== / {
+        name = substr($0, 5)
+        if (name !~ /^[A-Za-z0-9._:+-]+$/) fail("bad case name")
+        if (name in seen) fail("case " name " is there twice")
+        seen[name] = 1
+        next
+    }
+    name == "" { fail("text before the first === line") }
+    /^cmd / { put("cmd", substr($0, 5)); next }
+    /^rc [0-9]+$/ { put("rc", substr($0, 4)); next }
+    /^cksum [0-9]+ [0-9]+$/ { put("cksum", substr($0, 7)); next }
+    $0 == "out" || $0 == "err" { sec = $0; buf = ""; f = dir "/" name "." sec; printf "" > f; close(f); next }
+    { fail("unknown line: " $0) }
+    END { if (!bad) endsec() }
+    ' "$@"
+}
+
+# emit_section TAG FILE: a section of a block, as split_cases reads it
+emit_section() {
+    [ -f "$2" ] || return 0
+    printf '%s\n' "$1"
+    awk '{ print "|" $0 }' "$2"
+    if [ -n "$(tail -c 1 "$2")" ]; then printf '\\\n'; fi
+}
+
+# rewrite_cases: UPDATE=1, the .cases files again from the split directory, in the order they have
+rewrite_cases() {
+    for cf in tests/cli/cases/*.cases; do
+        {
+            first=1
+            for n in $(grep '^=== ' "$cf" | sed 's/^=== //'); do
+                if [ $first = 1 ]; then first=0; else echo; fi
+                printf '=== %s\n' "$n"
+                if [ -f "$SPLIT/$n.cmd" ]; then printf 'cmd %s\n' "$(cat "$SPLIT/$n.cmd")"; fi
+                if [ -f "$SPLIT/$n.rc" ]; then printf 'rc %s\n' "$(cat "$SPLIT/$n.rc")"; fi
+                if [ -f "$SPLIT/$n.cksum" ]; then printf 'cksum %s\n' "$(cat "$SPLIT/$n.cksum")"; fi
+                emit_section out "$SPLIT/$n.out"
+                emit_section err "$SPLIT/$n.err"
+            done
+        } > "$WORK/rewrite.cases" && cp "$WORK/rewrite.cases" "$cf"
+    done
+}
+
+SPLIT=$WORK/cases
+mkdir -p "$SPLIT"
+split_cases "$SPLIT" tests/cli/cases/*.cases || { echo "run.sh: tests/cli/cases/*.cases are malformed" >&2; exit 2; }
+
+for cmd in "$SPLIT"/*.cmd; do
     name=${cmd%.cmd}
     base=$(basename "$name")
     args=$(sed -e "s|\$ROOT|$ROOT|g" -e "s|\$FIX|$FIX|g" -e "s|\$TMP|$TMP|g" "$cmd")
@@ -281,7 +376,7 @@ listing() {
 
 # edit NAME SRC [OPTIONS] FILE -c ...: copies $FIX/SRC.rsc (and SRC.dfn, .def, .hrd when they exist) to
 # $ED/NAME/in.rsc, runs rcs-cli on it with --selfcheck and compares the re-read result with
-# tests/cli/edits/NAME.out (UPDATE=1 writes it).  The file argument is $ED/NAME/in.rsc; with -o
+# the block "edit:NAME" of tests/cli/cases/write-back.cases (UPDATE=1 writes it).  The file argument is $ED/NAME/in.rsc; with -o
 # $ED/NAME/out.rsc the re-read file is out.rsc.
 edit() {
     name=$1 src=$2
@@ -304,12 +399,12 @@ edit() {
             if [ -f "$f" ]; then echo "file $(basename "$f") $(wc -c < "$f" | tr -d ' ') bytes"; fi
         done
     } | sed -e "s|$d|\$D|g" -e "s|$FIX|\$FIX|g" -e "s|$ROOT|\$ROOT|g" > "$d/result"
-    if [ -n "$UPDATE" ]; then cp "$d/result" "tests/cli/edits/$name.out"; fi
-    if cmp -s "$d/result" "tests/cli/edits/$name.out"; then
+    if [ -n "$UPDATE" ]; then cp "$d/result" "$SPLIT/edit:$name.out"; fi
+    if cmp -s "$d/result" "$SPLIT/edit:$name.out"; then
         ok "edit $name"
     else
         bad "edit $name"
-        diff "tests/cli/edits/$name.out" "$d/result" | head -20
+        diff "$SPLIT/edit:$name.out" "$d/result" | head -20
     fi
 }
 
@@ -706,6 +801,8 @@ else
 fi
 "$CLI" "$d/k.rsc" -c 'touch /#0/#6' -c 'chmod +TOUCHEXIT /#0/#7' 2> /dev/null
 if [ $? = 0 ] && ! bytes_same "$d/k.rsc" "$FIX/kinds-lost.rsc"; then ok "a real change after no-op commands is written"; else bad "a real change after no-op commands is written"; fi
+
+if [ -n "$UPDATE" ]; then rewrite_cases; fi
 
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

@@ -1,0 +1,946 @@
+=== cp-dir-source
+cmd --selfcheck -n $FIX/kinds.rsc cp /.strings /x
+rc 1
+out
+err
+|rcs-cli: cp: /.strings: cannot be copied
+
+=== cp-dst-badpath
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/OK /DIALOG//x
+rc 1
+out
+err
+|rcs-cli: cp: bad path '/DIALOG//x': empty component (//)
+
+=== cp-dst-parent-missing
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/OK /NOSUCH/x
+rc 1
+out
+err
+|rcs-cli: cp: not found: 'NOSUCH' in /
+
+=== cp-dst-relative
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/OK x
+rc 1
+out
+err
+|rcs-cli: cp: bad path 'x': paths start with /
+
+=== cp-free-alert-guess
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp /.strings/#1 /.strings' -c 'ls -l /.strings'
+out
+|#0     HELLO           12 -     "Hello, world"
+|#1     ALERT1          37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+|#2     ASK             21 ALERT "[2][Question][Yes|No]"
+|#3     -               19 -     "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|#4     -              100 -     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+|#5     ALERT5          37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13312 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-free-image
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp /.images/LOGO /.images/LOGO2' -c 'ls -l /.images' -c 'stat /.images/LOGO2'
+out
+|#0     LOGO         16x8
+|#1     -            24x4
+|#2     LOGO2        16x8
+|path: /.images/LOGO2
+|index: 2
+|name: LOGO2
+|wb: 2
+|hl: 8
+|bi-x: 0
+|bi-y: 0
+|color: 1
+|data-bytes: 16
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13304 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-free-image-wrong
+cmd --selfcheck -n $FIX/kinds.rsc cp /.images/LOGO /.strings
+rc 1
+out
+err
+|rcs-cli: cp: /.strings: a free image can only be copied to /.images
+
+=== cp-free-string-clash
+cmd --selfcheck -n $FIX/kinds.rsc cp /.strings/HELLO /.strings
+rc 1
+out
+err
+|rcs-cli: cp: the name 'HELLO' is used by free string #0 already
+
+=== cp-free-string-exists
+cmd --selfcheck -n $FIX/kinds.rsc cp /.strings/HELLO /.strings/#2
+rc 1
+out
+err
+|rcs-cli: cp: /.strings/#2: already exists
+
+=== cp-free-string-name
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp /.strings/HELLO /.strings/HI' -c 'ls -l /.strings'
+out
+|#0     HELLO           12 -     "Hello, world"
+|#1     ALERT1          37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+|#2     ASK             21 ALERT "[2][Question][Yes|No]"
+|#3     -               19 -     "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|#4     -              100 -     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+|#5     HI              12 -     "Hello, world"
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13288 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-free-string-wrong
+cmd --selfcheck -n $FIX/kinds.rsc cp /.strings/HELLO /DIALOG
+rc 1
+out
+err
+|rcs-cli: cp: /DIALOG: a free string can only be copied to /.strings
+
+=== cp-icon-entry
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/CICON/mono /x
+rc 1
+out
+err
+|rcs-cli: cp: /DIALOG/CICON/mono: colour icon entries cannot be copied yet (copy the object)
+
+=== cp-many-icons-ok
+cmd --selfcheck -n $FIX/manyicons.rsc touch /#0/Q
+out
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/manyicons.rsc, 89320 bytes, and the names to $FIX/manyicons.dfn)
+
+=== cp-noguess-names
+cmd --selfcheck -n --no-guess --no-names $FIX/kinds.rsc -c 'cp -r /#0 /D2' -c 'ls -l /'
+out
+|#0     -            UNKN  20
+|#1     -            UNKN  9
+|#2     -            UNKN  2
+|#3     -            UNKN  1
+|#4     -            UNKN  321
+|#5     -            UNKN  2
+|#6     -            UNKN  4
+|#7     D2           UNKN  20
+|-      .strings     DIR   5
+|-      .images      DIR   2
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 15406 bytes)
+
+=== cp-notfound
+cmd --selfcheck -n $FIX/kinds.rsc cp /NOSUCH /a
+rc 1
+out
+err
+|rcs-cli: cp: not found: 'NOSUCH' in /
+
+=== cp-obj-bad-newname
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/OK /DIALOG/#7
+rc 1
+out
+err
+|rcs-cli: cp: /DIALOG/#7: exists and is not a directory (it has no children; to put something inside, give a name: /DIALOG/#7/NAME)
+
+=== cp-obj-into-dir
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp /DIALOG/#16 /DIALOG/BUTTONS' -c 'ls -l /DIALOG/BUTTONS'
+out
+|#6     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 0,0,0,0
+|#7     CANCEL       G_BUTTON   SELECTABLE,EXIT SELECTED 0,0,0,0
+|#20    -            G_BUTTON:17 LASTOB,FL3DACT,0x2800 CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13298 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-obj-into-leaf
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/#16 /PANEL3/#1
+rc 1
+out
+err
+|rcs-cli: cp: /PANEL3/#1: exists and is not a directory (it has no children; to put something inside, give a name: /PANEL3/#1/NAME)
+
+=== cp-obj-into-leaf-named
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp /DIALOG/#16 /PANEL3/#1/KID' -c 'tree /PANEL3'
+out
+|/PANEL3
+|`-- #1 - G_STRING - -
+|    `-- #2 KID G_BUTTON:17 LASTOB,FL3DACT,0x2800 CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13298 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-obj-into-tree
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp /DIALOG/#16 /PANEL3' -c 'ls -lR /PANEL3'
+out
+|/PANEL3:
+|#1     -            G_STRING   - - 0,0,0,0
+|#2     -            G_BUTTON:17 LASTOB,FL3DACT,0x2800 CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13298 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-obj-long-newname
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/OK /DIALOG/ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
+rc 1
+out
+err
+|rcs-cli: cp: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789': a name has at most 32 bytes
+
+=== cp-obj-name-clash
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/EDIT /DIALOG/BUTTONS
+rc 1
+out
+err
+|rcs-cli: cp: the name 'EDIT' is used by object #11 already in that tree (give the new object another name)
+
+=== cp-obj-needs-r
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/BUTTONS /DIALOG/B2
+rc 1
+out
+err
+|rcs-cli: cp: /DIALOG/BUTTONS: is a directory (use -r)
+
+=== cp-obj-newname
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp /DIALOG/OK /DIALOG/OK2' -c 'ls -l /DIALOG/OK2' -c 'stat /DIALOG/OK2'
+out
+|#20    OK2          G_BUTTON   SELECTABLE,DEFAULT,EXIT,LASTOB - 0,0,0,0
+|path: /DIALOG/OK2
+|tree: 0
+|index: 20
+|name: OK2
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 0
+|head: -1
+|tail: -1
+|type: 0x001A G_BUTTON
+|flags: 0x0027 SELECTABLE,DEFAULT,EXIT,LASTOB
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "OK"
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13298 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-obj-newname-clash
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/EDIT /DIALOG/Edit
+rc 1
+out
+err
+|rcs-cli: cp: /DIALOG/Edit: exists and is not a directory (it has no children; to put something inside, give a name: /DIALOG/Edit/NAME)
+
+=== cp-obj-newname-clash-other-parent
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/#16 /DIALOG/BUTTONS/EDIT
+rc 1
+out
+err
+|rcs-cli: cp: the name 'EDIT' is used by object #11 already in that tree (give the new object another name)
+
+=== cp-obj-one-child-noR
+cmd --selfcheck -n $FIX/kinds.rsc cp /MAINMENU/#1 /PANEL3/X
+rc 1
+out
+err
+|rcs-cli: cp: /MAINMENU/#1: is a directory (use -r)
+
+=== cp-obj-r
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp -r /DIALOG/BUTTONS /DIALOG/B2' -c 'tree /DIALOG/B2'
+out
+|/DIALOG/B2
+||-- #21 - G_BUTTON SELECTABLE,DEFAULT,EXIT -
+|`-- #22 - G_BUTTON SELECTABLE,EXIT,LASTOB SELECTED
+err
+|rcs-cli: note: cp: 3 names of objects in the copy were not carried: the tree has them already
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13352 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-obj-r-othertree
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp -r /DIALOG/BUTTONS /PANEL3/B2' -c 'ls -lR /PANEL3'
+out
+|/PANEL3:
+|#1     -            G_STRING   - - 0,0,0,0
+|#2     B2           G_IBOX     - - 0,0,0,0
+|
+|/PANEL3/B2:
+|#3     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 0,0,0,0
+|#4     CANCEL       G_BUTTON   SELECTABLE,EXIT,LASTOB SELECTED 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13352 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-obj-root
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp -r /PANEL3/#0 /DIALOG/P3' -c 'tree /DIALOG/P3'
+out
+|/DIALOG/P3
+|`-- #21 - G_STRING LASTOB -
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13324 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-obj-same-place-newname
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/OK /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: cp: /DIALOG/OK: exists and is not a directory (it has no children; to put something inside, give a name: /DIALOG/OK/NAME)
+
+=== cp-obj-to-root
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/OK /
+rc 1
+out
+err
+|rcs-cli: cp: /: an object can only go into a tree or an object
+
+=== cp-obj-to-strings
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/OK /.strings
+rc 1
+out
+err
+|rcs-cli: cp: /.strings: an object can only go into a tree or an object
+
+=== cp-obj-unreachable
+cmd --selfcheck -n $FIX/kinds-lost.rsc cp /UNREACH/LOST /PANEL3
+rc 1
+out
+err
+|rcs-cli: cp: /UNREACH/LOST: not reachable from the root of its tree
+
+=== cp-option
+cmd --selfcheck -n $FIX/kinds.rsc cp -x /DIALOG /a
+rc 1
+out
+err
+|rcs-cli: cp: unknown option '-x'
+
+=== cp-root-source
+cmd --selfcheck -n $FIX/kinds.rsc cp -r / /x
+rc 1
+out
+err
+|rcs-cli: cp: /: cannot be copied
+
+=== cp-second-cicon
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp $ROOT/tests/golden/cicon.rsc:/PANEL1/#1 /PANEL3/ICON2' -c 'tree /PANEL3' -c 'stat /PANEL3/ICON2/4'
+out
+|/PANEL3
+||-- #1 - G_STRING - -
+|`-- #2 ICON2 G_CICON LASTOB -
+|    |-- mono 1 no
+|    `-- 4 4 no
+|path: /PANEL3/ICON2/4
+|tree: 2
+|object: 2
+|entry: 4
+|version: 0
+|planes: 4
+|selected: no
+|has-selected: no
+|w: 32
+|h: 32
+|data-bytes: 512
+|mask-bytes: 128
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 14266 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-second-dst
+cmd --selfcheck -n $FIX/kinds.rsc cp /PANEL3 $ROOT/tests/golden/cicon.rsc:/
+rc 1
+out
+err
+|rcs-cli: cp: $ROOT/tests/golden/cicon.rsc:/: a second file is read-only (it is never written)
+
+=== cp-second-golden-tree
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp -r $ROOT/tests/golden/rcs.rsc:/#5 /' -c 'ls -l /'
+out
+|#0     DIALOG       DIAL  20
+|#1     MAINMENU     MENU  9
+|#2     PANEL3       PANL~ 2
+|#3     TREE4        UNKN~ 1
+|#4     BIG          PANL  321
+|#5     .images      UNKN  2
+|#6     UNREACH      DIAL  4
+|#7     PANEL8       PANL~ 7
+|-      .strings     DIR   5
+|-      .images      DIR   2
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 14126 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-second-missing
+cmd --selfcheck -n $FIX/kinds.rsc cp -r nofile.rsc:/x /y
+rc 1
+out
+err
+|rcs-cli: cp: bad path 'nofile.rsc:/x': paths start with /
+
+=== cp-second-readcmds
+cmd --selfcheck -n $FIX/kinds.rsc -c 'ls $ROOT/tests/golden/cicon.rsc:/' -c 'cat $ROOT/tests/golden/cicon.rsc:/PANEL1/#1' -c 'stat $ROOT/tests/golden/cicon.rsc:/PANEL1'
+out
+|PANEL1
+|.strings
+|.images
+|CICON test
+|path: /PANEL1
+|kind: PANL
+|kind-source: guessed
+|name: PANEL1
+|index: 0
+|objects: 2
+|root-children: 1
+
+=== cp-second-same
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp -r $FIX/kinds.rsc:/PANEL3 /P3B' -c 'ls -l /'
+out
+|#0     DIALOG       DIAL  20
+|#1     MAINMENU     MENU  9
+|#2     PANEL3       PANL~ 2
+|#3     TREE4        UNKN~ 1
+|#4     BIG          PANL  321
+|#5     .images      UNKN  2
+|#6     UNREACH      DIAL  4
+|#7     P3B          PANL  2
+|-      .strings     DIR   5
+|-      .images      DIR   2
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13328 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-second-same-after-edit
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mkdir Z' -c 'ls $FIX/kinds.rsc:/'
+out
+|DIALOG
+|MAINMENU
+|PANEL3
+|TREE4
+|BIG
+|#5
+|UNREACH
+|Z
+|.strings
+|.images
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13298 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-second-tree
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp -r $ROOT/tests/golden/cicon.rsc:/PANEL1 /' -c 'tree /'
+out
+|/
+||-- #0 DIALOG DIAL 20
+||   |-- #1 Title G_TEXT - -
+||   |-- #2 TITLE G_BOXTEXT - -
+||   |-- #3 DUP G_IMAGE - -
+||   |-- #4 DUP G_PROGDEF - -
+||   |-- #5 BUTTONS G_IBOX - -
+||   |   |-- #6 OK G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   |   `-- #7 CANCEL G_BUTTON SELECTABLE,EXIT SELECTED
+||   |-- #8 BOXCHAR G_BOXCHAR - -
+||   |-- #9 #3 G_STRING - -
+||   |-- #10 F\x9b\xe4 G_FTEXT - -
+||   |-- #11 EDIT G_FBOXTEXT EDITABLE -
+||   |-- #12 ICON G_ICON - -
+||   |-- #13 dup G_TITLE - -
+||   |-- #14 CICON G_CICON - -
+||   |   |-- mono 1 no
+||   |   |-- 4 4 no
+||   |   |-- 4.sel 4 yes
+||   |   |-- 8 8 no
+||   |   |-- 4#2 4 no
+||   |   `-- 4#2.sel 4 yes
+||   |-- #15 - 0x50 - -
+||   |-- #16 - G_BUTTON:17 FL3DACT,0x2800 CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0
+||   |-- #17 - G_STRING RBUTTON,TOUCHEXIT,HIDETREE,INDIRECT -
+||   |-- #18 - G_BOX FL3DIND -
+||   `-- #19 - G_BOX LASTOB,FL3DBAK -
+||-- #1 MAINMENU MENU 9
+||   |-- #1 - G_BOX - -
+||   |   `-- #2 - G_IBOX - -
+||   |       |-- #3 DESK G_TITLE - -
+||   |       `-- #4 - G_TITLE - -
+||   `-- #5 - G_IBOX - -
+||       `-- #6 - G_BOX - -
+||           |-- #7 - G_STRING - -
+||           `-- #8 - G_STRING LASTOB -
+||-- #2 PANEL3 PANL~ 2
+||   `-- #1 - G_STRING LASTOB -
+||-- #3 TREE4 UNKN~ 1
+||-- #4 BIG PANL 321
+||   |-- #1 - G_BOX - -
+||   |   |-- #2 - G_STRING - -
+||   |   |-- #3 - G_STRING - -
+||   |   |-- #4 - G_STRING - -
+||   |   |-- #5 - G_STRING - -
+||   |   |-- #6 - G_STRING - -
+||   |   |-- #7 - G_STRING - -
+||   |   |-- #8 - G_STRING - -
+||   |   |-- #9 - G_STRING - -
+||   |   |-- #10 - G_STRING - -
+||   |   |-- #11 - G_STRING - -
+||   |   |-- #12 - G_STRING - -
+||   |   |-- #13 - G_STRING - -
+||   |   |-- #14 - G_STRING - -
+||   |   |-- #15 - G_STRING - -
+||   |   `-- #16 - G_STRING - -
+||   |-- #17 - G_BOX - -
+||   |   |-- #18 - G_STRING - -
+||   |   |-- #19 - G_STRING - -
+||   |   |-- #20 - G_STRING - -
+||   |   |-- #21 - G_STRING - -
+||   |   |-- #22 - G_STRING - -
+||   |   |-- #23 - G_STRING - -
+||   |   |-- #24 - G_STRING - -
+||   |   |-- #25 - G_STRING - -
+||   |   |-- #26 - G_STRING - -
+||   |   |-- #27 - G_STRING - -
+||   |   |-- #28 - G_STRING - -
+||   |   |-- #29 - G_STRING - -
+||   |   |-- #30 - G_STRING - -
+||   |   |-- #31 - G_STRING - -
+||   |   `-- #32 - G_STRING - -
+||   |-- #33 - G_BOX - -
+||   |   |-- #34 - G_STRING - -
+||   |   |-- #35 - G_STRING - -
+||   |   |-- #36 - G_STRING - -
+||   |   |-- #37 - G_STRING - -
+||   |   |-- #38 - G_STRING - -
+||   |   |-- #39 - G_STRING - -
+||   |   |-- #40 - G_STRING - -
+||   |   |-- #41 - G_STRING - -
+||   |   |-- #42 - G_STRING - -
+||   |   |-- #43 - G_STRING - -
+||   |   |-- #44 - G_STRING - -
+||   |   |-- #45 - G_STRING - -
+||   |   |-- #46 - G_STRING - -
+||   |   |-- #47 - G_STRING - -
+||   |   `-- #48 - G_STRING - -
+||   |-- #49 - G_BOX - -
+||   |   |-- #50 - G_STRING - -
+||   |   |-- #51 - G_STRING - -
+||   |   |-- #52 - G_STRING - -
+||   |   |-- #53 - G_STRING - -
+||   |   |-- #54 - G_STRING - -
+||   |   |-- #55 - G_STRING - -
+||   |   |-- #56 - G_STRING - -
+||   |   |-- #57 - G_STRING - -
+||   |   |-- #58 - G_STRING - -
+||   |   |-- #59 - G_STRING - -
+||   |   |-- #60 - G_STRING - -
+||   |   |-- #61 - G_STRING - -
+||   |   |-- #62 - G_STRING - -
+||   |   |-- #63 - G_STRING - -
+||   |   `-- #64 - G_STRING - -
+||   |-- #65 - G_BOX - -
+||   |   |-- #66 - G_STRING - -
+||   |   |-- #67 - G_STRING - -
+||   |   |-- #68 - G_STRING - -
+||   |   |-- #69 - G_STRING - -
+||   |   |-- #70 - G_STRING - -
+||   |   |-- #71 - G_STRING - -
+||   |   |-- #72 - G_STRING - -
+||   |   |-- #73 - G_STRING - -
+||   |   |-- #74 - G_STRING - -
+||   |   |-- #75 - G_STRING - -
+||   |   |-- #76 - G_STRING - -
+||   |   |-- #77 - G_STRING - -
+||   |   |-- #78 - G_STRING - -
+||   |   |-- #79 - G_STRING - -
+||   |   `-- #80 - G_STRING - -
+||   |-- #81 - G_BOX - -
+||   |   |-- #82 - G_STRING - -
+||   |   |-- #83 - G_STRING - -
+||   |   |-- #84 - G_STRING - -
+||   |   |-- #85 - G_STRING - -
+||   |   |-- #86 - G_STRING - -
+||   |   |-- #87 - G_STRING - -
+||   |   |-- #88 - G_STRING - -
+||   |   |-- #89 - G_STRING - -
+||   |   |-- #90 - G_STRING - -
+||   |   |-- #91 - G_STRING - -
+||   |   |-- #92 - G_STRING - -
+||   |   |-- #93 - G_STRING - -
+||   |   |-- #94 - G_STRING - -
+||   |   |-- #95 - G_STRING - -
+||   |   `-- #96 - G_STRING - -
+||   |-- #97 - G_BOX - -
+||   |   |-- #98 - G_STRING - -
+||   |   |-- #99 - G_STRING - -
+||   |   |-- #100 - G_STRING - -
+||   |   |-- #101 - G_STRING - -
+||   |   |-- #102 - G_STRING - -
+||   |   |-- #103 - G_STRING - -
+||   |   |-- #104 - G_STRING - -
+||   |   |-- #105 - G_STRING - -
+||   |   |-- #106 - G_STRING - -
+||   |   |-- #107 - G_STRING - -
+||   |   |-- #108 - G_STRING - -
+||   |   |-- #109 - G_STRING - -
+||   |   |-- #110 - G_STRING - -
+||   |   |-- #111 - G_STRING - -
+||   |   `-- #112 - G_STRING - -
+||   |-- #113 - G_BOX - -
+||   |   |-- #114 - G_STRING - -
+||   |   |-- #115 - G_STRING - -
+||   |   |-- #116 - G_STRING - -
+||   |   |-- #117 - G_STRING - -
+||   |   |-- #118 - G_STRING - -
+||   |   |-- #119 - G_STRING - -
+||   |   |-- #120 - G_STRING - -
+||   |   |-- #121 - G_STRING - -
+||   |   |-- #122 - G_STRING - -
+||   |   |-- #123 - G_STRING - -
+||   |   |-- #124 - G_STRING - -
+||   |   |-- #125 - G_STRING - -
+||   |   |-- #126 - G_STRING - -
+||   |   |-- #127 - G_STRING - -
+||   |   `-- #128 - G_STRING - -
+||   |-- #129 - G_BOX - -
+||   |   |-- #130 - G_STRING - -
+||   |   |-- #131 - G_STRING - -
+||   |   |-- #132 - G_STRING - -
+||   |   |-- #133 - G_STRING - -
+||   |   |-- #134 - G_STRING - -
+||   |   |-- #135 - G_STRING - -
+||   |   |-- #136 - G_STRING - -
+||   |   |-- #137 - G_STRING - -
+||   |   |-- #138 - G_STRING - -
+||   |   |-- #139 - G_STRING - -
+||   |   |-- #140 - G_STRING - -
+||   |   |-- #141 - G_STRING - -
+||   |   |-- #142 - G_STRING - -
+||   |   |-- #143 - G_STRING - -
+||   |   `-- #144 - G_STRING - -
+||   |-- #145 - G_BOX - -
+||   |   |-- #146 - G_STRING - -
+||   |   |-- #147 - G_STRING - -
+||   |   |-- #148 - G_STRING - -
+||   |   |-- #149 - G_STRING - -
+||   |   |-- #150 - G_STRING - -
+||   |   |-- #151 - G_STRING - -
+||   |   |-- #152 - G_STRING - -
+||   |   |-- #153 - G_STRING - -
+||   |   |-- #154 - G_STRING - -
+||   |   |-- #155 - G_STRING - -
+||   |   |-- #156 - G_STRING - -
+||   |   |-- #157 - G_STRING - -
+||   |   |-- #158 - G_STRING - -
+||   |   |-- #159 - G_STRING - -
+||   |   `-- #160 - G_STRING - -
+||   |-- #161 - G_BOX - -
+||   |   |-- #162 - G_STRING - -
+||   |   |-- #163 - G_STRING - -
+||   |   |-- #164 - G_STRING - -
+||   |   |-- #165 - G_STRING - -
+||   |   |-- #166 - G_STRING - -
+||   |   |-- #167 - G_STRING - -
+||   |   |-- #168 - G_STRING - -
+||   |   |-- #169 - G_STRING - -
+||   |   |-- #170 - G_STRING - -
+||   |   |-- #171 - G_STRING - -
+||   |   |-- #172 - G_STRING - -
+||   |   |-- #173 - G_STRING - -
+||   |   |-- #174 - G_STRING - -
+||   |   |-- #175 - G_STRING - -
+||   |   `-- #176 - G_STRING - -
+||   |-- #177 - G_BOX - -
+||   |   |-- #178 - G_STRING - -
+||   |   |-- #179 - G_STRING - -
+||   |   |-- #180 - G_STRING - -
+||   |   |-- #181 - G_STRING - -
+||   |   |-- #182 - G_STRING - -
+||   |   |-- #183 - G_STRING - -
+||   |   |-- #184 - G_STRING - -
+||   |   |-- #185 - G_STRING - -
+||   |   |-- #186 - G_STRING - -
+||   |   |-- #187 - G_STRING - -
+||   |   |-- #188 - G_STRING - -
+||   |   |-- #189 - G_STRING - -
+||   |   |-- #190 - G_STRING - -
+||   |   |-- #191 - G_STRING - -
+||   |   `-- #192 - G_STRING - -
+||   |-- #193 - G_BOX - -
+||   |   |-- #194 - G_STRING - -
+||   |   |-- #195 - G_STRING - -
+||   |   |-- #196 - G_STRING - -
+||   |   |-- #197 - G_STRING - -
+||   |   |-- #198 - G_STRING - -
+||   |   |-- #199 - G_STRING - -
+||   |   |-- #200 - G_STRING - -
+||   |   |-- #201 - G_STRING - -
+||   |   |-- #202 - G_STRING - -
+||   |   |-- #203 - G_STRING - -
+||   |   |-- #204 - G_STRING - -
+||   |   |-- #205 - G_STRING - -
+||   |   |-- #206 - G_STRING - -
+||   |   |-- #207 - G_STRING - -
+||   |   `-- #208 - G_STRING - -
+||   |-- #209 - G_BOX - -
+||   |   |-- #210 - G_STRING - -
+||   |   |-- #211 - G_STRING - -
+||   |   |-- #212 - G_STRING - -
+||   |   |-- #213 - G_STRING - -
+||   |   |-- #214 - G_STRING - -
+||   |   |-- #215 - G_STRING - -
+||   |   |-- #216 - G_STRING - -
+||   |   |-- #217 - G_STRING - -
+||   |   |-- #218 - G_STRING - -
+||   |   |-- #219 - G_STRING - -
+||   |   |-- #220 - G_STRING - -
+||   |   |-- #221 - G_STRING - -
+||   |   |-- #222 - G_STRING - -
+||   |   |-- #223 - G_STRING - -
+||   |   `-- #224 - G_STRING - -
+||   |-- #225 - G_BOX - -
+||   |   |-- #226 - G_STRING - -
+||   |   |-- #227 - G_STRING - -
+||   |   |-- #228 - G_STRING - -
+||   |   |-- #229 - G_STRING - -
+||   |   |-- #230 - G_STRING - -
+||   |   |-- #231 - G_STRING - -
+||   |   |-- #232 - G_STRING - -
+||   |   |-- #233 - G_STRING - -
+||   |   |-- #234 - G_STRING - -
+||   |   |-- #235 - G_STRING - -
+||   |   |-- #236 - G_STRING - -
+||   |   |-- #237 - G_STRING - -
+||   |   |-- #238 - G_STRING - -
+||   |   |-- #239 - G_STRING - -
+||   |   `-- #240 - G_STRING - -
+||   |-- #241 - G_BOX - -
+||   |   |-- #242 - G_STRING - -
+||   |   |-- #243 - G_STRING - -
+||   |   |-- #244 - G_STRING - -
+||   |   |-- #245 - G_STRING - -
+||   |   |-- #246 - G_STRING - -
+||   |   |-- #247 - G_STRING - -
+||   |   |-- #248 - G_STRING - -
+||   |   |-- #249 - G_STRING - -
+||   |   |-- #250 - G_STRING - -
+||   |   |-- #251 - G_STRING - -
+||   |   |-- #252 - G_STRING - -
+||   |   |-- #253 - G_STRING - -
+||   |   |-- #254 - G_STRING - -
+||   |   |-- #255 - G_STRING - -
+||   |   `-- #256 - G_STRING - -
+||   |-- #257 - G_BOX - -
+||   |   |-- #258 - G_STRING - -
+||   |   |-- #259 - G_STRING - -
+||   |   |-- #260 - G_STRING - -
+||   |   |-- #261 - G_STRING - -
+||   |   |-- #262 - G_STRING - -
+||   |   |-- #263 - G_STRING - -
+||   |   |-- #264 - G_STRING - -
+||   |   |-- #265 - G_STRING - -
+||   |   |-- #266 - G_STRING - -
+||   |   |-- #267 - G_STRING - -
+||   |   |-- #268 - G_STRING - -
+||   |   |-- #269 - G_STRING - -
+||   |   |-- #270 - G_STRING - -
+||   |   |-- #271 - G_STRING - -
+||   |   `-- #272 - G_STRING - -
+||   |-- #273 - G_BOX - -
+||   |   |-- #274 - G_STRING - -
+||   |   |-- #275 - G_STRING - -
+||   |   |-- #276 - G_STRING - -
+||   |   |-- #277 - G_STRING - -
+||   |   |-- #278 - G_STRING - -
+||   |   |-- #279 - G_STRING - -
+||   |   |-- #280 - G_STRING - -
+||   |   |-- #281 - G_STRING - -
+||   |   |-- #282 - G_STRING - -
+||   |   |-- #283 - G_STRING - -
+||   |   |-- #284 - G_STRING - -
+||   |   |-- #285 - G_STRING - -
+||   |   |-- #286 - G_STRING - -
+||   |   |-- #287 - G_STRING - -
+||   |   `-- #288 - G_STRING - -
+||   |-- #289 - G_BOX - -
+||   |   |-- #290 - G_STRING - -
+||   |   |-- #291 - G_STRING - -
+||   |   |-- #292 - G_STRING - -
+||   |   |-- #293 - G_STRING - -
+||   |   |-- #294 - G_STRING - -
+||   |   |-- #295 - G_STRING - -
+||   |   |-- #296 - G_STRING - -
+||   |   |-- #297 - G_STRING - -
+||   |   |-- #298 - G_STRING - -
+||   |   |-- #299 - G_STRING - -
+||   |   |-- #300 - G_STRING - -
+||   |   |-- #301 - G_STRING - -
+||   |   |-- #302 - G_STRING - -
+||   |   |-- #303 - G_STRING - -
+||   |   `-- #304 - G_STRING - -
+||   `-- #305 - G_BOX - -
+||       |-- #306 - G_STRING - -
+||       |-- #307 - G_STRING - -
+||       |-- #308 - G_STRING - -
+||       |-- #309 - G_STRING - -
+||       |-- #310 - G_STRING - -
+||       |-- #311 - G_STRING - -
+||       |-- #312 - G_STRING - -
+||       |-- #313 - G_STRING - -
+||       |-- #314 - G_STRING - -
+||       |-- #315 - G_STRING - -
+||       |-- #316 - G_STRING - -
+||       |-- #317 - G_STRING - -
+||       |-- #318 - G_STRING - -
+||       |-- #319 - G_STRING - -
+||       `-- #320 - G_STRING LASTOB -
+||-- #5 .images UNKN 2
+||   `-- #1 - G_BOX LASTOB -
+||-- #6 UNREACH DIAL 4
+||   |-- #1 A G_STRING - -
+||   |-- #2 LOST G_STRING - -
+||   `-- #3 C G_STRING LASTOB -
+||-- #7 PANEL8 PANL~ 2
+||   `-- #1 - G_CICON LASTOB -
+||       |-- mono 1 no
+||       `-- 4 4 no
+||-- - .strings DIR 5
+||   |-- #0 HELLO 12 - "Hello, world"
+||   |-- #1 ALERT1 37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+||   |-- #2 ASK 21 ALERT "[2][Question][Yes|No]"
+||   |-- #3 - 19 - "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+||   `-- #4 - 100 - "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+|`-- - .images DIR 2
+|    |-- #0 LOGO 16x8
+|    `-- #1 - 24x4
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 14294 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-second-tree-named
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp -r $ROOT/tests/golden/cicon.rsc:/PANEL1 /P1' -c 'tree /P1'
+out
+|/P1
+|`-- #1 - G_CICON LASTOB -
+|    |-- mono 1 no
+|    `-- 4 4 no
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 14294 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-too-many
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG /a /b
+rc 1
+out
+err
+|rcs-cli: cp: usage: cp [-r] SRC DST
+
+=== cp-too-many-icons
+cmd --selfcheck -n $FIX/manyicons.rsc cp -r /#0 /X
+rc 1
+out
+err
+|rcs-cli: $FIX/manyicons.rsc: the library cannot read the result back (decoded size exceeds the limit at offset 0xbdc); nothing was written
+
+=== cp-tree
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp -r /DIALOG /DLG2' -c 'ls -l /' -c 'tree /DLG2'
+out
+|#0     DIALOG       DIAL  20
+|#1     MAINMENU     MENU  9
+|#2     PANEL3       PANL~ 2
+|#3     TREE4        UNKN~ 1
+|#4     BIG          PANL  321
+|#5     .images      UNKN  2
+|#6     UNREACH      DIAL  4
+|#7     DLG2         DIAL  20
+|-      .strings     DIR   5
+|-      .images      DIR   2
+|/DLG2
+||-- #1 Title G_TEXT - -
+||-- #2 TITLE G_BOXTEXT - -
+||-- #3 DUP G_IMAGE - -
+||-- #4 DUP G_PROGDEF - -
+||-- #5 BUTTONS G_IBOX - -
+||   |-- #6 OK G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   `-- #7 CANCEL G_BUTTON SELECTABLE,EXIT SELECTED
+||-- #8 BOXCHAR G_BOXCHAR - -
+||-- #9 #3 G_STRING - -
+||-- #10 F\x9b\xe4 G_FTEXT - -
+||-- #11 EDIT G_FBOXTEXT EDITABLE -
+||-- #12 ICON G_ICON - -
+||-- #13 dup G_TITLE - -
+||-- #14 CICON G_CICON - -
+||   |-- mono 1 no
+||   |-- 4 4 no
+||   |-- 4.sel 4 yes
+||   |-- 8 8 no
+||   |-- 4#2 4 no
+||   `-- 4#2.sel 4 yes
+||-- #15 - 0x50 - -
+||-- #16 - G_BUTTON:17 FL3DACT,0x2800 CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0
+||-- #17 - G_STRING RBUTTON,TOUCHEXIT,HIDETREE,INDIRECT -
+||-- #18 - G_BOX FL3DIND -
+|`-- #19 - G_BOX LASTOB,FL3DBAK -
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 15406 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-tree-exists
+cmd --selfcheck -n $FIX/kinds.rsc cp -r /PANEL3 /DIALOG
+rc 1
+out
+err
+|rcs-cli: cp: /DIALOG: already exists
+
+=== cp-tree-guessed
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp -r /PANEL3 /' -c 'ls -l /'
+out
+|#0     DIALOG       DIAL  20
+|#1     MAINMENU     MENU  9
+|#2     PANEL3       PANL~ 2
+|#3     TREE4        UNKN~ 1
+|#4     BIG          PANL  321
+|#5     .images      UNKN  2
+|#6     UNREACH      DIAL  4
+|#7     PANEL8       PANL~ 2
+|-      .strings     DIR   5
+|-      .images      DIR   2
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13328 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-tree-into-object
+cmd --selfcheck -n $FIX/kinds.rsc cp -r /PANEL3 /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: cp: /DIALOG/OK: a tree can only be copied to /
+
+=== cp-tree-newname-clash
+cmd --selfcheck -n $FIX/kinds.rsc cp -r /PANEL3 /dialog
+rc 1
+out
+err
+|rcs-cli: cp: /dialog: already exists
+
+=== cp-tree-noR
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG /DLG2
+rc 1
+out
+err
+|rcs-cli: cp: /DIALOG: is a directory (use -r)
+
+=== cp-tree-noguess
+cmd --selfcheck -n --no-guess $FIX/kinds.rsc -c 'cp -r /#2 /' -c 'ls -l /'
+out
+|#0     DIALOG       DIAL  20
+|#1     MAINMENU     MENU  9
+|#2     -            UNKN  2
+|#3     -            UNKN  1
+|#4     BIG          PANL  321
+|#5     .images      UNKN  2
+|#6     UNREACH      DIAL  4
+|#7     -            UNKN  2
+|-      .strings     DIR   5
+|-      .images      DIR   2
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13328 bytes, and the names to $FIX/kinds.dfn)
+
+=== cp-tree-real-clash
+cmd --selfcheck -n $FIX/kinds.rsc cp -r /DIALOG /
+rc 1
+out
+err
+|rcs-cli: cp: the name 'DIALOG' is used by tree #0 already
+
+=== cp-tree-reserved
+cmd --selfcheck -n $FIX/kinds.rsc cp -r /PANEL3 /.strings2/x
+rc 1
+out
+err
+|rcs-cli: cp: not found: '.strings2' in /
+
+=== cp-usage
+cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG
+rc 1
+out
+err
+|rcs-cli: cp: usage: cp [-r] SRC DST

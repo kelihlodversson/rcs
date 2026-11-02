@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'cp -r /PANEL3 /' -c 'ls -l /'

@@ -1,1 +1,0 @@
---selfcheck -n --pixels=8x8 $FIX/kinds.rsc -c 'set /DIALOG/OK x=7' -c 'ls -l /DIALOG/OK'

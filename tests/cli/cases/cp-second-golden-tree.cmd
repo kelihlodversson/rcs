@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'cp -r $ROOT/tests/golden/rcs.rsc:/#5 /' -c 'ls -l /'

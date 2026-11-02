@@ -1,0 +1,58 @@
+=== convert-extra
+cmd $FIX/kinds.rsc convert -o $TMP/a.rsc x
+rc 1
+out
+err
+|rcs-cli: convert: usage: convert -o OUT.rsc
+
+=== convert-h
+cmd $FIX/kinds.rsc convert -o $TMP/a.h
+rc 1
+out
+err
+|rcs-cli: convert: $TMP/a.h: output format not supported yet
+
+=== convert-lost
+cmd $FIX/kinds-lost.rsc -c 'convert -o $TMP/lost.rsc'
+out
+
+=== convert-noarg
+cmd $FIX/kinds.rsc convert
+rc 1
+out
+err
+|rcs-cli: convert: usage: convert -o OUT.rsc
+
+=== convert-nodir
+cmd $FIX/kinds.rsc convert -o $TMP/nodir/a.rsc
+rc 1
+out
+err
+|rcs-cli: convert: $TMP/nodir/a.rsc: cannot write: No such file or directory
+
+=== convert-other
+cmd $FIX/kinds.rsc convert -o $TMP/a.txt
+rc 1
+out
+err
+|rcs-cli: convert: $TMP/a.txt: output format not supported yet
+
+=== convert-rsh
+cmd $FIX/kinds.rsc convert -o $TMP/a.rsh
+rc 1
+out
+err
+|rcs-cli: convert: $TMP/a.rsh: output format not supported yet
+
+=== convert-toobig
+cmd $FIX/deep.rsc convert -o $TMP/deep.rsc
+rc 1
+out
+err
+|rcs-cli: convert: classic part exceeds 65535 bytes at offset 0xfffc
+
+=== convert-upper
+cmd $FIX/kinds.rsc -c 'convert -o $TMP/A.RSC' -c 'ls /.images'
+out
+|LOGO
+|#1

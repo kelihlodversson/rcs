@@ -1,0 +1,245 @@
+=== disc-d1
+cmd $FIX/disc/d1/x.rsc ls -l
+out
+|#0     DFNLOW       DIAL  1
+|-      .strings     DIR   0
+|-      .images      DIR   0
+
+=== disc-d10
+cmd $FIX/disc/d10/Mixed.RSC ls -l
+out
+|#0     MIXED        DIAL  1
+|-      .strings     DIR   0
+|-      .images      DIR   0
+
+=== disc-d11
+cmd $FIX/disc/d11/x.rsc ls -l
+out
+|#0     DEFLOW       DIAL  1
+|-      .strings     DIR   0
+|-      .images      DIR   0
+
+=== disc-d2
+cmd $FIX/disc/d2/x.rsc ls -l
+out
+|#0     DFNUP        DIAL  1
+|-      .strings     DIR   0
+|-      .images      DIR   0
+
+=== disc-d3
+cmd $FIX/disc/d3/x.rsc ls -l
+out
+|#0     DFNUP        DIAL  1
+|-      .strings     DIR   0
+|-      .images      DIR   0
+
+=== disc-d4
+cmd $FIX/disc/d4/x.rsc ls -l
+out
+|#0     DEFUP        DIAL  1
+|-      .strings     DIR   0
+|-      .images      DIR   0
+
+=== disc-d5
+cmd $FIX/disc/d5/x.rsc ls -l
+out
+|#0     RSDUP        DIAL  1
+|-      .strings     DIR   0
+|-      .images      DIR   0
+
+=== disc-d6
+cmd $FIX/disc/d6/x.rsc ls -l
+out
+|#0     HRDUP        DIAL  1
+|-      .strings     DIR   0
+|-      .images      DIR   0
+
+=== disc-d7
+cmd $FIX/disc/d7/x.rsc ls -l
+out
+|#0     HRDLOW       DIAL  1
+|-      .strings     DIR   0
+|-      .images      DIR   0
+
+=== disc-d8
+cmd $FIX/disc/d8/noext ls -l
+out
+|#0     DFNLOW       DIAL  1
+|-      .strings     DIR   0
+|-      .images      DIR   0
+
+=== disc-d9
+cmd $FIX/disc/d9/x.rsc ls -l
+rc 1
+out
+err
+|rcs-cli: $FIX/disc/d9/x.def: names file truncated at offset 0x4
+
+=== disc-nonames
+cmd --no-names $FIX/disc/d1/x.rsc ls -l
+out
+|#0     PANEL1       PANL~ 1
+|-      .strings     DIR   0
+|-      .images      DIR   0
+
+=== names-and-nonames
+cmd --names $FIX/kinds.dfn --no-names $FIX/kinds.rsc ls
+rc 1
+out
+err
+|rcs-cli: --names and --no-names exclude each other
+
+=== names-bad-dfn
+cmd --names $FIX/bad.dfn $FIX/kinds.rsc ls
+rc 1
+out
+err
+|rcs-cli: $FIX/bad.dfn: names file shorter than its count at offset 0x3
+
+=== names-bad-ext
+cmd --names $FIX/names.txt $FIX/kinds.rsc ls
+rc 1
+out
+err
+|rcs-cli: $FIX/names.txt: unknown names file extension at offset 0x0
+
+=== names-bad-hrd
+cmd --names $FIX/bad.hrd $FIX/kinds.rsc ls
+rc 1
+out
+err
+|rcs-cli: $FIX/bad.hrd: name without NUL at offset 0xe
+
+=== names-def
+cmd --names $FIX/kinds.def $FIX/kinds.rsc ls /DIALOG
+out
+|Title
+|TITLE
+|#3
+|#4
+|BUTTONS
+|BOXCHAR
+|#9
+|F\x9b\xe4
+|EDIT
+|ICON
+|dup
+|CICON
+|#15
+|#16
+|#17
+|#18
+|#19
+
+=== names-drop
+cmd --names $FIX/drop.dfn $FIX/kinds.rsc ls
+out
+|DIALOG
+|MENU2
+|PANEL3
+|TREE4
+|PANEL5
+|PANEL6
+|PANEL7
+|.strings
+|.images
+err
+|rcs-cli: warning: 3 name entries do not match the resource and were ignored
+
+=== names-eq
+cmd --names=$FIX/kinds.dfn $FIX/kinds.rsc ls
+out
+|DIALOG
+|MAINMENU
+|PANEL3
+|TREE4
+|BIG
+|#5
+|UNREACH
+|.strings
+|.images
+
+=== names-hrd
+cmd --names $FIX/kinds.hrd $FIX/kinds.rsc ls -l /DIALOG
+out
+|#1     Title        G_TEXT     - - 3+4,3-2,10,1
+|#2     TITLE        G_BOXTEXT  - - 0,0,0,0
+|#3     DUP          G_IMAGE    - - 0,0,0,0
+|#4     DUP          G_PROGDEF  - - 0,0,0,0
+|#5     BUTTONS      G_IBOX     - - 0,0,0,0
+|#8     BOXCHAR      G_BOXCHAR  - - 0,0,0,0
+|#9     #3           G_STRING   - - 0,0,0,0
+|#10    F\x9b\xe4    G_FTEXT    - - 0,0,0,0
+|#11    EDIT         G_FBOXTEXT EDITABLE - 0,0,0,0
+|#12    ICON         G_ICON     - - 0,0,0,0
+|#13    dup          G_TITLE    - - 0,0,0,0
+|#14    CICON        G_CICON    - - 0,0,0,0
+|#15    -            0x50       - - 0,0,0,0
+|#16    -            G_BUTTON:17 FL3DACT,0x2800 CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0 0,0,0,0
+|#17    -            G_STRING   RBUTTON,TOUCHEXIT,HIDETREE,INDIRECT - 0,0,0,0
+|#18    MY\x20BOX\xe4 G_BOX      FL3DIND - 0,0,0,0
+|#19    A_LONG_NAME_16CH G_BOX      LASTOB,FL3DBAK - 255+128,0-127,1+1,0-1
+
+=== names-hrd-big
+cmd --names $FIX/kinds.hrd $FIX/kinds.rsc stat /BIG/ITEM300
+out
+|path: /BIG/ITEM300
+|tree: 4
+|index: 320
+|name: ITEM300
+|reachable: yes
+|parent: 305
+|children: 0
+|next: 305
+|head: -1
+|tail: -1
+|type: 0x001C G_STRING
+|flags: 0x0020 LASTOB
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "item 299"
+
+=== names-hrd-space
+cmd --names $FIX/kinds.hrd $FIX/kinds.rsc stat /DIALOG/#18
+out
+|path: /DIALOG/MY\x20BOX\xe4
+|tree: 0
+|index: 18
+|name: MY\x20BOX\xe4
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 19
+|head: -1
+|tail: -1
+|type: 0x0014 G_BOX
+|flags: 0x0200 FL3DIND
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|spec: 0x00FF1100
+|frame: -1
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+
+=== names-missing
+cmd --names $FIX/nosuch.dfn $FIX/kinds.rsc ls
+rc 1
+out
+err
+|rcs-cli: $FIX/nosuch.dfn: cannot open: No such file or directory
+
+=== names-noarg
+cmd --names
+rc 1
+out
+err
+|rcs-cli: --names needs a FILE

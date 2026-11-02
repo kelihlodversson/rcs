@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/CICON text=abcdefghijkl' -c 'cat /DIALOG/CICON'

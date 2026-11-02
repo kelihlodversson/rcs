@@ -1,0 +1,335 @@
+=== mkdir-alert
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mkdir WARN --type alert' -c 'ls -l /.strings' -c 'stat /.strings/WARN'
+out
+|#0     HELLO           12 -     "Hello, world"
+|#1     ALERT1          37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+|#2     ASK             21 ALERT "[2][Question][Yes|No]"
+|#3     -               19 -     "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|#4     -              100 -     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+|#5     WARN            13 ALERT "[1][text][OK]"
+|path: /.strings/WARN
+|index: 5
+|name: WARN
+|length: 13
+|text: "[1][text][OK]"
+|alert: yes
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13288 bytes, and the names to $FIX/kinds.dfn)
+
+=== mkdir-alert-exists
+cmd --selfcheck -n $FIX/kinds.rsc mkdir HELLO --type alert
+rc 1
+out
+err
+|rcs-cli: mkdir: the name 'HELLO' is used by free string #0 already
+
+=== mkdir-bad-type
+cmd --selfcheck -n $FIX/kinds.rsc mkdir X --type window
+rc 1
+out
+err
+|rcs-cli: mkdir: bad type 'window' (dialog, menu, panel or alert)
+
+=== mkdir-ctl
+cmd --selfcheck -n $FIX/kinds.rsc mkdir "$(printf 'a\tb')"
+rc 1
+out
+err
+|rcs-cli: mkdir: 'a\tb': a name cannot contain a control character
+
+=== mkdir-dialog
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mkdir NEW' -c 'ls -l /' -c 'stat /NEW' -c 'stat /NEW/#0'
+out
+|#0     DIALOG       DIAL  20
+|#1     MAINMENU     MENU  9
+|#2     PANEL3       PANL~ 2
+|#3     TREE4        UNKN~ 1
+|#4     BIG          PANL  321
+|#5     .images      UNKN  2
+|#6     UNREACH      DIAL  4
+|#7     NEW          DIAL  1
+|-      .strings     DIR   5
+|-      .images      DIR   2
+|path: /NEW
+|kind: DIAL
+|kind-source: file
+|name: NEW
+|index: 7
+|objects: 1
+|root-children: 0
+|path: /NEW/#0
+|tree: 7
+|index: 0
+|name: -
+|reachable: yes
+|parent: -
+|children: 0
+|next: -1
+|head: -1
+|tail: -1
+|type: 0x0014 G_BOX
+|flags: 0x0020 LASTOB
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 32
+|h: 8
+|spec: 0x00021100
+|frame: 2
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13298 bytes, and the names to $FIX/kinds.dfn)
+
+=== mkdir-empty-file
+cmd --selfcheck -n --no-guess --no-names $FIX/disc/d1/x.rsc -c 'mkdir A' -c 'mkdir B --type menu' -c 'ls -lR'
+out
+|/:
+|#0     -            UNKN  1
+|#1     A            DIAL  1
+|#2     B            MENU  7
+|-      .strings     DIR   0
+|-      .images      DIR   0
+|
+|/#0:
+|
+|/A:
+|
+|/B:
+|#1     -            G_BOX      - - 0,0,80,1
+|#4     -            G_IBOX     - - 0,1,80,24
+|
+|/B/#1:
+|#2     -            G_IBOX     - - 2,0,7,1
+|
+|/B/#2:
+|#3     -            G_TITLE    - - 0,0,7,1
+|
+|/B/#4:
+|#5     -            G_BOX      - - 2,0,14,1
+|
+|/B/#5:
+|#6     -            G_STRING   LASTOB - 0,0,14,1
+|
+|/.strings:
+|
+|/.images:
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/disc/d1/x.rsc, 282 bytes)
+
+=== mkdir-exists
+cmd --selfcheck -n $FIX/kinds.rsc mkdir dialog
+rc 1
+out
+err
+|rcs-cli: mkdir: the name 'dialog' is used by tree #0 already
+
+=== mkdir-index-name
+cmd --selfcheck -n $FIX/kinds.rsc mkdir '#12'
+rc 1
+out
+err
+|rcs-cli: mkdir: '#12': a name that is # and digits is an index, not a name
+
+=== mkdir-long
+cmd --selfcheck -n $FIX/kinds.rsc mkdir ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
+rc 1
+out
+err
+|rcs-cli: mkdir: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789': a name has at most 32 bytes
+
+=== mkdir-menu
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mkdir MENU2 --type menu' -c 'tree /MENU2' -c 'stat /MENU2'
+out
+|/MENU2
+||-- #1 - G_BOX - -
+||   `-- #2 - G_IBOX - -
+||       `-- #3 - G_TITLE - -
+|`-- #4 - G_IBOX - -
+|    `-- #5 - G_BOX - -
+|        `-- #6 - G_STRING LASTOB -
+|path: /MENU2
+|kind: MENU
+|kind-source: file
+|name: MENU2
+|index: 7
+|objects: 7
+|root-children: 2
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13460 bytes, and the names to $FIX/kinds.dfn)
+
+=== mkdir-menu-stat
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mkdir MENU2 --type menu' -c 'stat /MENU2/#5' -c 'stat /MENU2/#3'
+out
+|path: /MENU2/#5
+|tree: 7
+|index: 5
+|name: -
+|reachable: yes
+|parent: 4
+|children: 1
+|next: 4
+|head: 6
+|tail: 6
+|type: 0x0014 G_BOX
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 2
+|y: 0
+|w: 14
+|h: 1
+|spec: 0x00FF1100
+|frame: -1
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+|path: /MENU2/#3
+|tree: 7
+|index: 3
+|name: -
+|reachable: yes
+|parent: 2
+|children: 0
+|next: 2
+|head: -1
+|tail: -1
+|type: 0x0020 G_TITLE
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 7
+|h: 1
+|text: " Title "
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13460 bytes, and the names to $FIX/kinds.dfn)
+
+=== mkdir-missing
+cmd --selfcheck -n $FIX/kinds.rsc mkdir
+rc 1
+out
+err
+|rcs-cli: mkdir: missing NAME
+
+=== mkdir-option
+cmd --selfcheck -n $FIX/kinds.rsc mkdir -x A
+rc 1
+out
+err
+|rcs-cli: mkdir: unknown option '-x'
+
+=== mkdir-panel
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mkdir --type panel P1' -c 'stat /P1' -c 'stat /P1/#0'
+out
+|path: /P1
+|kind: PANL
+|kind-source: file
+|name: P1
+|index: 7
+|objects: 1
+|root-children: 0
+|path: /P1/#0
+|tree: 7
+|index: 0
+|name: -
+|reachable: yes
+|parent: -
+|children: 0
+|next: -1
+|head: -1
+|tail: -1
+|type: 0x0014 G_BOX
+|flags: 0x0020 LASTOB
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 32
+|h: 8
+|spec: 0x00001100
+|frame: 0
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13298 bytes, and the names to $FIX/kinds.dfn)
+
+=== mkdir-pixels
+cmd --selfcheck -n --pixels $FIX/kinds.rsc -c 'mkdir NEW' -c 'stat /NEW/#0'
+out
+|path: /NEW/#0
+|tree: 7
+|index: 0
+|name: -
+|reachable: yes
+|parent: -
+|children: 0
+|next: -1
+|head: -1
+|tail: -1
+|type: 0x0014 G_BOX
+|flags: 0x0020 LASTOB
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 256
+|h: 128
+|spec: 0x00021100
+|frame: 2
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13298 bytes, and the names to $FIX/kinds.dfn)
+
+=== mkdir-reserved
+cmd --selfcheck -n $FIX/kinds.rsc mkdir .Strings
+rc 1
+out
+err
+|rcs-cli: mkdir: '.Strings': that name is reserved
+
+=== mkdir-slash
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mkdir /NEW2' -c 'ls /'
+out
+|DIALOG
+|MAINMENU
+|PANEL3
+|TREE4
+|BIG
+|#5
+|UNREACH
+|NEW2
+|.strings
+|.images
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13298 bytes, and the names to $FIX/kinds.dfn)
+
+=== mkdir-slash-inside
+cmd --selfcheck -n $FIX/kinds.rsc mkdir a/b
+rc 1
+out
+err
+|rcs-cli: mkdir: 'a/b': a name cannot contain /
+
+=== mkdir-too-many
+cmd --selfcheck -n $FIX/kinds.rsc mkdir A B
+rc 1
+out
+err
+|rcs-cli: mkdir: too many arguments
+
+=== mkdir-type-missing
+cmd --selfcheck -n $FIX/kinds.rsc mkdir X --type
+rc 1
+out
+err
+|rcs-cli: mkdir: --type needs dialog, menu, panel or alert

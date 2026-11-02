@@ -1,1 +1,0 @@
---selfcheck -n --no-guess $FIX/kinds.rsc -c 'cp -r /#2 /' -c 'ls -l /'

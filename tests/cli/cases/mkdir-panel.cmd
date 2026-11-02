@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'mkdir --type panel P1' -c 'stat /P1' -c 'stat /P1/#0'

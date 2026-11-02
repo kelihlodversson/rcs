@@ -1,1 +1,0 @@
--n -o $TMP/x.rsc $FIX/kinds.rsc ls /

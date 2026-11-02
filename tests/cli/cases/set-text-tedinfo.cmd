@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT text=hello' -c 'stat /DIALOG/EDIT'

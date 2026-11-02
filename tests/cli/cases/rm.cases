@@ -1,0 +1,236 @@
+=== rm-compacts-unreachable
+cmd --selfcheck -n $FIX/kinds-lost.rsc -c 'rm /UNREACH/#1' -c 'ls -l /UNREACH'
+out
+|#1     C            G_STRING   LASTOB - 0,0,0,0
+err
+|rcs-cli: note: rm: 1 object of /UNREACH was renumbered (from #3 on)
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds-lost.rsc, 13218 bytes, and the names to $FIX/kinds-lost.dfn)
+
+=== rm-dir
+cmd --selfcheck -n $FIX/kinds.rsc rm -r /.strings
+rc 1
+out
+err
+|rcs-cli: rm: /.strings: cannot be removed (remove its entries)
+
+=== rm-icon-entry
+cmd --selfcheck -n $FIX/kinds.rsc rm /DIALOG/CICON/mono
+rc 1
+out
+err
+|rcs-cli: rm: /DIALOG/CICON/mono: colour icon entries cannot be removed yet
+
+=== rm-img
+cmd --selfcheck -n $FIX/kinds.rsc -c 'rm /.images/LOGO' -c 'ls -l /.images'
+out
+|#0     -            24x4
+err
+|rcs-cli: note: rm: 1 free image was renumbered (from #0 on)
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13236 bytes, and the names to $FIX/kinds.dfn)
+
+=== rm-missing
+cmd --selfcheck -n $FIX/kinds.rsc rm
+rc 1
+out
+err
+|rcs-cli: rm: missing PATH
+
+=== rm-notfound
+cmd --selfcheck -n $FIX/kinds.rsc rm /NOSUCH
+rc 1
+out
+err
+|rcs-cli: rm: not found: 'NOSUCH' in /
+
+=== rm-obj
+cmd --selfcheck -n $FIX/kinds.rsc -c 'rm /DIALOG/#1' -c 'ls -l /DIALOG/BUTTONS' -c 'ls -l /' 
+out
+|#5     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 0,0,0,0
+|#6     CANCEL       G_BUTTON   SELECTABLE,EXIT SELECTED 0,0,0,0
+|#0     DIALOG       DIAL  19
+|#1     MAINMENU     MENU  9
+|#2     PANEL3       PANL~ 2
+|#3     TREE4        UNKN~ 1
+|#4     BIG          PANL  321
+|#5     .images      UNKN  2
+|#6     UNREACH      DIAL  4
+|-      .strings     DIR   5
+|-      .images      DIR   2
+err
+|rcs-cli: note: rm: 18 objects of /DIALOG were renumbered (from #2 on)
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13198 bytes, and the names to $FIX/kinds.dfn)
+
+=== rm-obj-cicon
+cmd --selfcheck -n $FIX/kinds.rsc -c 'rm /DIALOG/CICON' -c 'ls /DIALOG'
+out
+|Title
+|TITLE
+|#3
+|#4
+|BUTTONS
+|BOXCHAR
+|#9
+|F\x9b\xe4
+|EDIT
+|ICON
+|dup
+|#14
+|#15
+|#16
+|#17
+|#18
+err
+|rcs-cli: note: rm: 5 objects of /DIALOG were renumbered (from #15 on)
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 12118 bytes, and the names to $FIX/kinds.dfn)
+
+=== rm-obj-dir-R
+cmd --selfcheck -n $FIX/kinds.rsc -c 'rm -r /DIALOG/BUTTONS' -c 'tree /DIALOG'
+out
+|/DIALOG
+||-- #1 Title G_TEXT - -
+||-- #2 TITLE G_BOXTEXT - -
+||-- #3 DUP G_IMAGE - -
+||-- #4 DUP G_PROGDEF - -
+||-- #5 BOXCHAR G_BOXCHAR - -
+||-- #6 #3 G_STRING - -
+||-- #7 F\x9b\xe4 G_FTEXT - -
+||-- #8 EDIT G_FBOXTEXT EDITABLE -
+||-- #9 ICON G_ICON - -
+||-- #10 dup G_TITLE - -
+||-- #11 CICON G_CICON - -
+||   |-- mono 1 no
+||   |-- 4 4 no
+||   |-- 4.sel 4 yes
+||   |-- 8 8 no
+||   |-- 4#2 4 no
+||   `-- 4#2.sel 4 yes
+||-- #12 - 0x50 - -
+||-- #13 - G_BUTTON:17 FL3DACT,0x2800 CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0
+||-- #14 - G_STRING RBUTTON,TOUCHEXIT,HIDETREE,INDIRECT -
+||-- #15 - G_BOX FL3DIND -
+|`-- #16 - G_BOX LASTOB,FL3DBAK -
+err
+|rcs-cli: note: rm: 12 objects of /DIALOG were renumbered (from #8 on)
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13188 bytes, and the names to $FIX/kinds.dfn)
+
+=== rm-obj-dir-noR
+cmd --selfcheck -n $FIX/kinds.rsc rm /DIALOG/BUTTONS
+rc 1
+out
+err
+|rcs-cli: rm: /DIALOG/BUTTONS: is a directory (use -r)
+
+=== rm-obj-last
+cmd --selfcheck -n $FIX/kinds.rsc -c 'rm /DIALOG/#19' -c 'ls -l /DIALOG/#18'
+out
+|#18    -            G_BOX      LASTOB,FL3DIND - 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13246 bytes, and the names to $FIX/kinds.dfn)
+
+=== rm-obj-one-child-noR
+cmd --selfcheck -n $FIX/kinds.rsc rm /MAINMENU/#1
+rc 1
+out
+err
+|rcs-cli: rm: /MAINMENU/#1: is a directory (use -r)
+
+=== rm-obj-root
+cmd --selfcheck -n $FIX/kinds.rsc rm /DIALOG/#0
+rc 1
+out
+err
+|rcs-cli: rm: /DIALOG/#0: the root of a tree cannot be removed (remove the tree: rm -r /TREE)
+
+=== rm-obj-unreachable
+cmd --selfcheck -n $FIX/kinds-lost.rsc rm /UNREACH/LOST
+rc 1
+out
+err
+|rcs-cli: rm: /UNREACH/LOST: not reachable from the root of its tree (a write drops it)
+
+=== rm-option
+cmd --selfcheck -n $FIX/kinds.rsc rm -f /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: rm: unknown option '-f'
+
+=== rm-root
+cmd --selfcheck -n $FIX/kinds.rsc rm -r /
+rc 1
+out
+err
+|rcs-cli: rm: /: the root cannot be removed
+
+=== rm-second
+cmd --selfcheck -n $FIX/kinds.rsc rm $ROOT/tests/golden/cicon.rsc:/PANEL1
+rc 1
+out
+err
+|rcs-cli: rm: $ROOT/tests/golden/cicon.rsc:/PANEL1: a second file is read-only
+
+=== rm-str
+cmd --selfcheck -n $FIX/kinds.rsc -c 'rm /.strings/HELLO' -c 'ls -l /.strings'
+out
+|#0     ALERT1          37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+|#1     ASK             21 ALERT "[2][Question][Yes|No]"
+|#2     -               19 -     "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|#3     -              100 -     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+err
+|rcs-cli: note: rm: 4 free strings were renumbered (from #0 on)
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13254 bytes, and the names to $FIX/kinds.dfn)
+
+=== rm-str-last
+cmd --selfcheck -n $FIX/kinds.rsc -c 'rm /.strings/#4' -c 'ls /.strings'
+out
+|HELLO
+|ALERT1
+|ASK
+|#3
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13166 bytes, and the names to $FIX/kinds.dfn)
+
+=== rm-too-many
+cmd --selfcheck -n $FIX/kinds.rsc rm /a /b
+rc 1
+out
+err
+|rcs-cli: rm: too many arguments
+
+=== rm-tree-R
+cmd --selfcheck -n $FIX/kinds.rsc -c 'rm -r /MAINMENU' -c 'ls -l /' -c 'ls /DIALOG/BUTTONS'
+out
+|#0     DIALOG       DIAL  20
+|#1     PANEL3       PANL~ 2
+|#2     TREE4        UNKN~ 1
+|#3     BIG          PANL  321
+|#4     .images      UNKN  2
+|#5     UNREACH      DIAL  4
+|-      .strings     DIR   5
+|-      .images      DIR   2
+|OK
+|CANCEL
+err
+|rcs-cli: note: rm: 5 trees were renumbered (from #1 on)
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13014 bytes, and the names to $FIX/kinds.dfn)
+
+=== rm-tree-last
+cmd --selfcheck -n $FIX/kinds.rsc -c 'rm -r /UNREACH' -c 'ls -l /'
+out
+|#0     DIALOG       DIAL  20
+|#1     MAINMENU     MENU  9
+|#2     PANEL3       PANL~ 2
+|#3     TREE4        UNKN~ 1
+|#4     BIG          PANL  321
+|#5     .images      UNKN  2
+|-      .strings     DIR   5
+|-      .images      DIR   2
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13164 bytes, and the names to $FIX/kinds.dfn)
+
+=== rm-tree-noR
+cmd --selfcheck -n $FIX/kinds.rsc rm /DIALOG
+rc 1
+out
+err
+|rcs-cli: rm: /DIALOG: is a directory (use -r)

@@ -1,1 +1,0 @@
---selfcheck -n --pixels $FIX/kinds.rsc -c 'set /DIALOG/OK x=30 y=-5 w=100 h=16' -c 'ls -l /DIALOG/BUTTONS'

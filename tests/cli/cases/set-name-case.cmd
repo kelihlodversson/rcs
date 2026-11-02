@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK name=ok' -c 'ls /DIALOG/BUTTONS'

@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc touch $ROOT/tests/golden/cicon.rsc:/PANEL1/x

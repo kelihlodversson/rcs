@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'ls $ROOT/tests/golden/cicon.rsc:/' -c 'cat $ROOT/tests/golden/cicon.rsc:/PANEL1/#1' -c 'stat $ROOT/tests/golden/cicon.rsc:/PANEL1'

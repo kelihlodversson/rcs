@@ -1,1 +1,0 @@
-rcs-cli: mv: $ROOT/tests/golden/cicon.rsc:/PANEL1: a second file is read-only, so nothing can be moved out of it (use cp)

@@ -1,1 +1,0 @@
---selfcheck -n --pixels $FIX/kinds.rsc -c 'mkdir NEW' -c 'stat /NEW/#0'

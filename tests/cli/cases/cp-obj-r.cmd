@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'cp -r /DIALOG/BUTTONS /DIALOG/B2' -c 'tree /DIALOG/B2'

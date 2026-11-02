@@ -1,7 +1,0 @@
-/PANEL3:
-#1     -            G_STRING   - - 0,0,0,0
-#2     B2           G_IBOX     - - 0,0,0,0
-
-/PANEL3/B2:
-#3     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 0,0,0,0
-#4     CANCEL       G_BUTTON   SELECTABLE,EXIT,LASTOB SELECTED 0,0,0,0

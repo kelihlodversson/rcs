@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc set /DIALOG/OK w=3+129

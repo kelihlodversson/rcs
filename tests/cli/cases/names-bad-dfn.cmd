@@ -1,1 +1,0 @@
---names $FIX/bad.dfn $FIX/kinds.rsc ls

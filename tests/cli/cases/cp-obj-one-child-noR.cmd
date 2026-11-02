@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc cp /MAINMENU/#1 /PANEL3/X

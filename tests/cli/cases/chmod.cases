@@ -1,0 +1,225 @@
+=== chmod-3d
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod +FL3DACT,rbutton /PANEL3/#1' -c 'ls -l /PANEL3'
+out
+|#1     -            G_STRING   RBUTTON,LASTOB,FL3DACT - 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-add
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod +SELECTABLE,EXIT /PANEL3/#1' -c 'ls -l /PANEL3'
+out
+|#1     -            G_STRING   SELECTABLE,EXIT,LASTOB - 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-bad-mode
+cmd --selfcheck -n $FIX/kinds.rsc chmod EXIT /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: chmod: bad mode 'EXIT' (+NAME, -NAME or =NAME,... )
+
+=== chmod-empty-name
+cmd --selfcheck -n $FIX/kinds.rsc chmod +EXIT, /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: chmod: bad mode '+EXIT,' (empty name)
+
+=== chmod-eq
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod =OF_EDITABLE,of_touchexit /DIALOG/OK' -c 'ls -l /DIALOG/OK'
+out
+|#6     OK           G_BUTTON   EDITABLE,TOUCHEXIT - 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-eq-empty
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod = /DIALOG/OK' -c 'ls -l /DIALOG/OK'
+out
+|#6     OK           G_BUTTON   - - 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-eq-keeps-lastob
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod =SELECTABLE /DIALOG/#19' -c 'ls -l /DIALOG/#19'
+out
+|#19    -            G_BOX      SELECTABLE,LASTOB - 255+128,0-127,1+1,0-1
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-escape
+cmd --selfcheck -n $FIX/kinds.rsc chmod "+$(printf 'a\033b')" /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: chmod: unknown flag 'a\x1bb'
+
+=== chmod-flag-as-state
+cmd --selfcheck -n $FIX/kinds.rsc chmod --state +EXIT /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: chmod: unknown state 'EXIT'
+
+=== chmod-indirect
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod +INDIRECT /DIALOG/OK' -c 'stat /DIALOG/OK'
+out
+|path: /DIALOG/OK
+|tree: 0
+|index: 6
+|name: OK
+|reachable: yes
+|parent: 5
+|children: 0
+|next: 7
+|head: -1
+|tail: -1
+|type: 0x001A G_BUTTON
+|flags: 0x0107 SELECTABLE,DEFAULT,EXIT,INDIRECT
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|spec: 0x00000000
+err
+|rcs-cli: note: chmod: INDIRECT changed the kind of the spec: the old spec was released
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13268 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-indirect-off
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod -INDIRECT /DIALOG/#17' -c 'stat /DIALOG/#17'
+out
+|path: /DIALOG/#17
+|tree: 0
+|index: 17
+|name: -
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 18
+|head: -1
+|tail: -1
+|type: 0x001C G_STRING
+|flags: 0x00D0 RBUTTON,TOUCHEXIT,HIDETREE
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: -
+err
+|rcs-cli: note: chmod: INDIRECT changed the kind of the spec: the old spec was released
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-lastob
+cmd --selfcheck -n $FIX/kinds.rsc chmod +LASTOB /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: chmod: LASTOB is kept by the library and cannot be changed
+
+=== chmod-lastob-minus
+cmd --selfcheck -n $FIX/kinds.rsc chmod -OF_LASTOB /DIALOG/#19
+rc 1
+out
+err
+|rcs-cli: chmod: LASTOB is kept by the library and cannot be changed
+
+=== chmod-long-word
+cmd --selfcheck -n $FIX/kinds.rsc chmod +ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: chmod: unknown flag 'ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMN'
+
+=== chmod-no-names
+cmd --selfcheck -n $FIX/kinds.rsc chmod + /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: chmod: bad mode '+' (no names)
+
+=== chmod-not-object
+cmd --selfcheck -n $FIX/kinds.rsc chmod +EXIT /DIALOG
+rc 1
+out
+err
+|rcs-cli: chmod: /DIALOG: not an object
+
+=== chmod-notfound
+cmd --selfcheck -n $FIX/kinds.rsc chmod +EXIT /DIALOG/NOSUCH
+rc 1
+out
+err
+|rcs-cli: chmod: not found: 'NOSUCH' in /DIALOG
+
+=== chmod-ordered
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod =SELECTABLE +EXIT -SELECTABLE /DIALOG/OK' -c 'ls -l /DIALOG/OK'
+out
+|#6     OK           G_BUTTON   EXIT - 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-second
+cmd --selfcheck -n $FIX/kinds.rsc chmod +EXIT $ROOT/tests/golden/cicon.rsc:/PANEL1/#1
+rc 1
+out
+err
+|rcs-cli: chmod: $ROOT/tests/golden/cicon.rsc:/PANEL1/#1: a second file is read-only
+
+=== chmod-state
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod --state +SELECTED,os_checked /DIALOG/OK' -c 'ls -l /DIALOG/OK'
+out
+|#6     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT SELECTED,CHECKED 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-state-as-flag
+cmd --selfcheck -n $FIX/kinds.rsc chmod +SELECTED /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: chmod: unknown flag 'SELECTED'
+
+=== chmod-state-eq
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod --state =shadowed /DIALOG/CANCEL' -c 'ls -l /DIALOG/CANCEL'
+out
+|#7     CANCEL       G_BUTTON   SELECTABLE,EXIT SHADOWED 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-state-sub
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod --state -SELECTED /DIALOG/CANCEL' -c 'ls -l /DIALOG/CANCEL'
+out
+|#7     CANCEL       G_BUTTON   SELECTABLE,EXIT - 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-sub
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod -default,exit /DIALOG/OK' -c 'ls -l /DIALOG/BUTTONS'
+out
+|#6     OK           G_BUTTON   SELECTABLE - 0,0,0,0
+|#7     CANCEL       G_BUTTON   SELECTABLE,EXIT SELECTED 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-sub-two
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod -DEFAULT -EXIT /DIALOG/OK' -c 'ls -l /DIALOG/OK'
+out
+|#6     OK           G_BUTTON   SELECTABLE - 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== chmod-unknown
+cmd --selfcheck -n $FIX/kinds.rsc chmod +NOSUCH /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: chmod: unknown flag 'NOSUCH'
+
+=== chmod-usage
+cmd --selfcheck -n $FIX/kinds.rsc chmod /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: chmod: usage: chmod [--state] [+-=]NAME[,NAME...]... PATH

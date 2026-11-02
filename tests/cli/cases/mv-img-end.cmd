@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'mv /.images/#0 /.images' -c 'ls -l /.images'

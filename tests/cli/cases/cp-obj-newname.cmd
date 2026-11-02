@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'cp /DIALOG/OK /DIALOG/OK2' -c 'ls -l /DIALOG/OK2' -c 'stat /DIALOG/OK2'

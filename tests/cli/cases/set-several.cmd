@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK text=Done x=1 name=FINE type=G_STRING' -c 'ls -l /DIALOG/FINE' -c 'cat /DIALOG/FINE'

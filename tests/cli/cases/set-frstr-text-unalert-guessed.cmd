@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'set /.strings/#1 text=plain' -c 'ls -l /.strings'
