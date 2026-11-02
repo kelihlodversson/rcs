@@ -208,7 +208,7 @@ build/host/roundtrip: $(HOST_SRC) $(wildcard src/*.h src/host/*.h src/host/mint/
 # reader tests read the files of tests/golden.
 
 RSC_SAN        =
-RSC_TESTS      = test_rsc test_read test_write
+RSC_TESTS      = test_rsc test_read test_write test_names
 RSC_TEST_FLAGS = -std=gnu99 -fno-strict-aliasing -Wall -Wextra -DRSC_HOST -DRSC_TEST \
                  -Isrc/rsc -g
 ifeq ($(RSC_SAN),1)
