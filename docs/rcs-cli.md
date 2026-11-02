@@ -331,7 +331,9 @@ The edit commands change the model in memory; the file is written at the end
 anything, so a command that fails leaves the model as it was (`--selfcheck`
 verifies that in the tests; the exceptions are a failed allocation and a name
 list that is full after a copy, which end the run anyway, and nothing is
-written then). The commands read what the edit commands before them in the
+written then. The undo of a copy or move that fails half way drops the
+unreachable objects of the target tree too, as `rsc_tree_compact` does; the
+writer would drop them anyway). The commands read what the edit commands before them in the
 same `-c` sequence did: `-c 'mkdir X' -c 'ls /X'` works.
 
 The edit commands are `cp`, `mv`, `rm`, `mkdir`, `touch`, `chmod`, `set`. `ls`,
@@ -340,8 +342,10 @@ The edit commands are `cp`, `mv`, `rm`, `mkdir`, `touch`, `chmod`, `set`. `ls`,
 ### A path in a second file: `FILE.rsc:/PATH`
 
 An argument of the form `FILE.rsc:/PATH` addresses a node in another resource
-file; FILE must end in `.rsc` (any case), so a main-file path such as `/a:/b`
-stays what it is. The second file is read with the options of the run
+file; FILE must end in `.rsc` (any case) **and name an existing regular file**,
+otherwise the whole argument is a path of the main file (so `/a.rsc:/b` is a
+path, and a mistyped file name gives the usual path error, `not found: 'dir' in
+/` or `bad path`). The second file is read with the options of the run
 (`--pixels`, `--no-names`, `--no-guess`; its name file is looked up next to it,
 `--names` is for the main file only), once, when it is first named, and is
 never written. It may be the main file itself (then it is the main file, with
@@ -495,8 +499,7 @@ menu, panel or alert)`, the name errors, `mkdir: cannot create the tree
 
 ### touch PATH [--type TYPE]
 
-If PATH exists: nothing (but this is an edit command, so the file is written;
-see below). Otherwise a new node named by the last component:
+If PATH exists: nothing (and the file is not written). Otherwise a new node named by the last component:
 
 - below a tree or a reachable object: an object, as last child of the parent
   (`/T/NEW` below the root, `/T/BOX/NEW` below BOX, also below an object that
@@ -571,8 +574,9 @@ and the name errors.
 ## Writing the result
 
 After the last command, when **all** commands succeeded and **an edit command
-ran** (also `touch` of a node that exists, a `chmod` that changed nothing: the
-file is then rewritten through the writer), the result is written. A command
+ran**, the result is written. `touch` of a node that exists, and a `chmod` or
+`set` that changes nothing (found by comparing the encoded resource and the
+names before and after), are not edits: they write nothing and make no `.dfn`. A command
 line without an edit command never writes (with `-o` it says so: `rcs-cli:
 note: no edit command ran: OUT was not written`). The first failing command
 ends the run with exit status 1 and nothing is written.
@@ -589,6 +593,14 @@ ends the run with exit status 1 and nothing is written.
    closed; the mode of an existing file is kept, a new file has the mode
    `fopen` gives). The target of the resource is the input file, or OUT with
    `-o`.
+   Before anything is written the encoded bytes are read back with
+   `rsc_atari_read` (`FILE: the library cannot read the result back (MESSAGE);
+   nothing was written`: possible for a colour icon extension that is dense in
+   versions, the reader's budget is smaller than the writer's limits), and a
+   target that exists must be writable (`FILE: not writable; nothing was
+   written`; `-n` does not mind). A symbolic link as the target stays a link:
+   the file it points to is replaced (also by `convert -o`); the mode of an
+   existing file is kept.
 4. If writing the resource fails after the names were written: a name file
    that was new is removed again (`; the new name file was removed`), one that
    replaced a file stays replaced (`; the name file had already been
@@ -620,6 +632,24 @@ format (`.def`, `.rsd`, `.hrd`) are converted. Where:
 
 A `.dfn` file with no entry is only written when the file is there already
 (the old file would be stale otherwise), never newly.
+
+The writer numbers the objects of every tree in preorder, whatever the order
+of the array in memory (a `cp`, `touch` or cross-tree `mv` appends to the array
+but links the object in the middle; `mv` within a tree keeps the indices).
+Before the names are written they are renumbered the same way
+(`rsc_tree_preorder`, `rsc_names_renumber`), so a name stays on its object when
+the file is read again; the objects no root reaches are not written and their
+names go. The `#N` numbers of one run therefore differ from those of the next
+run after such edits.
+
+When the `.dfn` that is replaced in place had entries that did not match the
+resource (the load-time warning says how many), a second warning says they are
+not written: `rcs-cli: warning: 3 entries of X.dfn that did not match the
+resource are not written (the file is replaced)`.
+
+The names are checked for the 8-byte limit of the `.dfn` only when the result
+is written, so `mkdir LONGERTHAN8` succeeds and the run fails at the end
+(`-n` shows it); nothing is written then.
 
 The `.DFN` format holds names of 8 bytes at most and object numbers up to
 255. Names that do not fit (`.hrd` names, objects behind 255) are not

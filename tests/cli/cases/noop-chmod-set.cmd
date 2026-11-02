@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'chmod +SELECTABLE /DIALOG/OK' -c 'set /DIALOG/OK text=OK x=0' -c 'chmod --state -SELECTED /DIALOG/OK'

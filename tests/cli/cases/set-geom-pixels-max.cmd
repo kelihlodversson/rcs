@@ -1,0 +1,1 @@
+--selfcheck -n --pixels $FIX/kinds.rsc -c 'set /DIALOG/OK x=2168 y=4208' -c 'ls -l /DIALOG/OK'

@@ -1,0 +1,42 @@
+path: /MENU2/#5
+tree: 7
+index: 5
+name: -
+reachable: yes
+parent: 4
+children: 1
+next: 4
+head: 6
+tail: 6
+type: 0x0014 G_BOX
+flags: 0x0000 -
+state: 0x0000 -
+x: 2
+y: 0
+w: 14
+h: 1
+spec: 0x00FF1100
+frame: -1
+frame-color: 1
+text-color: 1
+text-mode: transparent
+fill-pattern: 0
+fill-color: 0
+path: /MENU2/#3
+tree: 7
+index: 3
+name: -
+reachable: yes
+parent: 2
+children: 0
+next: 2
+head: -1
+tail: -1
+type: 0x0020 G_TITLE
+flags: 0x0000 -
+state: 0x0000 -
+x: 0
+y: 0
+w: 7
+h: 1
+text: " Title "

@@ -553,6 +553,34 @@ static void kinds_names_files(void)
 	put_file("names.txt", "DIALOG\n", 7);
 }
 
+/* ---- manyicons.rsc: 64 colour icons of 1 x 1 pixels with 32 versions each: it reads
+ * back (the reader's budget), but twice as many do not (the CLI checks that) */
+static void manyicons(void)
+{
+	struct rsc	*r = rsc_new();
+	ICONBLK		ib;
+	struct rsc_cicon	*c;
+	int		t, i, v, k;
+
+	check(r != NULL, "rsc_new");
+	t = rsc_tree_add(r, 1);
+	check(t == 0, "tree 0");
+	T(rsc_obj_set_type(r, t, 0, G_BOX));
+	for (i = 0; i < 64; i++)
+	{
+		k = add(r, t, 0, G_CICON);
+		memset(&ib, 0, sizeof ib);
+		ib.ib_wicon = 1;
+		ib.ib_hicon = 1;
+		T(rsc_obj_set_cicon(r, t, k, &ib, "I"));
+		c = rsc_obj_cicon(r, t, k);
+		check(c != NULL, "cicon");
+		for (v = 0; v < 32; v++)
+			check(rsc_cicon_add_version(c, 1 + v % 16, planes, planes, NULL, NULL) == v, "version");
+	}
+	write_rsc(r, "manyicons.rsc", NULL);
+}
+
 /* ---- the name file discovery ---------------------------------------------------- */
 
 static void small(const char *name)
@@ -839,6 +867,7 @@ int main(int argc, char **argv)
 	kinds_lost();
 	kinds_names_files();
 	discovery();
+	manyicons();
 	big("deep.rsc", RSC_MAX_OBJECTS, 1);
 	big("flat.rsc", 5000, 0);
 	big("huge.rsc", 20000, 0);

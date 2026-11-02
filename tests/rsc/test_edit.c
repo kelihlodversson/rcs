@@ -2557,6 +2557,37 @@ static void cmp_all(struct rsc *r, const struct nmodel *N, const struct rsc_name
 	CHECK(model_ok(r));
 }
 
+/* The writer numbers the objects of a tree in preorder: object order[k] of r
+ * (rsc_tree_preorder) is object k of the file read back, so a name follows
+ * the object when the names are renumbered with that map (what rcs-cli does
+ * before it writes a .DFN). */
+static void preorder_names_ok(const struct rsc *r, const struct rsc *r2)
+{
+	int	t, n, n2, k, cnt, *order;
+	const OBJECT	*o, *o2;
+
+	for (t = 0; t < rsc_ntrees(r); t++)
+	{
+		o = rsc_tree_objects(r, t, &n);
+		o2 = rsc_tree_objects(r2, t, &n2);
+		order = malloc((size_t)n * sizeof *order);
+		CHECK(order != NULL);
+		if (!order)
+			return;
+		cnt = rsc_tree_preorder(o, n, order);
+		CHECK(cnt == n2);
+		for (k = 0; k < cnt && k < n2; k++)
+		{
+			uint64_t	h1 = 14695981039346656037ULL, h2 = h1;
+
+			hash_obj(&h1, &o[order[k]], 0);
+			hash_obj(&h2, &o2[k], 0);
+			CHECK(h1 == h2);
+		}
+		free(order);
+	}
+}
+
 /* write, read, write again: a fixed point, and the names through a .DFN */
 static long	fuzz_writes, fuzz_name_bytes;
 
@@ -2583,6 +2614,7 @@ static void roundtrip(struct rsc *r, const struct nmodel *N, const struct rsc_na
 	{
 		CHECK(hash_shape(r2, 0) == hash_shape(r, 0));
 		CHECK(model_ok(r2));
+		preorder_names_ok(r, r2);
 		CHECK(rsc_atari_write(r2, 0, 0, &b2, &l2, &e) == 0);
 		CHECK(l1 == l2 && memcmp(b1, b2, l1) == 0);
 		rsc_mfree(b2);
@@ -2886,6 +2918,7 @@ static void fuzz_run(uint32_t seed, int iters, int verbose)
 				struct ntree	moved = NA->t[t];
 				int	to = pos < 0 ? NA->nt - 1 : pos;
 
+				fuzz_done[11]++;
 				CHECK(rsc_names_tree_moved(LA, t, to) == 0);
 				if (to > t)
 					memmove(&NA->t[t], &NA->t[t + 1], (size_t)(to - t) * sizeof NA->t[0]);
@@ -3087,6 +3120,7 @@ static void fuzz_run(uint32_t seed, int iters, int verbose)
 				inj_end();
 				CHECK(rc == -1);
 				CHECK(hash_rsc(A) == j.h && live() == j.lv);
+				fuzz_done[16]++;
 			}
 			break;
 		}

@@ -1,2 +1,2 @@
-rcs-cli: note: rm: 1 objects of /UNREACH were renumbered (from #3 on)
+rcs-cli: note: rm: 1 object of /UNREACH was renumbered (from #3 on)
 rcs-cli: note: dry run: nothing written (would write $FIX/kinds-lost.rsc, 13218 bytes, and the names to $FIX/kinds-lost.dfn)

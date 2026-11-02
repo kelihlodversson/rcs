@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/kinds.rsc -c 'mkdir MENU2 --type menu' -c 'stat /MENU2/#5' -c 'stat /MENU2/#3'

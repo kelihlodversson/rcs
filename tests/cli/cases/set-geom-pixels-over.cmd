@@ -1,0 +1,1 @@
+--selfcheck -n --pixels $FIX/kinds.rsc set /DIALOG/OK x=2169

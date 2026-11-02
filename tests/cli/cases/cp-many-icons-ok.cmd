@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/manyicons.rsc touch /#0/Q

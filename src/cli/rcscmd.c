@@ -7,6 +7,7 @@
  * tree keep their own stack: no recursion on the C stack.
  */
 #include <errno.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,6 +34,12 @@ void rcs_error(const char *fmt, ...)
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fputc('\n', stderr);
+}
+
+/* "object" or "objects" for n */
+static const char *plural(int n, const char *one, const char *many)
+{
+	return n == 1 ? one : many;
 }
 
 void rcs_note(const char *fmt, ...)
@@ -842,11 +849,14 @@ static int ends_with_nocase(const char *s, const char *suf)
 int rcs_write_file(const char *path, const void *buf, size_t len, int keep_mode, char *why, size_t size)
 {
 	struct stat	st;
-	char		*tmp;
+	char		*tmp, real[PATH_MAX];
 	FILE		*f;
 	int		fd, bad, e;
 	mode_t		mask, mode;
 
+	/* a symbolic link stays: the file it points to is replaced */
+	if (realpath(path, real) != NULL)
+		path = real;
 	tmp = malloc(strlen(path) + sizeof ".XXXXXX");
 	if (!tmp)
 	{
@@ -1029,11 +1039,20 @@ static int arg_side(struct rcs_ctx *c, const char *cmd, const char *arg, struct 
 	size_t		len;
 	int		i;
 
-	/* FILE must end in .rsc: "/a:/b" is a path of the main file */
+	/* FILE must end in .rsc and be a regular file that exists: otherwise
+	 * the argument is a path of the main file ("/a.rsc:/b") */
 	for (p = strstr(arg, ":/"); p; p = strstr(p + 1, ":/"))
-		if ((size_t)(p - arg) >= 4 && lower_c((unsigned char)p[-4]) == '.' && lower_c((unsigned char)p[-3]) == 'r'
+		if ((size_t)(p - arg) >= 4 && (size_t)(p - arg) < sizeof file
+		    && lower_c((unsigned char)p[-4]) == '.' && lower_c((unsigned char)p[-3]) == 'r'
 		    && lower_c((unsigned char)p[-2]) == 's' && lower_c((unsigned char)p[-1]) == 'c')
-			break;
+		{
+			struct stat	fst;
+
+			memcpy(file, arg, (size_t)(p - arg));
+			file[p - arg] = 0;
+			if (stat(file, &fst) == 0 && S_ISREG(fst.st_mode))
+				break;
+		}
 	if (!p)
 	{
 		main_src(c, s);
@@ -1493,7 +1512,8 @@ static int cp_obj(struct rcs_ctx *c, struct rcs_src *S, const struct rcs_node *s
 		return 1;
 	free(map);
 	if (dropped)
-		rcs_note("cp: %d names of objects in the copy were not carried: the tree has them already", dropped);
+		rcs_note("cp: %d %s of objects in the copy %s not carried: the tree has them already", dropped,
+			 plural(dropped, "name", "names"), plural(dropped, "was", "were"));
 	return 0;
 }
 
@@ -1768,7 +1788,8 @@ static int mv_obj(struct rcs_ctx *c, struct rcs_src *S, const struct rcs_node *s
 		return 1;
 	}
 	if (moved > 0)
-		rcs_note("mv: %d objects of the source tree were renumbered (from #%d on)", moved, first);
+		rcs_note("mv: %d %s of the source tree %s renumbered (from #%d on)", moved,
+			 plural(moved, "object", "objects"), plural(moved, "was", "were"), first);
 	return 0;
 }
 
@@ -1921,7 +1942,8 @@ static int do_rm(struct rcs_ctx *c, int argc, char **argv)
 			return 1;
 		}
 		if (moved > 0)
-			rcs_note("rm: %d objects of %s were renumbered (from #%d on)", moved, tb, first);
+			rcs_note("rm: %d %s of %s %s renumbered (from #%d on)", moved, plural(moved, "object", "objects"), tb,
+				 plural(moved, "was", "were"), first);
 		return 0;
 	case RCS_NODE_TREE:
 		if (!(set & 1))
@@ -1936,7 +1958,8 @@ static int do_rm(struct rcs_ctx *c, int argc, char **argv)
 			return 1;
 		}
 		if (sn.tree < n - 1)
-			rcs_note("rm: %d trees were renumbered (from #%d on)", n - 1 - sn.tree, sn.tree);
+			rcs_note("rm: %d %s renumbered (from #%d on)", n - 1 - sn.tree,
+				 plural(n - 1 - sn.tree, "tree was", "trees were"), sn.tree);
 		return 0;
 	case RCS_NODE_FRSTR:
 	case RCS_NODE_FRIMG:
@@ -1949,8 +1972,9 @@ static int do_rm(struct rcs_ctx *c, int argc, char **argv)
 			return 1;
 		}
 		if (sn.index < n - 1)
-			rcs_note("rm: %d free %s were renumbered (from #%d on)", n - 1 - sn.index,
-				 sn.kind == RCS_NODE_FRSTR ? "strings" : "images", sn.index);
+			rcs_note("rm: %d free %s renumbered (from #%d on)", n - 1 - sn.index,
+				 sn.kind == RCS_NODE_FRSTR ? plural(n - 1 - sn.index, "string was", "strings were")
+				 : plural(n - 1 - sn.index, "image was", "images were"), sn.index);
 		return 0;
 	case RCS_NODE_ICON:
 		rcs_error("rm: %s: colour icon entries cannot be removed yet", sb);
@@ -2985,6 +3009,7 @@ struct sbuf
 	char	*p;
 	size_t	len, cap;
 	int	bad;
+	int	enc;		/* the resource was encoded into the buffer */
 };
 
 static void sb_put(struct sbuf *b, const void *d, size_t n)
@@ -3022,6 +3047,7 @@ static int snapshot(struct rcs_ctx *c, struct sbuf *b)
 	rsc_cell(c->r, &cw, &ch);
 	if (rsc_atari_write(c->r, cw, ch, &buf, &len, &err) == 0)
 	{
+		b->enc = 1;
 		sb_put(b, buf, len);
 		rsc_mfree(buf);
 	}
@@ -3067,11 +3093,13 @@ static int run_edit(struct rcs_ctx *c, int argc, char **argv)
 int rcs_run(struct rcs_ctx *c, int argc, char **argv)
 {
 	struct sbuf	before, after;
-	int		rc, have = 0;
+	int		rc, have = 0, quiet;
 
 	if (!rcs_is_edit(argv[0]))
 		return run_read(c, argc, argv);
-	if (c->selfcheck)
+	/* touch, chmod and set may change nothing: that is no edit */
+	quiet = strcmp(argv[0], "touch") == 0 || strcmp(argv[0], "chmod") == 0 || strcmp(argv[0], "set") == 0;
+	if (c->selfcheck || quiet)
 		have = snapshot(c, &before) == 0;
 	rc = run_edit(c, argc, argv);
 	if (rcs_view_reset(c->v) != 0 && rc == 0)
@@ -3080,8 +3108,16 @@ int rcs_run(struct rcs_ctx *c, int argc, char **argv)
 		rc = 1;
 	}
 	if (rc == 0)
-		c->edited = 1;
-	else if (have)
+	{
+		if (!quiet || !have)
+			c->edited = 1;
+		else if (snapshot(c, &after) != 0 || !after.enc || !before.enc || after.len != before.len
+			 || memcmp(after.p, before.p, before.len) != 0)
+			c->edited = 1;
+		if (quiet && have)
+			free(after.p);
+	}
+	else if (have && c->selfcheck)
 	{
 		if (snapshot(c, &after) != 0 || after.len != before.len || memcmp(after.p, before.p, before.len) != 0)
 		{
@@ -3090,7 +3126,7 @@ int rcs_run(struct rcs_ctx *c, int argc, char **argv)
 		}
 		free(after.p);
 	}
-	if (c->selfcheck)
+	if (have)
 		free(before.p);
 	return rc;
 }

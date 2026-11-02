@@ -1,0 +1,1 @@
+--selfcheck -n $FIX/manyicons.rsc cp -r /#0 /X

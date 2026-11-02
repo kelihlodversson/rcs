@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include "rscfile.h"
 #include "rscnames.h"
 #include "rcscmd.h"
@@ -290,7 +291,7 @@ static int has_ext(const char *name, const char *ext)
  * NULL on success; *used is the name file read (malloc'd) or NULL.  0, or -1
  * after an error line. */
 static int load_pair(const char *file, const char *names_file, struct rsc **rp, struct rsc_names **np,
-		     char **used)
+		     char **used, int *dropped_out)
 {
 	struct rsc_error	err;
 	struct rsc		*r;
@@ -303,6 +304,8 @@ static int load_pair(const char *file, const char *names_file, struct rsc **rp, 
 	*rp = NULL;
 	*np = NULL;
 	*used = NULL;
+	if (dropped_out)
+		*dropped_out = 0;
 	if (load(file, RSC_FILE_MAX, &buf, &len) != 0)
 		return -1;
 	r = rsc_atari_read(buf, len, g_opts.cw, g_opts.ch, &err);
@@ -333,6 +336,8 @@ static int load_pair(const char *file, const char *names_file, struct rsc **rp, 
 		}
 		if (dropped)
 			rcs_error("warning: %d name entries do not match the resource and were ignored", dropped);
+		if (dropped_out)
+			*dropped_out = dropped;
 	}
 	if (!n)
 		n = rsc_names_new();
@@ -361,7 +366,7 @@ static int load_other(struct rcs_ctx *c, const char *file, struct rcs_src *out)
 	char	*used;
 
 	(void)c;
-	if (load_pair(file, NULL, &out->r, &out->n, &used) != 0)
+	if (load_pair(file, NULL, &out->r, &out->n, &used, NULL) != 0)
 		return -1;
 	free(used);
 	out->v = rcs_view_new(out->r, out->n);
@@ -432,6 +437,42 @@ static int dfn_misfits(const struct rsc_names *n, const struct rsc *r, char *fir
 	return bad;
 }
 
+/* Renumbers the names of every tree as the writer numbers the objects (in
+ * preorder; the objects no root reaches are not written, their names go).
+ * 0, or -1 (no memory). */
+static int preorder_names(struct rcs_ctx *c)
+{
+	int		t, n, k, i, *order, *map, nt = rsc_ntrees(c->r), rc = 0;
+	const OBJECT	*o;
+
+	for (t = 0; t < nt && rc == 0; t++)
+	{
+		o = rsc_tree_objects(c->r, t, &n);
+		order = malloc((size_t)n * sizeof *order);
+		map = malloc((size_t)n * sizeof *map);
+		if (!o || !order || !map)
+			rc = -1;
+		else
+		{
+			k = rsc_tree_preorder(o, n, order);
+			if (k < 0)
+				rc = -1;
+			else
+			{
+				for (i = 0; i < n; i++)
+					map[i] = -1;
+				for (i = 0; i < k; i++)
+					map[order[i]] = i;
+				if (rsc_names_renumber(c->n, t, map, n) != 0)
+					rc = -1;
+			}
+		}
+		free(order);
+		free(map);
+	}
+	return rc;
+}
+
 struct plan
 {
 	const char	*out;		/* the resource file to write */
@@ -440,6 +481,7 @@ struct plan
 	const char	*names_out;	/* --names-out */
 	const char	*in;		/* the input file */
 	const char	*names_src;	/* the name file read, or NULL */
+	int		dropped;	/* name entries of it that did not match the resource */
 };
 
 /* Writes the edited resource and its names as the plan says (after all
@@ -455,6 +497,7 @@ static int finish(struct rcs_ctx *c, const struct plan *pl)
 	const char		*ntarget = NULL, *target = pl->out ? pl->out : pl->in;
 	int			cw, ch, rc = -1, names_existed = 0, names_written = 0, bad, i, cnt;
 	struct rsc_name		e;
+	struct rsc		*chk;
 
 	if (rsc_validate(c->r, &err) != 0)
 	{
@@ -466,6 +509,26 @@ static int finish(struct rcs_ctx *c, const struct plan *pl)
 	{
 		rcs_error("%s: cannot write the result: %s", esc(eb, sizeof eb, target), err.msg);
 		return -1;
+	}
+	/* the writer numbers the objects of every tree in preorder: the names follow */
+	if (preorder_names(c) != 0)
+	{
+		rcs_error("%s: out of memory", esc(eb, sizeof eb, target));
+		goto out;
+	}
+	/* the library must be able to read what it wrote */
+	chk = rsc_atari_read(rbuf, rlen, cw, ch, &err);
+	if (!chk)
+	{
+		rcs_error("%s: the library cannot read the result back (%s); nothing was written",
+			  esc(eb, sizeof eb, target), err.msg);
+		goto out;
+	}
+	rsc_free(chk);
+	if (!pl->dry && stat(target, &st) == 0 && access(target, W_OK) != 0)
+	{
+		rcs_error("%s: not writable; nothing was written", esc(eb, sizeof eb, target));
+		goto out;
 	}
 	if (!pl->no_names)
 	{
@@ -490,6 +553,14 @@ static int finish(struct rcs_ctx *c, const struct plan *pl)
 				  esc(eb2, sizeof eb2, pl->in), esc(eb2, sizeof eb2, derived));
 			goto out;
 		}
+		if (!pl->dry && stat(ntarget, &st) == 0 && access(ntarget, W_OK) != 0)
+		{
+			rcs_error("%s: not writable; nothing was written", esc(eb, sizeof eb, ntarget));
+			goto out;
+		}
+		if (pl->dropped > 0 && pl->names_src && stat(ntarget, &st) == 0 && same_path(ntarget, pl->names_src))
+			rcs_error("warning: %d entries of %s that did not match the resource are not written "
+				  "(the file is replaced)", pl->dropped, esc(eb, sizeof eb, ntarget));
 		bad = dfn_misfits(c->n, c->r, first, sizeof first);
 		w = c->n;
 		if (bad && pl->names_out)
@@ -711,7 +782,7 @@ int main(int argc, char **argv)
 			}
 	}
 
-	if (load_pair(file, names_file, &ctx.r, &ctx.n, &found) != 0)
+	if (load_pair(file, names_file, &ctx.r, &ctx.n, &found, &pl.dropped) != 0)
 		goto out;
 	ctx.v = rcs_view_new(ctx.r, ctx.n);
 	if (!ctx.v)

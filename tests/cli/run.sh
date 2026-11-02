@@ -568,5 +568,144 @@ else
     head -3 "$ED/huge1.err" "$ED/huge2.err" "$ED/huge3.err"
 fi
 
+# ---- review fixes: names follow the writer's numbering, files, symlinks, no-op edits
+# names_follow LABEL -c ...: after the edits the in-memory listing, without the indices, equals the
+# re-read listing of the written file with its .dfn
+names_follow() {
+    label=$1
+    shift
+    d=$ED/follow
+    rm -rf "$d"
+    mkdir -p "$d"
+    cp "$FIX/kinds.rsc" "$FIX/kinds.dfn" "$d/"
+    "$CLI" --selfcheck --no-guess "$d/kinds.rsc" "$@" -c 'ls -lR' 2> /dev/null | sed -e 's/^#[0-9]* *//' -e 's/ LASTOB / - /' -e 's/LASTOB,//' -e 's/,LASTOB//' > "$d/mem.ls"
+    "$CLI" --no-guess "$d/kinds.rsc" -c 'ls -lR' 2>&1 | sed -e 's/^#[0-9]* *//' -e 's/ LASTOB / - /' -e 's/LASTOB,//' -e 's/,LASTOB//' > "$d/disk.ls"
+    if [ -s "$d/mem.ls" ] && cmp -s "$d/mem.ls" "$d/disk.ls"; then ok "names follow the objects: $label"; else bad "names follow the objects: $label"; diff "$d/mem.ls" "$d/disk.ls" | head -6; fi
+}
+names_follow "mv inside a tree" -c 'mv /DIALOG/OK /DIALOG/BUTTONS'
+names_follow "mv to the front of a container" -c 'mv /DIALOG/EDIT /DIALOG/BUTTONS' -c 'mv /DIALOG/ICON /DIALOG/BUTTONS'
+names_follow "cp into a nested container" -c 'cp /DIALOG/OK /DIALOG/BUTTONS/COPY1'
+names_follow "cp -r into a nested container" -c 'cp -r /DIALOG/BUTTONS /DIALOG/BUTTONS/INNER'
+names_follow "touch into a nested container" -c 'touch /DIALOG/BUTTONS/NEW1 --type button'
+names_follow "mv across trees into a nested container" -c 'mv /DIALOG/EDIT /MAINMENU/#5/EDIT2'
+names_follow "cp across trees" -c 'cp /DIALOG/OK /MAINMENU/#5/OK2'
+names_follow "rename and touch" -c 'set /DIALOG/CANCEL name=NO' -c 'touch /DIALOG/BUTTONS/NEW1'
+# the repro of the review: the name OK stays on the DEFAULT button
+d=$ED/follow
+cp "$FIX/kinds.rsc" "$FIX/kinds.dfn" "$d/"
+"$CLI" --no-guess "$d/kinds.rsc" mv /DIALOG/OK /DIALOG/BUTTONS 2> /dev/null
+if "$CLI" --no-guess "$d/kinds.rsc" ls -l /DIALOG/BUTTONS | head -2 | tr '\n' ' ' | grep -q 'CANCEL .*SELECTABLE,EXIT SELECTED.* OK .*SELECTABLE,DEFAULT,EXIT'; then
+    ok "mv OK to the end of BUTTONS: OK is still the default button after a re-read"
+else
+    bad "mv OK to the end of BUTTONS: OK is still the default button after a re-read"
+fi
+
+# entries of a .dfn that do not match are reported when the .dfn is replaced
+d=$ED/dropped
+mkdir -p "$d"
+cp "$FIX/kinds.rsc" "$d/a.rsc"
+cp "$FIX/drop.dfn" "$d/a.dfn"
+"$CLI" "$d/a.rsc" mkdir NEWT 2> "$d/err"
+if [ $? = 0 ] && grep -q 'warning: 3 name entries do not match' "$d/err" && grep -q 'warning: 3 entries of .*a.dfn that did not match the resource are not written' "$d/err"; then
+    ok "a .dfn replaced in place: the entries that were dropped are reported"
+else
+    bad "a .dfn replaced in place: the entries that were dropped are reported"; cat "$d/err"
+fi
+# an explicitly named input .dfn is replaced in place, no INPUT.dfn appears
+d=$ED/explicit
+mkdir -p "$d"
+cp "$FIX/kinds.rsc" "$d/a.rsc"
+cp "$FIX/kinds.dfn" "$d/n.dfn"
+"$CLI" --names "$d/n.dfn" "$d/a.rsc" mkdir NEWT 2> "$d/err"
+if [ $? = 0 ] && [ ! -e "$d/a.dfn" ] && [ ! -s "$d/err" ] && "$CLI" --names "$d/n.dfn" "$d/a.rsc" ls / | grep -q '^NEWT$'; then
+    ok "--names X.dfn: that file is replaced in place"
+else
+    bad "--names X.dfn: that file is replaced in place"
+fi
+# the 8 / 9 byte limit of a .dfn name
+d=$ED/limit
+mkdir -p "$d"
+cp "$FIX/kinds.rsc" "$d/a.rsc"
+"$CLI" "$d/a.rsc" mkdir ABCDEFGH 2> "$d/err8"
+r8=$?
+cp "$FIX/kinds.rsc" "$d/b.rsc"
+"$CLI" "$d/b.rsc" mkdir ABCDEFGHI 2> "$d/err9"
+r9=$?
+cp "$FIX/kinds.rsc" "$d/c.rsc"
+"$CLI" --names-out "$d/c.dfn" "$d/c.rsc" -c 'mkdir ABCDEFGH' -c 'mkdir ABCDEFGHI' 2> "$d/err9o" 
+r9o=$?
+if [ $r8 = 0 ] && [ $r9 = 1 ] && grep -q '1 names do not fit' "$d/err9" && [ ! -e "$d/b.dfn" ] && bytes_same "$d/b.rsc" "$FIX/kinds.rsc"; then
+    ok "a .dfn name of 8 bytes is written, one of 9 refuses the write"
+else
+    bad "a .dfn name of 8 bytes is written, one of 9 refuses the write"; cat "$d/err9"
+fi
+if [ $r9o = 0 ] && grep -q 'warning: 1 names do not fit' "$d/err9o" && "$CLI" --names "$d/c.dfn" "$d/c.rsc" ls / | grep -q '^ABCDEFGH$'; then
+    ok "--names-out: the 8 byte name is written, the 9 byte one reported"
+else
+    bad "--names-out: the 8 byte name is written, the 9 byte one reported"; cat "$d/err9o"
+fi
+
+# a symbolic link stays a link, its target is written, the mode stays
+d=$ED/link
+rm -rf "$d"
+mkdir -p "$d/real"
+cp "$FIX/kinds.rsc" "$d/real/r.rsc"
+chmod 640 "$d/real/r.rsc"
+ln -s real/r.rsc "$d/link.rsc"
+"$CLI" "$d/link.rsc" mkdir ZZ 2> /dev/null
+if [ -L "$d/link.rsc" ] && [ "$(ls -l "$d/real/r.rsc" | cut -c1-10)" = "-rw-r-----" ] \
+    && "$CLI" "$d/link.rsc" ls / | grep -q '^ZZ$' && [ -f "$d/link.dfn" ]; then
+    ok "write-back through a symbolic link writes the target and keeps the link and the mode"
+else
+    bad "write-back through a symbolic link writes the target and keeps the link and the mode"
+fi
+# a read-only input is refused before anything is written
+d=$ED/readonly
+rm -rf "$d"
+mkdir -p "$d"
+cp "$FIX/kinds.rsc" "$FIX/kinds.dfn" "$d/"
+chmod 444 "$d/kinds.rsc"
+"$CLI" "$d/kinds.rsc" mkdir ZZ 2> "$d/err"
+rr=$?
+chmod 644 "$d/kinds.rsc"
+chmod 444 "$d/kinds.dfn"
+"$CLI" "$d/kinds.rsc" mkdir ZZ 2> "$d/err2"
+rr2=$?
+chmod 644 "$d/kinds.dfn"
+if [ $rr = 1 ] && [ $rr2 = 1 ] && grep -q 'not writable; nothing was written' "$d/err" && grep -q 'not writable; nothing was written' "$d/err2" \
+    && bytes_same "$d/kinds.rsc" "$FIX/kinds.rsc" && bytes_same "$d/kinds.dfn" "$FIX/kinds.dfn"; then
+    ok "a read-only input or name file is refused, nothing written"
+else
+    bad "a read-only input or name file is refused, nothing written"; cat "$d/err" "$d/err2"
+fi
+"$CLI" -n "$d/kinds.rsc" mkdir ZZ 2> /dev/null
+# -n on a read-only file is fine
+chmod 444 "$d/kinds.rsc"
+"$CLI" -n "$d/kinds.rsc" mkdir ZZ 2> /dev/null && ok "-n does not mind a read-only input" || bad "-n does not mind a read-only input"
+chmod 644 "$d/kinds.rsc"
+# the result must read back
+d=$ED/readback
+mkdir -p "$d"
+cp "$FIX/manyicons.rsc" "$d/m.rsc"
+"$CLI" "$d/m.rsc" cp -r /#0 /X 2> "$d/err"
+if [ $? = 1 ] && grep -q 'the library cannot read the result back' "$d/err" && bytes_same "$d/m.rsc" "$FIX/manyicons.rsc" && [ ! -e "$d/m.dfn" ]; then
+    ok "a result the library cannot read back is refused, nothing written"
+else
+    bad "a result the library cannot read back is refused, nothing written"; cat "$d/err"
+fi
+# touch of an existing node, chmod and set that change nothing: no write, no name file
+d=$ED/noop
+rm -rf "$d"
+mkdir -p "$d"
+cp "$FIX/kinds-lost.rsc" "$d/k.rsc"
+"$CLI" "$d/k.rsc" -c 'touch /#0/#6' -c 'touch /' -c 'chmod +SELECTABLE /#0/#6' -c 'chmod --state -SELECTED /#0/#6' -c 'set /#0/#6 text=OK x=0 type=G_BUTTON' 2> "$d/err"
+if [ $? = 0 ] && [ ! -s "$d/err" ] && bytes_same "$d/k.rsc" "$FIX/kinds-lost.rsc" && [ ! -e "$d/k.dfn" ]; then
+    ok "touch of an existing node and no-op chmod, set: the file is not written"
+else
+    bad "touch of an existing node and no-op chmod, set: the file is not written"; cat "$d/err"
+fi
+"$CLI" "$d/k.rsc" -c 'touch /#0/#6' -c 'chmod +TOUCHEXIT /#0/#7' 2> /dev/null
+if [ $? = 0 ] && ! bytes_same "$d/k.rsc" "$FIX/kinds-lost.rsc"; then ok "a real change after no-op commands is written"; else bad "a real change after no-op commands is written"; fi
+
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]
