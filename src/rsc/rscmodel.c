@@ -1049,19 +1049,20 @@ struct rsc_cicon_version *rsc_cicon_version(const struct rsc_cicon *c, int v)
 	return (struct rsc_cicon_version *)p;
 }
 
-int rsc_cicon_add_version(struct rsc_cicon *c, int planes,
-			  const short *col_data, const short *col_mask,
-			  const short *sel_data, const short *sel_mask)
+/* A new version of c (not linked) with a copy of the planes; NULL for bad
+ * arguments (as rsc_cicon_add_version) or no memory. */
+static struct rsc_cicon_version *new_version(const struct rsc_cicon *c, int planes,
+					     const short *col_data, const short *col_mask,
+					     const short *sel_data, const short *sel_mask)
 {
 	struct rsc_cicon_version	*v;
 	size_t	pb = rsc_plane_bytes(c->blk.monoblk.ib_wicon, c->blk.monoblk.ib_hicon);
 
-	if (planes < 1 || planes > RSC_MAX_PLANES || !col_data || !col_mask || !sel_data != !sel_mask
-	    || c->nver >= RSC_MAX_VERSIONS)
-		return -1;
+	if (planes < 1 || planes > RSC_MAX_PLANES || !col_data || !col_mask || !sel_data != !sel_mask)
+		return NULL;
 	v = rsc_malloc(sizeof *v);
 	if (!v)
-		return -1;
+		return NULL;
 	memset(v, 0, sizeof *v);
 	v->c.num_planes = (short)planes;
 	v->c.next_res = NULL;
@@ -1072,8 +1073,22 @@ int rsc_cicon_add_version(struct rsc_cicon *c, int planes,
 	    || dup_mem(&v->c.sel_mask, sel_mask, pb))
 	{
 		free_version(v);
-		return -1;
+		return NULL;
 	}
+	return v;
+}
+
+int rsc_cicon_add_version(struct rsc_cicon *c, int planes,
+			  const short *col_data, const short *col_mask,
+			  const short *sel_data, const short *sel_mask)
+{
+	struct rsc_cicon_version	*v;
+
+	if (c->nver >= RSC_MAX_VERSIONS)
+		return -1;
+	v = new_version(c, planes, col_data, col_mask, sel_data, sel_mask);
+	if (!v)
+		return -1;
 	if (c->last)
 		c->last->c.next_res = &v->c;
 	else
@@ -1189,4 +1204,691 @@ int rsc_frimg_delete(struct rsc *r, int k)
 	memmove(&r->frimg[k], &r->frimg[k + 1], (size_t)(r->nfrimg - k - 1) * sizeof *r->frimg);
 	r->nfrimg--;
 	return 0;
+}
+
+/* ---- moving objects within a tree ------------------------------------------ */
+
+int rsc_obj_parent(const struct rsc *r, int t, int i)
+{
+	struct rsc_tree	*tr = tree_at(r, t);
+
+	if (!tr || i < 0 || i >= tr->nobj)
+		return -2;
+	if (i == 0)
+		return -1;
+	return find_parent(tr->obj, tr->nobj, i);
+}
+
+/* The number of children of object p, which must be reachable (so that
+ * its chain is known to be sound); the chain ends back at p. */
+static int count_children(const OBJECT *o, int n, int p)
+{
+	int	k, c = 0;
+
+	for (k = o[p].ob_head; k >= 0 && k < n && k != p && c <= n; k = o[k].ob_next)
+		c++;
+	return c;
+}
+
+/* Unlinks object i from its parent p (both reachable, i not the root). */
+static void unlink_child(OBJECT *o, int p, int i)
+{
+	int	prev = -1, k;
+
+	if (o[p].ob_head != i)
+		for (k = o[p].ob_head; k != i; k = o[k].ob_next)
+			prev = k;
+	if (prev < 0)
+	{
+		if (o[p].ob_tail == i)
+			o[p].ob_head = o[p].ob_tail = -1;
+		else
+			o[p].ob_head = o[i].ob_next;
+	}
+	else
+	{
+		o[prev].ob_next = o[i].ob_next;
+		if (o[p].ob_tail == i)
+			o[p].ob_tail = (short)prev;
+	}
+	o[i].ob_next = -1;
+}
+
+/* Links the unlinked object i as child number pos of p, which has nsib
+ * children now (pos -1 or at least nsib: the last one). */
+static void link_child(OBJECT *o, int p, int i, int pos, int nsib)
+{
+	int	prev = -1, k, j;
+
+	if (pos < 0 || pos >= nsib)
+		prev = o[p].ob_tail;
+	else
+		for (k = o[p].ob_head, j = 0; j < pos; j++)
+		{
+			prev = k;
+			k = o[k].ob_next;
+		}
+	if (prev == -1)
+	{
+		if (o[p].ob_head == -1)
+		{
+			o[i].ob_next = (short)p;
+			o[p].ob_head = o[p].ob_tail = (short)i;
+		}
+		else
+		{
+			o[i].ob_next = o[p].ob_head;
+			o[p].ob_head = (short)i;
+		}
+	}
+	else
+	{
+		o[i].ob_next = o[prev].ob_next;
+		o[prev].ob_next = (short)i;
+		if (o[p].ob_tail == prev)
+			o[p].ob_tail = (short)i;
+	}
+}
+
+int rsc_obj_move(struct rsc *r, int t, int i, int parent, int pos)
+{
+	struct rsc_tree	*tr = tree_at(r, t);
+	OBJECT	*o;
+	int	*scratch, *order, *par;
+	int	n, cnt, k, op, nsib;
+
+	if (!tr || i <= 0 || i >= tr->nobj || parent < 0 || parent >= tr->nobj || pos < -1)
+		return -1;
+	o = tr->obj;
+	n = tr->nobj;
+	scratch = rsc_malloc((size_t)n * 2 * sizeof *scratch);
+	if (!scratch)
+		return -1;
+	order = scratch;
+	par = scratch + n;
+	cnt = walk_tree(o, n, 0, order, par);
+	if (cnt < 0 || par[i] == -2 || par[parent] == -2)
+	{
+		rsc_mfree(scratch);
+		return -1;
+	}
+	/* the new parent may not be i or below it */
+	for (k = parent; k >= 0; k = par[k])
+		if (k == i)
+		{
+			rsc_mfree(scratch);
+			return -1;
+		}
+	op = par[i];
+	nsib = count_children(o, n, parent) - (op == parent);
+	rsc_mfree(scratch);
+	if (pos > nsib)
+		return -1;
+	/* nothing fails from here on */
+	unlink_child(o, op, i);
+	link_child(o, parent, i, pos, nsib);
+	return 0;
+}
+
+/* ---- copying ---------------------------------------------------------------- */
+
+/* Exact copies of the records of an object (the lengths of a TEDINFO are
+ * kept as they are, unlike copy_tedinfo, which makes them strlen + 1). */
+static TEDINFO *clone_tedinfo(const TEDINFO *src)
+{
+	TEDINFO	*te = rsc_malloc(sizeof *te);
+
+	if (!te)
+		return NULL;
+	*te = *src;
+	te->te_ptext = te->te_ptmplt = te->te_pvalid = NULL;
+	if (dup_str(&te->te_ptext, src->te_ptext) || dup_str(&te->te_ptmplt, src->te_ptmplt)
+	    || dup_str(&te->te_pvalid, src->te_pvalid))
+	{
+		free_tedinfo(te);
+		return NULL;
+	}
+	return te;
+}
+
+/* A new version with the data of v (all of it, file_ptr included). */
+static struct rsc_cicon_version *clone_version(const struct rsc_cicon_version *v, size_t mono)
+{
+	struct rsc_cicon_version	*nv = rsc_malloc(sizeof *nv);
+
+	if (!nv)
+		return NULL;
+	*nv = *v;
+	nv->c.col_data = nv->c.col_mask = nv->c.sel_data = nv->c.sel_mask = NULL;
+	nv->c.next_res = NULL;
+	if (dup_mem(&nv->c.col_data, v->c.col_data, v->data_bytes)
+	    || dup_mem(&nv->c.col_mask, v->c.col_mask, mono)
+	    || dup_mem(&nv->c.sel_data, v->c.sel_data, v->data_bytes)
+	    || dup_mem(&nv->c.sel_mask, v->c.sel_mask, mono))
+	{
+		free_version(nv);
+		return NULL;
+	}
+	return nv;
+}
+
+/* A deep copy of a colour icon, versions included. */
+static struct rsc_cicon *clone_cicon(const struct rsc_cicon *s)
+{
+	struct rsc_cicon	*c = rsc_malloc(sizeof *c);
+	struct rsc_cicon_version	*nv;
+	const CICON	*p;
+	int	k;
+
+	if (!c)
+		return NULL;
+	*c = *s;
+	c->blk.monoblk.ib_pmask = c->blk.monoblk.ib_pdata = NULL;
+	c->blk.monoblk.ib_ptext = c->text;
+	c->blk.mainlist = NULL;
+	c->last = NULL;
+	c->nver = 0;
+	if (dup_mem(&c->blk.monoblk.ib_pmask, s->blk.monoblk.ib_pmask, s->mono_bytes)
+	    || dup_mem(&c->blk.monoblk.ib_pdata, s->blk.monoblk.ib_pdata, s->mono_bytes))
+	{
+		free_cicon(c);
+		return NULL;
+	}
+	for (p = s->blk.mainlist, k = 0; p; p = p->next_res, k++)
+	{
+		nv = k < RSC_MAX_VERSIONS ? clone_version((const struct rsc_cicon_version *)p, s->mono_bytes)
+					  : NULL;
+		if (!nv)
+		{
+			free_cicon(c);
+			return NULL;
+		}
+		if (c->last)
+			c->last->c.next_res = &nv->c;
+		else
+			c->blk.mainlist = &nv->c;
+		c->last = nv;
+		c->nver++;
+	}
+	return c;
+}
+
+/* *d := a copy of object s with a deep copy of its spec; links as they are.
+ * On failure d has an empty spec and nothing is held. */
+static int clone_object(OBJECT *d, const OBJECT *s)
+{
+	int	failed = 0;
+
+	*d = *s;
+	switch (rsc_obj_spec_kind(s))
+	{
+	case RSC_SPEC_VALUE:
+		return 0;
+	case RSC_SPEC_STRING:
+		memset(&d->ob_spec, 0, sizeof d->ob_spec);
+		return dup_str(&d->ob_spec.free_string, s->ob_spec.free_string);
+	case RSC_SPEC_TEDINFO:
+		memset(&d->ob_spec, 0, sizeof d->ob_spec);
+		if (s->ob_spec.tedinfo)
+			failed = !(d->ob_spec.tedinfo = clone_tedinfo(s->ob_spec.tedinfo));
+		break;
+	case RSC_SPEC_ICONBLK:
+		memset(&d->ob_spec, 0, sizeof d->ob_spec);
+		if (s->ob_spec.iconblk)
+			failed = !(d->ob_spec.iconblk = copy_iconblk(s->ob_spec.iconblk));
+		break;
+	case RSC_SPEC_BITBLK:
+		memset(&d->ob_spec, 0, sizeof d->ob_spec);
+		if (s->ob_spec.bitblk)
+			failed = !(d->ob_spec.bitblk = copy_bitblk(s->ob_spec.bitblk));
+		break;
+	case RSC_SPEC_CICON:
+		memset(&d->ob_spec, 0, sizeof d->ob_spec);
+		if (s->ob_spec.ciconblk)
+		{
+			struct rsc_cicon	*c = clone_cicon((const struct rsc_cicon *)s->ob_spec.ciconblk);
+
+			failed = !c;
+			d->ob_spec.ciconblk = c ? &c->blk : NULL;
+		}
+		break;
+	}
+	return failed ? -1 : 0;
+}
+
+/* Copies the objects of src (n objects) that a walk marked in par (not
+ * -2) into dst[0 .. cnt-1], in the order of the source array, as objects
+ * numbered from base: newidx[k] is the number of source object k, or -1.
+ * Links are renumbered (a link out of the copy, which only the ob_next of
+ * the root can be, is -1), OF_LASTOB is cleared.  Returns 0, or -1 with
+ * nothing held. */
+static int clone_objects(OBJECT *dst, const OBJECT *src, int n, const int *par, int root,
+			 int base, int *newidx)
+{
+	int	k, m = 0, j;
+
+	for (k = 0; k < n; k++)
+		newidx[k] = par[k] != -2 ? base + m++ : -1;
+	for (k = 0; k < n; k++)
+	{
+		if (newidx[k] < 0)
+			continue;
+		j = newidx[k] - base;
+		if (clone_object(&dst[j], &src[k]))
+		{
+			while (j-- > 0)
+				spec_release(&dst[j]);
+			return -1;
+		}
+		dst[j].ob_flags &= ~OF_LASTOB;
+		dst[j].ob_head = remap(src[k].ob_head, n, newidx);
+		dst[j].ob_tail = remap(src[k].ob_tail, n, newidx);
+		dst[j].ob_next = k == root ? (short)-1 : remap(src[k].ob_next, n, newidx);
+	}
+	return 0;
+}
+
+static void release_objects(OBJECT *o, int cnt)
+{
+	int	k;
+
+	for (k = 0; k < cnt; k++)
+		spec_release(&o[k]);
+}
+
+static int same_cell(const struct rsc *a, const struct rsc *b)
+{
+	return a->cell_w == b->cell_w && a->cell_h == b->cell_h;
+}
+
+int rsc_obj_copy_subtree(struct rsc *dst, int dt, int dparent, int pos,
+			 const struct rsc *src, int st, int si, int *map)
+{
+	struct rsc_tree	*dtr = dst ? tree_at(dst, dt) : NULL, *str = src ? tree_at(src, st) : NULL;
+	int	*buf, *sorder, *spar, *snew, *dorder, *dpar;
+	OBJECT	*tmp, *o;
+	int	sn, dn, cnt, k, nsib, root;
+
+	if (!dtr || !str || dparent < 0 || dparent >= dtr->nobj || si < 0
+	    || si >= str->nobj || pos < -1 || !same_cell(dst, src))
+		return -1;
+	sn = str->nobj;
+	dn = dtr->nobj;
+	buf = rsc_malloc(((size_t)sn * 3 + (size_t)dn * 2) * sizeof *buf);
+	if (!buf)
+		return -1;
+	sorder = buf;
+	spar = sorder + sn;
+	snew = spar + sn;
+	dorder = snew + sn;
+	dpar = dorder + dn;
+	cnt = walk_tree(str->obj, sn, si, sorder, spar);
+	if (cnt < 0 || (si > 0 && find_parent(str->obj, sn, si) < 0) || walk_tree(dtr->obj, dn, 0, dorder, dpar) < 0 || dpar[dparent] == -2
+	    || cnt > RSC_MAX_OBJECTS - dn)
+	{
+		rsc_mfree(buf);
+		return -1;
+	}
+	nsib = count_children(dtr->obj, dn, dparent);
+	if (pos > nsib)
+	{
+		rsc_mfree(buf);
+		return -1;
+	}
+	tmp = rsc_malloc((size_t)cnt * sizeof *tmp);
+	if (!tmp || clone_objects(tmp, str->obj, sn, spar, si, dn, snew))
+	{
+		rsc_mfree(tmp);
+		rsc_mfree(buf);
+		return -1;
+	}
+	o = rsc_realloc(dtr->obj, ((size_t)dn + (size_t)cnt) * sizeof *o);
+	if (!o)
+	{
+		release_objects(tmp, cnt);
+		rsc_mfree(tmp);
+		rsc_mfree(buf);
+		return -1;
+	}
+	/* nothing fails from here on (str may be dtr: o is where both are now) */
+	memcpy(o + dn, tmp, (size_t)cnt * sizeof *o);
+	rsc_mfree(tmp);
+	o[dn - 1].ob_flags &= ~OF_LASTOB;
+	o[dn + cnt - 1].ob_flags |= OF_LASTOB;
+	dtr->obj = o;
+	dtr->nobj = dn + cnt;
+	root = snew[si];
+	link_child(o, dparent, root, pos, nsib);
+	if (map)
+		for (k = 0; k < sn; k++)
+			map[k] = snew[k];
+	rsc_mfree(buf);
+	return root;
+}
+
+int rsc_tree_copy(struct rsc *dst, int pos, const struct rsc *src, int st, int *map)
+{
+	struct rsc_tree	*str = src ? tree_at(src, st) : NULL, *nt;
+	int	*buf, *order, *par, *newidx;
+	OBJECT	*tmp;
+	int	sn, cnt, k;
+
+	if (!dst || !str || pos < -1 || pos > dst->ntree || !same_cell(dst, src))
+		return -1;
+	sn = str->nobj;
+	buf = rsc_malloc((size_t)sn * 3 * sizeof *buf);
+	if (!buf)
+		return -1;
+	order = buf;
+	par = order + sn;
+	newidx = par + sn;
+	cnt = walk_tree(str->obj, sn, 0, order, par);
+	if (cnt < 0)
+	{
+		rsc_mfree(buf);
+		return -1;
+	}
+	tmp = rsc_malloc((size_t)cnt * sizeof *tmp);
+	if (!tmp || clone_objects(tmp, str->obj, sn, par, 0, 0, newidx))
+	{
+		rsc_mfree(tmp);
+		rsc_mfree(buf);
+		return -1;
+	}
+	nt = rsc_realloc(dst->tree, ((size_t)dst->ntree + 1) * sizeof *nt);
+	if (!nt)
+	{
+		release_objects(tmp, cnt);
+		rsc_mfree(tmp);
+		rsc_mfree(buf);
+		return -1;
+	}
+	/* nothing fails from here on */
+	tmp[cnt - 1].ob_flags |= OF_LASTOB;
+	if (pos < 0)
+		pos = dst->ntree;
+	memmove(&nt[pos + 1], &nt[pos], (size_t)(dst->ntree - pos) * sizeof *nt);
+	nt[pos].obj = tmp;
+	nt[pos].nobj = cnt;
+	dst->tree = nt;
+	dst->ntree++;
+	if (map)
+		for (k = 0; k < sn; k++)
+			map[k] = newidx[k];
+	rsc_mfree(buf);
+	return pos;
+}
+
+/* ---- moving trees and free items ------------------------------------------------ */
+
+/* Moves element from of the array at base (elements of size esz) to
+ * position to, the ones between shifting by one. */
+static void move_slot(void *base, size_t esz, int from, int to)
+{
+	unsigned char	*b = base, tmp[sizeof(struct rsc_tree)];
+
+	memcpy(tmp, b + (size_t)from * esz, esz);
+	if (to > from)
+		memmove(b + (size_t)from * esz, b + (size_t)(from + 1) * esz, (size_t)(to - from) * esz);
+	else
+		memmove(b + (size_t)(to + 1) * esz, b + (size_t)to * esz, (size_t)(from - to) * esz);
+	memcpy(b + (size_t)to * esz, tmp, esz);
+}
+
+int rsc_tree_move(struct rsc *r, int t, int pos)
+{
+	if (t < 0 || t >= r->ntree || pos < -1 || pos >= r->ntree)
+		return -1;
+	move_slot(r->tree, sizeof *r->tree, t, pos < 0 ? r->ntree - 1 : pos);
+	return 0;
+}
+
+int rsc_frstr_move(struct rsc *r, int k, int pos)
+{
+	if (k < 0 || k >= r->nfrstr || pos < -1 || pos >= r->nfrstr)
+		return -1;
+	move_slot(r->frstr, sizeof *r->frstr, k, pos < 0 ? r->nfrstr - 1 : pos);
+	return 0;
+}
+
+int rsc_frimg_move(struct rsc *r, int k, int pos)
+{
+	if (k < 0 || k >= r->nfrimg || pos < -1 || pos >= r->nfrimg)
+		return -1;
+	move_slot(r->frimg, sizeof *r->frimg, k, pos < 0 ? r->nfrimg - 1 : pos);
+	return 0;
+}
+
+int rsc_frimg_set(struct rsc *r, int k, const BITBLK *bb)
+{
+	BITBLK	*copy;
+
+	if (k < 0 || k >= r->nfrimg || !bb || !(copy = copy_bitblk(bb)))
+		return -1;
+	free_bitblk(r->frimg[k]);
+	r->frimg[k] = copy;
+	return 0;
+}
+
+/* ---- colour versions by index ------------------------------------------------------ */
+
+int rsc_cicon_insert_version(struct rsc_cicon *c, int v, int planes,
+			     const short *col_data, const short *col_mask,
+			     const short *sel_data, const short *sel_mask)
+{
+	struct rsc_cicon_version	*nv;
+	CICON	**pp;
+	int	k;
+
+	if (v < -1 || v > c->nver || c->nver >= RSC_MAX_VERSIONS)
+		return -1;
+	nv = new_version(c, planes, col_data, col_mask, sel_data, sel_mask);
+	if (!nv)
+		return -1;
+	if (v < 0)
+		v = c->nver;
+	for (pp = &c->blk.mainlist, k = 0; k < v; k++)
+		pp = &(*pp)->next_res;
+	nv->c.next_res = *pp;
+	*pp = &nv->c;
+	if (!nv->c.next_res)
+		c->last = nv;
+	c->nver++;
+	return v;
+}
+
+int rsc_cicon_set_version(struct rsc_cicon *c, int v, int planes,
+			  const short *col_data, const short *col_mask,
+			  const short *sel_data, const short *sel_mask)
+{
+	struct rsc_cicon_version	*nv, *old;
+	CICON	**pp;
+	int	k;
+
+	if (v < 0 || v >= c->nver)
+		return -1;
+	nv = new_version(c, planes, col_data, col_mask, sel_data, sel_mask);
+	if (!nv)
+		return -1;
+	for (pp = &c->blk.mainlist, k = 0; k < v; k++)
+		pp = &(*pp)->next_res;
+	old = (struct rsc_cicon_version *)*pp;
+	nv->c.next_res = old->c.next_res;
+	*pp = &nv->c;
+	if (c->last == old)
+		c->last = nv;
+	free_version(old);
+	return 0;
+}
+
+/* ---- resizing a colour icon -------------------------------------------------------- */
+
+/* *out := a block of nplanes planes of nh rows of nrow bytes holding the
+ * top left of each of the nplanes planes (oh rows of orow bytes) of data,
+ * zero-filled elsewhere; NULL data gives NULL.  Returns 0 or -1. */
+static int resize_planes(const void *data, int nplanes, size_t orow, size_t oh, size_t nrow,
+			 size_t nh, void *out)
+{
+	unsigned char	*p = NULL;
+	size_t	y, w = orow < nrow ? orow : nrow;
+	int	k;
+
+	if (data)
+	{
+		p = rsc_malloc(nrow * nh * (size_t)nplanes);
+		if (!p)
+			return -1;
+		memset(p, 0, nrow * nh * (size_t)nplanes);
+		for (k = 0; k < nplanes; k++)
+			for (y = 0; y < oh && y < nh; y++)
+				memcpy(p + ((size_t)k * nh + y) * nrow,
+				       (const unsigned char *)data + ((size_t)k * oh + y) * orow, w);
+	}
+	memcpy(out, &p, sizeof p);
+	return 0;
+}
+
+/* resize_planes into nb[*nn], which counts the block once it is made. */
+static int grab_planes(const void *data, int nplanes, size_t orow, size_t oh, size_t nrow,
+		       size_t nh, short **nb, int *nn)
+{
+	if (resize_planes(data, nplanes, orow, oh, nrow, nh, &nb[*nn]))
+		return -1;
+	(*nn)++;
+	return 0;
+}
+
+/* Whether the blocks of colour icon c with planes of pb bytes stay within
+ * RSC_RESIZE_MAX_BYTES (the blocks that are not NULL count). */
+static int resized_fits(const struct rsc_cicon *c, size_t pb)
+{
+	const CICON	*p;
+	size_t	planes = 0;
+
+	planes += c->blk.monoblk.ib_pmask ? 1 : 0;
+	planes += c->blk.monoblk.ib_pdata ? 1 : 0;
+	for (p = c->blk.mainlist; p; p = p->next_res)
+	{
+		planes += p->col_data ? (size_t)p->num_planes : 0;
+		planes += p->col_mask ? 1 : 0;
+		planes += p->sel_data ? (size_t)p->num_planes : 0;
+		planes += p->sel_mask ? 1 : 0;
+	}
+	return pb == 0 || planes <= RSC_RESIZE_MAX_BYTES / pb;
+}
+
+int rsc_cicon_resize(struct rsc_cicon *c, int w, int h)
+{
+	ICONBLK	*ib = &c->blk.monoblk;
+	struct rsc_cicon_version	*v;
+	short	*nb[2 + 4 * RSC_MAX_VERSIONS];
+	size_t	orow, nrow, oh, opb, npb;
+	int	nn = 0, k, planes, nv = 0;
+
+	if (w < 0 || h < 0 || w > 32767 || h > 32767 || ib->ib_wicon < 0 || ib->ib_hicon < 0)
+		return -1;
+	orow = icon_row(ib->ib_wicon);
+	oh = (size_t)ib->ib_hicon;
+	nrow = icon_row(w);
+	opb = rsc_plane_bytes(ib->ib_wicon, ib->ib_hicon);
+	npb = rsc_plane_bytes(w, h);
+	if (opb != c->mono_bytes || c->nver > RSC_MAX_VERSIONS)
+		return -1;
+	for (v = (struct rsc_cicon_version *)c->blk.mainlist; v;
+	     v = (struct rsc_cicon_version *)v->c.next_res)
+	{
+		if (nv++ >= c->nver || v->c.num_planes < 1 || v->c.num_planes > RSC_MAX_PLANES
+		    || v->data_bytes != opb * (size_t)v->c.num_planes)
+			return -1;
+	}
+	if (nv != c->nver || !resized_fits(c, npb))
+		return -1;
+	if (grab_planes(ib->ib_pmask, 1, orow, oh, nrow, (size_t)h, nb, &nn)
+	    || grab_planes(ib->ib_pdata, 1, orow, oh, nrow, (size_t)h, nb, &nn))
+		goto fail;
+	for (v = (struct rsc_cicon_version *)c->blk.mainlist; v;
+	     v = (struct rsc_cicon_version *)v->c.next_res)
+	{
+		planes = v->c.num_planes;
+		if (grab_planes(v->c.col_data, planes, orow, oh, nrow, (size_t)h, nb, &nn)
+		    || grab_planes(v->c.col_mask, 1, orow, oh, nrow, (size_t)h, nb, &nn)
+		    || grab_planes(v->c.sel_data, planes, orow, oh, nrow, (size_t)h, nb, &nn)
+		    || grab_planes(v->c.sel_mask, 1, orow, oh, nrow, (size_t)h, nb, &nn))
+			goto fail;
+	}
+	/* nothing fails from here on */
+	nn = 0;
+	rsc_mfree(ib->ib_pmask);
+	rsc_mfree(ib->ib_pdata);
+	ib->ib_pmask = nb[nn++];
+	ib->ib_pdata = nb[nn++];
+	for (v = (struct rsc_cicon_version *)c->blk.mainlist; v;
+	     v = (struct rsc_cicon_version *)v->c.next_res)
+	{
+		rsc_mfree(v->c.col_data);
+		rsc_mfree(v->c.col_mask);
+		rsc_mfree(v->c.sel_data);
+		rsc_mfree(v->c.sel_mask);
+		v->c.col_data = nb[nn++];
+		v->c.col_mask = nb[nn++];
+		v->c.sel_data = nb[nn++];
+		v->c.sel_mask = nb[nn++];
+		v->data_bytes = npb * (size_t)v->c.num_planes;
+	}
+	ib->ib_wicon = (short)w;
+	ib->ib_hicon = (short)h;
+	c->mono_bytes = npb;
+	return 0;
+fail:
+	for (k = 0; k < nn; k++)
+		rsc_mfree(nb[k]);
+	return -1;
+}
+
+/* ---- walking a tree ------------------------------------------------------------------- */
+
+int rsc_walk_from(const struct rsc *r, int t, int start, rsc_walk_fn cb, void *ctx)
+{
+	struct rsc_tree	*tr = tree_at(r, t);
+	int	*scratch, *order, *par, *depth;
+	int	n, cnt, k, calls = 0, skip = -1, d, rc;
+
+	if (!tr || !cb || start < 0 || start >= tr->nobj)
+		return RSC_WALK_EARG;
+	n = tr->nobj;
+	scratch = rsc_malloc((size_t)n * 3 * sizeof *scratch);
+	if (!scratch)
+		return RSC_WALK_ENOMEM;
+	order = scratch;
+	par = scratch + n;
+	depth = par + n;
+	cnt = walk_tree(tr->obj, n, start, order, par);
+	if (cnt < 0)
+	{
+		rsc_mfree(scratch);
+		return cnt;
+	}
+	depth[start] = 0;
+	for (k = 1; k < cnt; k++)
+		depth[order[k]] = depth[par[order[k]]] + 1;
+	for (k = 0; k < cnt; k++)
+	{
+		d = depth[order[k]];
+		if (skip >= 0 && d > skip)
+			continue;
+		skip = -1;
+		calls++;
+		rc = cb(ctx, order[k], d, par[order[k]]);
+		if (rc == RSC_WALK_STOP)
+			break;
+		if (rc == RSC_WALK_SKIP)
+			skip = d;
+	}
+	rsc_mfree(scratch);
+	return calls;
+}
+
+int rsc_walk(const struct rsc *r, int t, rsc_walk_fn cb, void *ctx)
+{
+	return rsc_walk_from(r, t, 0, cb, ctx);
 }
