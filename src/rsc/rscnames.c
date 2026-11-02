@@ -1370,3 +1370,303 @@ int rsc_names_tree_removed(struct rsc_names *n, int t)
 	stale(n);
 	return 0;
 }
+
+/* ---- moving and removing nodes -------------------------------------------------------- */
+
+static int is_node_kind(int kind)
+{
+	return kind == RSC_NAME_FRSTR || kind == RSC_NAME_FRIMG;
+}
+
+/* Index v after the item at from moved to to (the ones between shift). */
+static int moved_index(int v, int from, int to)
+{
+	if (v == from)
+		return to;
+	if (from < to && v > from && v <= to)
+		return v - 1;
+	if (to < from && v >= to && v < from)
+		return v + 1;
+	return v;
+}
+
+int rsc_names_tree_moved(struct rsc_names *n, int from, int to)
+{
+	int	i;
+
+	if (!n || from < 0 || to < 0 || from > RSC_NAMES_MAX_INDEX || to > RSC_NAMES_MAX_INDEX)
+		return -1;
+	for (i = 0; i < n->n; i++)
+		if (n->e[i].kind == RSC_NAME_TREE || n->e[i].kind == RSC_NAME_OBJ)
+			n->e[i].tree = moved_index(n->e[i].tree, from, to);
+	stale(n);
+	return 0;
+}
+
+static int items_moved(struct rsc_names *n, int kind, int from, int to)
+{
+	int	i;
+
+	if (!n || from < 0 || to < 0 || from > RSC_NAMES_MAX_INDEX || to > RSC_NAMES_MAX_INDEX)
+		return -1;
+	for (i = 0; i < n->n; i++)
+		if (n->e[i].kind == kind)
+			n->e[i].obj = moved_index(n->e[i].obj, from, to);
+	stale(n);
+	return 0;
+}
+
+int rsc_names_str_moved(struct rsc_names *n, int from, int to)
+{
+	return items_moved(n, RSC_NAME_FRSTR, from, to);
+}
+
+int rsc_names_img_moved(struct rsc_names *n, int from, int to)
+{
+	return items_moved(n, RSC_NAME_FRIMG, from, to);
+}
+
+static int items_removed(struct rsc_names *n, int kind, int k)
+{
+	int	i, j;
+
+	if (!n || k < 0 || !is_node_kind(kind))
+		return -1;
+	for (i = j = 0; i < n->n; i++)
+	{
+		struct entry	*e = &n->e[i];
+
+		if (e->kind == kind && e->obj >= k)
+		{
+			if (e->obj == k)
+			{
+				rsc_mfree(e->name);
+				continue;
+			}
+			e->obj--;
+		}
+		n->e[j++] = *e;
+	}
+	n->n = j;
+	stale(n);
+	return 0;
+}
+
+int rsc_names_str_removed(struct rsc_names *n, int k)
+{
+	return items_removed(n, RSC_NAME_FRSTR, k);
+}
+
+int rsc_names_img_removed(struct rsc_names *n, int k)
+{
+	return items_removed(n, RSC_NAME_FRIMG, k);
+}
+
+int rsc_names_remove(struct rsc_names *n, int kind, int tree, int obj)
+{
+	int	i, j, removed = 0;
+
+	if (!n || kind < RSC_NAME_TREE || kind > RSC_NAME_FRIMG)
+		return -1;
+	for (i = j = 0; i < n->n; i++)
+	{
+		struct entry	*e = &n->e[i];
+
+		if (e->kind == kind
+		    && (kind == RSC_NAME_TREE ? e->tree == tree
+			: kind == RSC_NAME_OBJ ? e->tree == tree && e->obj == obj
+			: e->obj == obj))
+		{
+			rsc_mfree(e->name);
+			removed++;
+			continue;
+		}
+		n->e[j++] = *e;
+	}
+	n->n = j;
+	stale(n);
+	return removed;
+}
+
+int rsc_names_remove_obj(struct rsc_names *n, int t, int o)
+{
+	return rsc_names_remove(n, RSC_NAME_OBJ, t, o);
+}
+
+/* e is an OBJ entry of tree st whose object map keeps */
+static int selected(const struct entry *e, int st, const int *map, int nmap)
+{
+	return e->kind == RSC_NAME_OBJ && e->tree == st && e->obj < nmap && map[e->obj] >= 0;
+}
+
+int rsc_names_move_objs(struct rsc_names *n, int st, int dt, const int *map, int nmap)
+{
+	int	i, moved = 0;
+
+	if (!n || !map || nmap < 0 || st < 0 || dt < 0 || dt > RSC_NAMES_MAX_INDEX)
+		return -1;
+	for (i = 0; i < nmap; i++)
+		if (map[i] < -1 || map[i] >= RSC_MAX_OBJECTS)
+			return -1;
+	for (i = 0; i < n->n; i++)
+	{
+		struct entry	*e = &n->e[i];
+
+		if (selected(e, st, map, nmap))
+		{
+			e->tree = dt;
+			e->obj = map[e->obj];
+			moved++;
+		}
+	}
+	stale(n);
+	return moved;
+}
+
+int rsc_names_copy_objs(struct rsc_names *dst, int dt, const struct rsc_names *src, int st,
+			const int *map, int nmap)
+{
+	int	i, k = 0, old, srcn, added = 0;
+	const struct entry	*e;
+
+	if (!dst || !src || !map || nmap < 0 || st < 0 || dt < 0 || dt > RSC_NAMES_MAX_INDEX)
+		return -1;
+	for (i = 0; i < nmap; i++)
+		if (map[i] < -1 || map[i] >= RSC_MAX_OBJECTS)
+			return -1;
+	old = dst->n;
+	srcn = src->n;
+	for (i = 0; i < srcn; i++)
+		if (selected(&src->e[i], st, map, nmap))
+			k++;
+	if (k > RSC_NAMES_MAX - old || reserve(dst, old + k))
+		return -1;
+	/* src may be dst: the array does not move from here on, and the entries
+	 * appended go beyond srcn */
+	for (i = 0; i < srcn; i++)
+	{
+		e = &src->e[i];
+		if (!selected(e, st, map, nmap))
+			continue;
+		if (append(dst, RSC_NAME_OBJ, RSC_TKIND_UNKN, dt, map[e->obj], e->name,
+			   strlen(e->name), e->guessed))
+		{
+			while (dst->n > old)
+				rsc_mfree(dst->e[--dst->n].name);
+			stale(dst);
+			return -1;
+		}
+		added++;
+	}
+	return added;
+}
+
+/* ---- the writer ------------------------------------------------------------------------ */
+
+/* Record size of a .DFN file and the longest name of one (the reader keeps
+ * 8 bytes). */
+#define DFN_REC		14
+#define DFN_NAME_MAX	8
+
+/* The entry e names a node r has (r NULL: any). */
+static int has_node(const struct rsc *r, const struct entry *e)
+{
+	int	nobj;
+
+	if (!r)
+		return 1;
+	switch (e->kind)
+	{
+	case RSC_NAME_TREE:
+		return e->tree < rsc_ntrees(r);
+	case RSC_NAME_OBJ:
+		return rsc_tree_objects(r, e->tree, &nobj) && e->obj < nobj;
+	case RSC_NAME_FRSTR:
+		return e->obj < rsc_nfrstr(r);
+	case RSC_NAME_FRIMG:
+		return e->obj < rsc_nfrimg(r);
+	}
+	return 0;
+}
+
+static void put_le16(uint8_t *p, unsigned v)
+{
+	p[0] = (uint8_t)v;
+	p[1] = (uint8_t)(v >> 8);
+}
+
+int rsc_names_write_dfn(const struct rsc_names *n, const struct rsc *r, uint8_t *buf, size_t len,
+			struct rsc_error *err)
+{
+	const struct entry	*e;
+	size_t	cnt = 0, at, nl;
+	unsigned	val, kind;
+	int	i, pass;
+
+	if (!n)
+	{
+		rsc_error_set(err, RSC_EARG, 0, "no names list");
+		return -1;
+	}
+	/* pass 0 checks and counts, pass 1 writes */
+	for (pass = 0; pass < 2; pass++)
+	{
+		if (pass == 1)
+		{
+			if (!buf)
+				return (int)(2 + DFN_REC * cnt);
+			if (len < 2 + DFN_REC * cnt)
+			{
+				rsc_error_set(err, RSC_ETOOBIG, len, "buffer too small for the names");
+				return -1;
+			}
+			memset(buf, 0, 2 + DFN_REC * cnt);
+			put_le16(buf, (unsigned)cnt);
+		}
+		cnt = 0;
+		for (i = 0; i < n->n; i++)
+		{
+			e = &n->e[i];
+			if (e->guessed || e->kind > RSC_NAME_FRIMG || !has_node(r, e))
+				continue;
+			at = 2 + DFN_REC * cnt++;
+			nl = strlen(e->name);
+			if (nl > DFN_NAME_MAX)
+			{
+				rsc_error_set(err, RSC_ETOOBIG, at, "name longer than 8 characters");
+				return -1;
+			}
+			switch (e->kind)
+			{
+			case RSC_NAME_TREE:
+				val = (unsigned)e->tree;
+				kind = (unsigned)e->tkind;
+				break;
+			case RSC_NAME_OBJ:
+				if (e->tree > 255 || e->obj > 255)
+				{
+					rsc_error_set(err, RSC_ETOOBIG, at, "object beyond 255 in tree or index");
+					return -1;
+				}
+				val = (unsigned)e->tree << 8 | (unsigned)e->obj;
+				kind = 0x100;
+				break;
+			case RSC_NAME_FRSTR:
+				val = (unsigned)e->obj;
+				kind = e->tkind == RSC_TKIND_ALRT ? RSC_TKIND_ALRT : 0x101;
+				break;
+			default:
+				val = (unsigned)e->obj;
+				kind = 0x102;
+				break;
+			}
+			if (pass == 1)
+			{
+				put_le16(buf + at, val);
+				put_le16(buf + at + 2, kind);
+				memcpy(buf + at + 4, e->name, nl);
+			}
+		}
+	}
+	return (int)(2 + DFN_REC * cnt);
+}

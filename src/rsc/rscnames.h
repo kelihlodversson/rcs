@@ -201,6 +201,75 @@ int rsc_names_renumber(struct rsc_names *n, int t, const int *map, int nmap);
  * list or t < 0.  It allocates nothing. */
 int rsc_names_tree_removed(struct rsc_names *n, int t);
 
+/* Moves the entries of tree index from to index to, as rsc_tree_move(r,
+ * from, to) moves the tree: the TREE and OBJ entries of tree from get the
+ * index to, those of the trees in between shift by one.  Returns 0, or -1
+ * (NULL list, an index below 0 or above RSC_NAMES_MAX_INDEX).  It
+ * allocates nothing.  Likewise rsc_names_str_moved and rsc_names_img_moved
+ * for rsc_frstr_move and rsc_frimg_move (the FRSTR or FRIMG entries). */
+int rsc_names_tree_moved(struct rsc_names *n, int from, int to);
+int rsc_names_str_moved(struct rsc_names *n, int from, int to);
+int rsc_names_img_moved(struct rsc_names *n, int from, int to);
+
+/* For rsc_frstr_delete(r, k) and rsc_frimg_delete(r, k): removes the FRSTR
+ * (FRIMG) entries of index k and moves those of the later ones down by one.
+ * Returns 0, or -1 for a NULL list or k < 0.  It allocates nothing. */
+int rsc_names_str_removed(struct rsc_names *n, int k);
+int rsc_names_img_removed(struct rsc_names *n, int k);
+
+/* Removes the entries of one node: kind RSC_NAME_TREE (tree is the index;
+ * obj ignored), RSC_NAME_OBJ (tree, obj), RSC_NAME_FRSTR or RSC_NAME_FRIMG
+ * (obj is the index; tree ignored).  No index is shifted.  Returns the
+ * number of entries removed (0 when there was none), or -1 for a NULL list
+ * or another kind.  It allocates nothing.  rsc_names_remove_obj(n, t, o)
+ * is the RSC_NAME_OBJ case.  (A rename is a removal and an
+ * rsc_names_add: that also drops the guessed flag.) */
+int rsc_names_remove(struct rsc_names *n, int kind, int tree, int obj);
+int rsc_names_remove_obj(struct rsc_names *n, int t, int o);
+
+/* For rsc_obj_copy_subtree and rsc_tree_copy: the object map of the copy
+ * (map[old] the new index or -1, nmap the old object count of tree st of
+ * src).  Appends to dst, for every OBJ entry of tree st of src whose
+ * object is below nmap and not mapped to -1, an OBJ entry of tree dt for
+ * the new index, with the same name and guessed flag; src may be dst.
+ * The entry of the root of the copy, if it should differ, is the caller's
+ * (rsc_names_remove_obj, rsc_names_add), as is any check of names that
+ * already exist.  Returns the number of entries appended, or -1 (NULL
+ * argument, a map value below -1 or at or above RSC_MAX_OBJECTS, tree
+ * indices out of range, more than RSC_NAMES_MAX entries, no memory) and
+ * then dst is unchanged. */
+int rsc_names_copy_objs(struct rsc_names *dst, int dt, const struct rsc_names *src, int st,
+			const int *map, int nmap);
+
+/* For a subtree that moved from tree st to tree dt as a copy plus a
+ * delete: re-keys the OBJ entries of tree st whose object is below nmap
+ * and not mapped to -1 to (dt, map[object]); st = dt is allowed.  The other
+ * entries are left (rsc_names_renumber drops those of the deleted ones).
+ * Returns the number re-keyed, or -1 (NULL argument, a bad map value,
+ * indices out of range).  It allocates nothing. */
+int rsc_names_move_objs(struct rsc_names *n, int st, int dt, const int *map, int nmap);
+
+/* ---- writing --------------------------------------------------------------------------- */
+
+/* Encodes the names as a .DFN file (the format rsc_names_read_dfn reads:
+ * count word, 14-byte records, little-endian) into buf of len bytes, and
+ * returns the number of bytes, or -1 with *err filled (may be NULL).  buf
+ * NULL only measures.  Which entries are written, in list order:
+ *  - not those made by rsc_names_guess (flagged guessed): a guess is only
+ *    what the old RCS would show for an unnamed node, not part of the file;
+ *  - not entries of kind UNKNOWN (no node), and, when r is not NULL, not
+ *    entries whose node r does not have (what rsc_names_check drops);
+ *  - everything else as it is: duplicates and several names for one node
+ *    are kept, in order, so that reading the result gives the same entries
+ *    (kind, tkind, tree, obj, name, in order; the guessed flag is 0).
+ * Entries the format cannot hold are an error rather than silently lost
+ * (RSC_ETOOBIG, offset the position of the record in the output): a name
+ * of more than 8 bytes, an OBJ entry with a tree or object index above
+ * 255.  A buffer that is too small is RSC_ETOOBIG at offset len.  The
+ * unused bytes of the 10 name bytes are 0. */
+int rsc_names_write_dfn(const struct rsc_names *n, const struct rsc *r, uint8_t *buf, size_t len,
+			struct rsc_error *err);
+
 /* The readers' budget is 4 * len + RSC_NAMES_BUDGET_EXTRA bytes. */
 #define RSC_NAMES_BUDGET_EXTRA	4096
 
