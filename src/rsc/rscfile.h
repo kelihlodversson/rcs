@@ -73,6 +73,19 @@ struct rsc *rsc_atari_read(const uint8_t *buf, size_t len, int cell_w, int cell_
 int rsc_atari_write(const struct rsc *r, int cell_w, int cell_h,
 		    uint8_t **out, size_t *len, struct rsc_error *err);
 
+/* Checks every invariant the writer relies on (what rscvalidate.c lists:
+ * links of every tree, OF_LASTOB, coordinates that have a file form,
+ * the sizes and counts of images and colour icons against the blocks the
+ * model owns, text lengths, NULL free strings and images, the cell size)
+ * and returns 0, or -1 and fills *err (may be NULL) with the code the
+ * writer would report, a message naming the tree and object or the free
+ * item, and in offset the index of that object (or of the free item; 0 when
+ * the problem has no position).  It does not modify r and allocates only
+ * scratch (RSC_ENOMEM when that fails).  What it accepts, the writer
+ * writes, except that the classic part may be too big (RSC_ETOOBIG only
+ * the write can tell).  On success *err is set to RSC_OK. */
+int rsc_validate(const struct rsc *r, struct rsc_error *err);
+
 #ifdef RSC_TEST
 /* The writer's conversion of a pixel coordinate v to its file word with
  * cell size cell (1..RSC_MAX_CELL): returns 0, or -1 when v has none. */
