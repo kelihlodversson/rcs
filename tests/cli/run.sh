@@ -194,6 +194,62 @@ if [ $? = 1 ] && [ ! -e "$TMP/none.rsc" ]; then ok "convert too big: no file"; e
 if [ $? = 1 ] && [ ! -e "$TMP/nodir" ]; then ok "convert into no directory: no file"; else bad "convert into no directory: no file"; fi
 "$CLI" "$FIX/kinds.rsc" convert -o "$TMP/x.rsh" 2> /dev/null
 if [ $? = 1 ] && [ ! -e "$TMP/x.rsh" ]; then ok "convert .rsh: no file"; else bad "convert .rsh: no file"; fi
+# a failed convert never destroys a good OUT, and leaves no temporary file:
+# OUT is a directory (the rename fails), or the resource cannot be encoded
+rm -rf "$TMP/cv"
+mkdir -p "$TMP/cv/dirout.rsc"
+"$CLI" "$FIX/kinds.rsc" convert -o "$TMP/cv/dirout.rsc" 2> /dev/null
+if [ $? = 1 ] && [ -d "$TMP/cv/dirout.rsc" ] && [ "$(ls -A "$TMP/cv" | wc -l | tr -d ' ')" = 1 ]; then
+    ok "convert onto a directory: no temporary file"
+else
+    bad "convert onto a directory: no temporary file"
+fi
+cp "$FIX/kinds.rsc" "$TMP/cv/good.rsc"
+"$CLI" "$FIX/deep.rsc" convert -o "$TMP/cv/good.rsc" 2> /dev/null
+if [ $? = 1 ] && cmp -s "$FIX/kinds.rsc" "$TMP/cv/good.rsc" && [ "$(ls -A "$TMP/cv" | wc -l | tr -d ' ')" = 2 ]; then
+    ok "convert too big: an existing OUT is kept"
+else
+    bad "convert too big: an existing OUT is kept"
+fi
+# the converted file lists as the original does, without name files (also the inputs that are
+# not goldens), with and without guessing, in file form and in pixels
+for f in "$FIX/kinds.rsc" tests/golden/rcs.rsc tests/golden/cicon.rsc; do
+    b=$(basename "$f" .rsc)
+    for mode in "" "--no-guess"; do
+        rm -f "$TMP/cv/$b.rsc"
+        "$CLI" --no-names $mode "$f" -c 'ls -lR' > "$WORK/orig.ls" 2>&1
+        "$CLI" --no-names $mode "$f" convert -o "$TMP/cv/$b.rsc" 2> /dev/null && \
+            "$CLI" --no-names $mode "$TMP/cv/$b.rsc" -c 'ls -lR' > "$WORK/conv.ls" 2>&1
+        if [ -s "$WORK/orig.ls" ] && cmp -s "$WORK/orig.ls" "$WORK/conv.ls"; then
+            ok "convert $b $mode: the listing is the same"
+        else
+            bad "convert $b $mode: the listing is the same"
+        fi
+    done
+done
+# an unreachable object is not written: kinds-lost.rsc has one in its last
+# tree (4 objects), the converted file 3, and converting that again changes
+# nothing
+"$CLI" --no-names "$FIX/kinds-lost.rsc" convert -o "$TMP/cv/lost1.rsc" 2> /dev/null && \
+    "$CLI" --no-names "$TMP/cv/lost1.rsc" convert -o "$TMP/cv/lost2.rsc" 2> /dev/null && \
+    "$CLI" --no-names "$FIX/kinds-lost.rsc" -c 'ls -lR' > "$WORK/orig.ls" 2>&1 && \
+    "$CLI" --no-names "$TMP/cv/lost1.rsc" -c 'ls -lR' > "$WORK/conv.ls" 2>&1
+if [ $? = 0 ] && grep -q '^#6 .* PANL~ 4$' "$WORK/orig.ls" && grep -q '^#6 .* PANL~ 3$' "$WORK/conv.ls" \
+    && cmp -s "$TMP/cv/lost1.rsc" "$TMP/cv/lost2.rsc"; then
+    ok "convert kinds-lost: the unreachable object goes, then a fixed point"
+else
+    bad "convert kinds-lost: the unreachable object goes, then a fixed point"
+fi
+# OUT may be the input file
+cp "$FIX/kinds.rsc" "$TMP/cv/self.rsc"
+"$CLI" --no-names "$TMP/cv/self.rsc" -c 'ls -lR' > "$WORK/orig.ls" 2>&1
+"$CLI" --no-names "$TMP/cv/self.rsc" convert -o "$TMP/cv/self.rsc" 2> /dev/null && \
+    "$CLI" --no-names "$TMP/cv/self.rsc" -c 'ls -lR' > "$WORK/conv.ls" 2>&1
+if [ -s "$WORK/orig.ls" ] && cmp -s "$WORK/orig.ls" "$WORK/conv.ls" && cmp -s "$FIX/kinds.rsc" "$TMP/cv/self.rsc"; then
+    ok "convert onto the input file"
+else
+    bad "convert onto the input file"
+fi
 
 # ---- the largest name list: 65535 entries, a tree of 20000 objects
 t0=$(date +%s)

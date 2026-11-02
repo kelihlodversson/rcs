@@ -76,7 +76,8 @@ Exit status: 0 on success, 1 on any error. Errors go to stderr, one line
 each, starting with `rcs-cli: `; the command's name follows for errors of a
 command (`rcs-cli: ls: not found: 'X' in /`), the file name for errors of a
 file (`rcs-cli: x.rsc: header truncated at offset 0x0`). Output goes to
-stdout. `rcs-cli` writes no file but the one named by `convert -o`.
+stdout. `rcs-cli` writes no file but the one named by `convert -o` (and, while
+it writes, its temporary file next to it).
 
 ## Paths
 
@@ -306,9 +307,12 @@ the `--pixels` cell otherwise (both give the same bytes for a file whose
 coordinates convert back). The extension must be `.rsc` in any case;
 anything else (`.rsh`, `.h`, ...) is `output format not supported yet`.
 Without `-o OUT`, or with more arguments: `convert: usage: convert -o
-OUT.rsc`. The resource is encoded in memory first, then OUT is written
-directly; if writing fails, OUT is removed, so no partial file is left.
-OUT may be the input file.
+OUT.rsc`. The resource is encoded in memory first, then written to a
+temporary file in the directory of OUT (`OUT.XXXXXX`, the mode `fopen` would
+give, for the umask) and renamed over OUT once it is written and closed. If
+anything fails the temporary file is removed and an OUT that existed is left
+as it was, so no partial file is left and a good file is never lost. OUT may
+be the input file (the input is read before anything is written).
 
 ## Errors
 

@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "rscfile.h"
 #include "rcscmd.h"
 
@@ -825,17 +827,19 @@ static int ends_with_nocase(const char *s, const char *suf)
 	return 1;
 }
 
-/* Encodes the resource first, then writes OUT directly; on a failed write
- * OUT is removed, so no partial file stays. */
+/* Encodes the resource first, then writes it to a temporary file next to
+ * OUT and renames that over OUT once it is written and closed; on any
+ * failure the temporary file is removed and an existing OUT is untouched. */
 static int do_convert(struct rcs_ctx *c, int argc, char **argv)
 {
 	struct rsc_error	err;
 	uint8_t			*buf = NULL;
 	size_t			len = 0;
 	const char		*out;
-	char			pb[600];
+	char			pb[600], *tmp;
 	FILE			*f;
-	int			cw, ch, bad;
+	int			cw, ch, bad, fd, e;
+	mode_t			mask;
 
 	if (argc != 3 || strcmp(argv[1], "-o") != 0 || argv[2][0] == 0)
 	{
@@ -854,23 +858,50 @@ static int do_convert(struct rcs_ctx *c, int argc, char **argv)
 		rcs_error("convert: %s", err.msg);
 		return 1;
 	}
-	f = fopen(out, "wb");
-	if (!f)
+	tmp = malloc(strlen(out) + sizeof ".XXXXXX");
+	if (!tmp)
 	{
-		rcs_error("convert: %s: cannot write: %s", arg_path(pb, sizeof pb, out), strerror(errno));
+		rcs_error("out of memory");
 		rsc_mfree(buf);
 		return 1;
 	}
-	bad = fwrite(buf, 1, len, f) != len;
+	strcpy(tmp, out);
+	strcat(tmp, ".XXXXXX");
+	fd = mkstemp(tmp);
+	f = fd < 0 ? NULL : fdopen(fd, "wb");
+	if (!f)
+	{
+		e = errno;
+		if (fd >= 0)
+		{
+			close(fd);
+			remove(tmp);
+		}
+		rcs_error("convert: %s: cannot write: %s", arg_path(pb, sizeof pb, out), strerror(e));
+		free(tmp);
+		rsc_mfree(buf);
+		return 1;
+	}
+	/* mkstemp makes the file private: give it the mode fopen would have */
+	mask = umask(0);
+	umask(mask);
+	bad = fchmod(fd, 0666 & ~mask) != 0;
+	if (!bad)
+		bad = fwrite(buf, 1, len, f) != len;
 	if (fclose(f) != 0)
 		bad = 1;
 	rsc_mfree(buf);
+	if (!bad)
+		bad = rename(tmp, out) != 0;
 	if (bad)
 	{
-		rcs_error("convert: %s: cannot write: %s", arg_path(pb, sizeof pb, out), strerror(errno));
-		remove(out);
+		e = errno;
+		remove(tmp);
+		rcs_error("convert: %s: cannot write: %s", arg_path(pb, sizeof pb, out), strerror(e));
+		free(tmp);
 		return 1;
 	}
+	free(tmp);
 	return 0;
 }
 
