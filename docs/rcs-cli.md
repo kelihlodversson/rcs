@@ -54,6 +54,9 @@ the exit status:
 Unless `--no-guess` is given, `rsc_names_guess` then names the unnamed
 trees (`MENU<n>`, `DIALOG<n>`, `PANEL<n>`, `TREE<n>`, with a guessed kind) and
 the unnamed alert-shaped free strings (`ALERT<k>`), also without a name file.
+The number counter skips a number that any name in the list already takes,
+whatever the kind of the node it names (an object named `DIALOG2` makes the
+next dialog `DIALOG3`).
 A name list holds at most 65535 entries; when the guesses do not fit (a name
 file that is already full, and a tree or alert string that is still unnamed)
 the run fails with `rcs-cli: FILE: cannot guess the names: the name list has no

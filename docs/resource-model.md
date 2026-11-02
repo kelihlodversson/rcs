@@ -397,7 +397,10 @@ root reaches has `OF_EXIT`, `OF_DEFAULT`, `OF_TOUCHEXIT` or `OF_EDITABLE`;
 else PANL if the root is a `G_BOX`, `G_IBOX` or `G_BOXTEXT`; else UNKN) and
 the name `MENU<n>`, `DIALOG<n>`, `PANEL<n>` or `TREE<n>`, n = tree index + 1.
 Both count up while the name is already in the list; unlike the old RCS the
-comparison ignores the case, because the lookups do. Other free strings and
+comparison ignores the case, because the lookups do, and a number is taken by
+a name of any kind: an object or a free image named `DIALOG2` makes the next
+guess `DIALOG3`, because a name in the list is one namespace for the lookups
+(`test_guess_desk` pins this). Other free strings and
 free images stay unnamed. The new entries carry the guessed flag. A tree with
 an entry keeps that entry's kind. The list never exceeds `RSC_NAMES_MAX`
 (65535) entries: when the guesses do not fit, `rsc_names_guess` adds none and
