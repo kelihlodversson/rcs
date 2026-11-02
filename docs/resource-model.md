@@ -1,7 +1,7 @@
 # The resource model
 
 For people who edit the sources in `src/rsc/`, and for the programs that will
-use the library. Tracked by issue #29; this describes phases 1 and 2.
+use the library. Tracked by issue #29; this describes phases 1 and 2 and the editing additions of stage 3 (#32).
 
 ## What it is for
 
@@ -16,12 +16,13 @@ it yet: the objects are compiled for m68k and ARM but not linked into
 | File | Content |
 |---|---|
 | `src/rsc/rscmodel.h`, `rscmodel.c` | the types and the editing API of the model |
+| `src/rsc/rscvalidate.c` | `rsc_validate` (declared in `rscfile.h`) |
 | `src/rsc/rscfile.h` | the format selector (reserved for phase 3), the error type and codes, `RSC_MAX_CELL` |
 | `src/rsc/rscatari_read.c` | the reader of the classic Atari big-endian `.RSC` format |
 | `src/rsc/rscatari_write.c` | the writer of that format |
 | `src/rsc/rscatari.h` | private to those two: record sizes, header words, error filling (also used by `rscnames.c`) |
 | `src/rsc/rscnames.h`, `rscnames.c` | the names of a resource: the `.DFN`, `.DEF`/`.RSD` and `.HRD` readers, the check, the guesser, the lookups |
-| `tests/rsc/` | `test_rsc.c`, `test_read.c`, `test_write.c`, `test_names.c` |
+| `tests/rsc/` | `test_rsc.c`, `test_read.c`, `test_write.c`, `test_names.c`, `test_edit.c` |
 
 The classic format is the 16-bit `RSHDR` with the AES 4 colour icon extension.
 The extended format (`RSXHDR`) is not here yet.
@@ -44,6 +45,20 @@ use `src/host/gem.h`.
   changes, strings, the free lists, colour versions, `rsc_tree_preorder` and
   `rsc_tree_compact`, resizing, `OF_INDIRECT`, and every call with failing
   allocations.
+- `test_edit` tests the editing calls of the section "Moving, copying,
+  walking and validating": every call with its success and error paths, a
+  failing allocation at every point of each (the model and the live block
+  count must be as before), deep objects (20000 levels) and the object limit,
+  `rsc_validate` on read goldens and on 23 hand-corrupted models, the names
+  helpers and the `.DFN` writer, and a fuzz: 12 runs of 700 random edits
+  (add, delete, move, copy within a model and from a second one, tree copy,
+  move, add and delete, compact, free strings and images, with allocation
+  failures injected into one edit in five), each compared after every
+  step with a naive model kept in the test (a parent and an ordered child
+  list per slot, no links) for the indices, links, `OF_LASTOB`, the content of
+  every object, the preorder, `rsc_obj_parent`, the free lists and the names;
+  every 40 edits the model is written, read back and written again (the
+  bytes must be equal) and the names go through a `.DFN` and back.
 - `test_read` tests the reader: the files of `tests/golden` checked against
   their bytes, built files, truncations, mutations, malformed files and
   failing allocations.
@@ -224,6 +239,102 @@ int main(int argc, char **argv)
 }
 ```
 
+## Moving, copying, walking and validating
+
+Added for the editing commands of `rcs-cli` (stage 3, #32). Every call here
+returns -1 (or a negative code) and leaves the model as it was when it fails,
+also for a failed allocation, and none of them is recursive: the work is
+bounded by the object count and the scratch is a few arrays of `int` per
+object (named below). In every call an object index must be in range and a
+tree sound; a tree with broken links makes the calls that need the whole tree
+fail (the walks report why: `enum rsc_walk_error`).
+
+**Moving objects.** `rsc_obj_parent(r, t, i)` finds the parent as the AES does
+(-1: none, the root or an unlinked slot; -2: a bad index or links that lead
+nowhere). `rsc_obj_move(r, t, i, parent, pos)` makes `i`, with its subtree,
+child number `pos` of `parent` (`pos` counts the children of `parent` without
+`i`; 0 is first, -1 or the count last). Within one parent that reorders the
+siblings. Only links change: the indices of `i` and of every other object,
+the array and `OF_LASTOB` stay. It refuses the root, an object or a parent
+that the root does not reach (a slot left by `rsc_obj_delete`), a parent that
+is `i` or below it (a cycle), `pos` out of range and broken links (2n `int` of
+scratch).
+
+**Copying.** `rsc_obj_copy_subtree(dst, dt, dparent, pos, src, st, si, map)`
+copies object `si` of tree `st` of `src` with everything below it as new
+objects at the end of tree `dt` of `dst` and links the copy of `si` as child
+number `pos` of `dparent` (the same rules for `pos`). `dst` and `src` may be
+the same model, the same tree, even the copy's own parent (a snapshot is
+copied). The copies are deep: strings, TEDINFO, ICONBLK, BITBLK and colour
+icons with every version, `file_head` and `file_ptr` included (a TEDINFO keeps
+its `te_txtlen` and `te_tmplen` as they were, unlike `rsc_obj_set_tedinfo`,
+which recomputes them). The spec of an `OF_INDIRECT` object and plain values
+are copied as they are. The copies keep the order of the source array, so the
+new index of an object is the number of the new objects before it plus the old
+object count of `dt`; flags (except `OF_LASTOB`, which moves to the new last
+object), state and coordinates are copied. `map` (room for the object count of
+`st`, may be NULL) gets the new index of each old object, -1 for the others;
+the call returns the new index of `si`. `si` must be linked into its tree
+(index 0 or an object with a parent); `dparent` must be reachable. Both
+trees' links are checked (the whole of `dt`, the part below `si` of `st`).
+It refuses another cell size in the two models (`rsc_cell`: the coordinates
+would mean something else) and a result of more than `RSC_MAX_OBJECTS`.
+Names are not copied: `rsc_names_copy_objs` does that with the same `map`.
+
+`rsc_tree_copy(dst, pos, src, st, map)` copies a whole tree as tree number
+`pos` of `dst` (-1 or `rsc_ntrees(dst)`: last; later trees move up). It copies
+the objects the root reaches in the order of the array, so the copy is the
+compacted tree and `map` is the map `rsc_tree_compact` would give.
+
+**Trees and free items.** `rsc_tree_move(r, t, pos)`, `rsc_frstr_move(r, k,
+pos)` and `rsc_frimg_move(r, k, pos)` move an item to the index `pos`
+(-1: last); the items in between shift by one. They allocate nothing. Free
+strings and images are named by their index, so the names follow with
+`rsc_names_str_moved` and `rsc_names_img_moved` (and `rsc_names_tree_moved`
+for trees). `rsc_frimg_set(r, k, bb)` replaces a free image with a copy of
+`*bb` (data included) without changing its index.
+
+**Colour versions by index.** `rsc_cicon_insert_version(c, v, ...)` makes the
+new version number `v` (0 to the count; -1 last) and `rsc_cicon_set_version(c,
+v, ...)` replaces version `v`; the planes and their checks are those of
+`rsc_cicon_add_version`, the opaque `file_ptr` of the new version is 0.
+`rsc_cicon_resize(c, w, h)` resizes a colour icon to `w` x `h` pixels (0 to
+32767) and keeps its versions: every plane (mono data and mask, each colour
+plane, mask and the selected ones) keeps its top left part, cropped at the
+right and the bottom when it shrinks and padded with zero words when it grows,
+exactly as `rsc_obj_resize_icon` does for an ICONBLK; NULL data stays NULL.
+`ib_xicon`, `ib_xtext` and the other positions inside the mono ICONBLK are the
+caller's to adjust. The result may hold at most `RSC_RESIZE_MAX_BYTES` (32
+MiB) of image data (one plane of 32767 x 32767 pixels is 134 MB, and a
+colour icon has dozens of planes); a colour icon whose recorded sizes do not
+match its blocks (written directly, against the contract) is refused.
+
+**Walking.** `rsc_walk(r, t, cb, ctx)` calls `cb(ctx, obj, depth, parent)` for
+every object the root reaches, in preorder, with the depth (0 for the root)
+and the parent (-1 for the root); `rsc_walk_from` starts at another object
+(depth 0, parent -1 there). The callback returns `RSC_WALK_CONTINUE`,
+`RSC_WALK_SKIP` (not the children of this object) or `RSC_WALK_STOP`; it must
+not change the model. The links are checked first, so the callback sees a
+sound tree; it takes 3n `int` of scratch. The result is the number of calls,
+or an `enum rsc_walk_error` (and then there were none).
+
+**Validating.** `rsc_validate(r, &err)` (declared in `rscfile.h`) checks what
+the writer relies on and returns 0, or -1 with the code the writer would
+report, the tree and object (or the free item) in the message and the index of
+that object (or item) in `err.offset`. A tree has 1 to `RSC_MAX_OBJECTS`
+objects, sound links, `OF_LASTOB` on the last object only; each object the
+root reaches has coordinates that have a file form (with a cell size: -127 to
+255 cells + 128), a TEDINFO text and template below 32767 characters, no
+negative icon or image size and, for a colour icon, recorded sizes that match
+its blocks, a version chain that does not loop and has at most
+`RSC_MAX_VERSIONS` versions, a version count and tail that match the chain,
+1 to `RSC_MAX_PLANES` planes per version, `text[12]` NUL and `ib_ptext`
+pointing at the text; free strings and images are not NULL and have no
+negative size; a cell size that is 0, 0 or 1 to `RSC_MAX_CELL` twice. What
+it accepts the writer writes, except that the classic part may exceed 65535
+bytes, which only a write can tell (`RSC_ETOOBIG`). Objects the root does not
+reach are not looked at, as in the writer.
+
 ## Errors
 
 `rsc_atari_read` returns NULL and `rsc_atari_write` returns -1 on failure
@@ -341,8 +452,31 @@ name and a flag for guessed entries. A name has 1 to 32 bytes, no control
 character (below 0x20, and 0x7f); bytes from 0x80 up are kept as they are
 (the Atari character set), and so is the case. The list may hold several
 entries for a node and one name for several nodes, as real files do; the
-display name of a node is the name of its first entry. Names are not written
-yet.
+display name of a node is the name of its first entry.
+
+Writing and following edits (stage 3): `rsc_names_write_dfn(n, r, buf, len,
+&err)` encodes the list as a `.DFN` file (the format below) into `buf`
+(returns the byte count, or -1; `buf` NULL measures; it allocates nothing). It
+writes the entries that are not guessed (`rsc_names_guess` makes names an
+editor shows but a file need not hold), not the ones of kind UNKNOWN and, when
+`r` is given, not those whose node `r` does not have; duplicates and several
+names for a node are kept in order, so reading the result gives the same
+entries. What the format cannot hold is an error with the offset of the record
+(`RSC_ETOOBIG`): a name over 8 bytes, a tree or object index over 255 in an
+object entry. The following calls keep a list in step with the edits:
+`rsc_names_tree_moved`, `rsc_names_str_moved`, `rsc_names_img_moved` (for
+`rsc_tree_move`, `rsc_frstr_move`, `rsc_frimg_move`), `rsc_names_str_removed`
+and `rsc_names_img_removed` (for `rsc_frstr_delete`, `rsc_frimg_delete`; for a
+tree delete and compaction see `rsc_names_tree_removed` and
+`rsc_names_renumber`), `rsc_names_remove` and `rsc_names_remove_obj` (the
+entries of one node, nothing shifts; a rename is a remove and an
+`rsc_names_add`), `rsc_names_copy_objs` (the entries of the copied objects of
+`rsc_obj_copy_subtree` or `rsc_tree_copy`, from the same or another list, with
+the call's `map`; all or nothing) and `rsc_names_move_objs` (re-keys the
+entries of a subtree that moved from one tree to another as a copy plus a
+delete; an object moved within a tree keeps its index, so nothing is needed).
+Inserting a tree in the middle has no names call: copy it at the end and use
+`rsc_tree_move` with `rsc_names_tree_moved`.
 
 ### The formats
 
