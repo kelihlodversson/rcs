@@ -52,7 +52,9 @@ size_t rcs_escape(char *dst, size_t dstsize, const char *src, size_t max, int qu
 	size_t	k = 0, i;
 	char	tmp[5];
 	size_t	tl;
+	int	more = !(quote & RCS_ESC_PLAIN);
 
+	quote &= 0xff;
 	if (dstsize == 0)
 		return 0;
 	for (i = 0; i < max && src[i]; i++)
@@ -85,7 +87,7 @@ size_t rcs_escape(char *dst, size_t dstsize, const char *src, size_t max, int qu
 		memcpy(dst + k, tmp, tl);
 		k += tl;
 	}
-	if (i < max && src[i] && k + 4 <= dstsize)
+	if (more && src[i] && k + 4 <= dstsize)	/* more follows: max or the room ended it */
 	{
 		memcpy(dst + k, "...", 3);
 		k += 3;

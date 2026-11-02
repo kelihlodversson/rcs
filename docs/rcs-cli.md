@@ -141,7 +141,7 @@ Every byte from the file is written as printable ASCII:
 A character (`G_BOXCHAR`, an icon's letter) is shown as `'A'`, `'\''`,
 `'\\'` or `'\xnn'` (below 0x20, 0x7f and up). Error messages that echo a
 path, a component, a file name or a `-c` string escape it the same way (as
-for cat), at most 64 to 200 bytes of it. Values such as flags and specs
+for cat), at most 64 to 200 bytes of it, then `...` when it is longer. Values such as flags and specs
 are written `0xNNNN` with upper-case digits; only escaped bytes use
 lower case.
 

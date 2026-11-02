@@ -52,7 +52,7 @@ static void out_text(const char *s, int quote)
 
 	for (i = 0; s[i]; i++)
 	{
-		rcs_escape(buf, sizeof buf, s + i, 1, quote);
+		rcs_escape(buf, sizeof buf, s + i, 1, quote | RCS_ESC_PLAIN);
 		fputs(buf, stdout);
 	}
 }
@@ -257,7 +257,7 @@ static void node_line(struct rcs_ctx *c, const struct rcs_node *nd, int pad)
 		break;
 	case RCS_NODE_FRSTR:
 		len = (int)strlen(d.text);
-		rcs_escape(tx, sizeof tx, d.text, TEXT_SHOW, '"');
+		rcs_escape(tx, sizeof tx, d.text, TEXT_SHOW, '"' | RCS_ESC_PLAIN);
 		printf(pad ? "%-6s %-12s %5d %-5s \"%s\"%s\n" : "%s %s %d %s \"%s\"%s\n",
 		       idx_str(ib, sizeof ib, d.index), col_name(nb, d.name), len,
 		       d.alert ? "ALERT" : "-", tx, len > TEXT_SHOW ? "..." : "");

@@ -191,8 +191,12 @@ int rcs_is_alert(const char *s);
  * from 0x80 up (the Atari character set; 0x80-0x9f are C1 controls of a
  * terminal) as \xnn with lower-case hex digits; with quote '"' also
  * the double quote as \" (and space is kept), with quote 0 the space as
- * \x20 too (for names in columns), with quote 1 nothing more (for cat).  When src does not fit, "..." ends the result.
+ * \x20 too (for names in columns), with quote 1 nothing more (for cat).
+ * When src does not fit, or is longer than max bytes, "..." ends the result,
+ * unless RCS_ESC_PLAIN is or-ed into quote (for a caller that marks the cut
+ * itself, or escapes one byte at a time).
  * Returns the length written. */
+#define RCS_ESC_PLAIN	0x100
 size_t rcs_escape(char *dst, size_t dstsize, const char *src, size_t max, int quote);
 
 #endif
