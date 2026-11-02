@@ -3,8 +3,10 @@
 A command line program that shows the structure of a GEM resource file
 (`.RSC`) and its name file (`.DFN`, `.DEF`, `.RSD`, `.HRD`) through the
 resource library (`docs/resource-model.md`), and writes it again with the
-library's writer. Stage 2 of #27 (issue #31): read-only commands. The
-editing commands are stage 3 (#32), icon images stage 4 (#33).
+library's writer. Stage 2 of #27 (issue #31) added the read-only commands,
+stage 3 (#32) the editing commands (`cp`, `mv`, `rm`, `mkdir`, `touch`,
+`chmod`, `set`) with write-back and the name file; icon images are stage 4
+(#33).
 
 ## Building and testing
 
@@ -21,7 +23,8 @@ test hooks) and `src/cli/*.c`. It is not part of the m68k and ARM builds.
 | `src/cli/rcscmd.h`, `rcscmd.c` | the commands and their output formats |
 | `src/cli/rcs-cli.c` | options, loading, name file lookup, `-c`, exit status |
 | `tests/cli/run.sh` | the test runner; `tests/cli/cases/` the cases |
-| `tests/cli/mkfix.c` | writes the synthetic fixtures at test time |
+| `tests/cli/mkfix.c` | writes the synthetic fixtures at test time; `mkfix merge A B OUT` (the merge of the library's calls) and `mkfix cicon-equal ...` (deep comparison of two colour icons) for the edit tests |
+| `tests/cli/edits/` | the expected re-read listings of the write-back tests |
 
 ## Command line
 
@@ -33,8 +36,12 @@ Options come before `FILE.rsc`; an unknown option is an error.
 | Option | Effect |
 |---|---|
 | `--names FILE`, `--names=FILE` | read the names from FILE; the extension picks the format (`.dfn`, `.def`, `.rsd`, `.hrd`, any case) |
-| `--no-names` | read no name file (excludes `--names`) |
-| `--no-guess` | do not guess names and tree kinds for what the name file leaves unnamed |
+| `--no-names` | read no name file and write none (excludes `--names` and `--names-out`) |
+| `--no-guess` | do not guess names and tree kinds for what the name file leaves unnamed (also for the trees and alert strings the edit commands add) |
+| `-o OUT.rsc` | write the result of the edit commands to OUT.rsc (and its names to OUT.dfn), leave the input alone; `OUT` must end in `.rsc` (`-o: X: output format not supported yet`) |
+| `-n` | dry run: run the commands, check that the result could be written, write nothing (excludes `-o`) |
+| `--names-out FILE` | write the names to FILE instead of next to the resource; FILE must end in `.dfn` (`--names-out: X: only .dfn name files can be written yet`); excludes `--no-names` |
+| `--selfcheck` | a testing aid: before every edit command the whole model (the encoded resource and the names) is kept, and after a command that failed it is compared; a difference is `internal error: CMD failed but changed the model` |
 | `--pixels`, `--pixels=WxH` | read the file with the character cell WxH (8x16 when not given; each 1 to 127): coordinates are shown in pixels and `convert` uses that cell |
 | `--help` | the usage text on stdout, exit status 0 |
 
@@ -76,8 +83,11 @@ Exit status: 0 on success, 1 on any error. Errors go to stderr, one line
 each, starting with `rcs-cli: `; the command's name follows for errors of a
 command (`rcs-cli: ls: not found: 'X' in /`), the file name for errors of a
 file (`rcs-cli: x.rsc: header truncated at offset 0x0`). Output goes to
-stdout. `rcs-cli` writes no file but the one named by `convert -o` (and, while
-it writes, its temporary file next to it).
+stdout. A note (`rcs-cli: note: ...`, exit status unaffected) tells about what
+the command line did not say: indices that shifted, names that were not
+carried, a name file that was left as it is. `rcs-cli` writes a file only for
+`convert -o` and for the edit commands (see Writing the result); while it
+writes, its temporary file is next to it.
 
 ## Paths
 
@@ -314,6 +324,313 @@ anything fails the temporary file is removed and an OUT that existed is left
 as it was, so no partial file is left and a good file is never lost. OUT may
 be the input file (the input is read before anything is written).
 
+## Editing
+
+The edit commands change the model in memory; the file is written at the end
+(see Writing the result). Every command checks everything before it changes
+anything, so a command that fails leaves the model as it was (`--selfcheck`
+verifies that in the tests; the exceptions are a failed allocation and a name
+list that is full after a copy, which end the run anyway, and nothing is
+written then). The commands read what the edit commands before them in the
+same `-c` sequence did: `-c 'mkdir X' -c 'ls /X'` works.
+
+The edit commands are `cp`, `mv`, `rm`, `mkdir`, `touch`, `chmod`, `set`. `ls`,
+`tree`, `stat`, `cat` take a `FILE.rsc:/PATH` too (below).
+
+### A path in a second file: `FILE.rsc:/PATH`
+
+An argument of the form `FILE.rsc:/PATH` addresses a node in another resource
+file; FILE must end in `.rsc` (any case), so a main-file path such as `/a:/b`
+stays what it is. The second file is read with the options of the run
+(`--pixels`, `--no-names`, `--no-guess`; its name file is looked up next to it,
+`--names` is for the main file only), once, when it is first named, and is
+never written. It may be the main file itself (then it is the main file, with
+the edits made so far; `stat` of the same file decides). At most 8 second files
+per run. Where a second file is not allowed (the destination of `cp`, anything
+but the source of `cp`, every other command) the error is `CMD: ARG: a second
+file is read-only (it is never written)`. A file that cannot be read is the
+error of the main file (`rcs-cli: FILE: cannot open: ...`).
+
+### Names given to new nodes
+
+A new name (the destination of a copy or a move, `mkdir`, `touch`, `set
+name=`) must be 1 to 32 bytes, with no control character (below 0x20, 0x7f)
+and no `/`; it must not be `#` and digits (that is an index: `NAME: a name
+that is # and digits is an index, not a name`); for a tree it must not be
+`.strings` or `.images` (`that name is reserved`). It must not exist in its
+scope, the ASCII letters compared without case: the scope of a tree name is
+the trees, of an object name its **tree** (names are looked up in the whole
+tree whatever the parent), of a free string or image all of those. The error
+is `CMD: the name 'X' is used by KIND #N already` (for an object: `... in that
+tree (give the new object another name)`). No command overwrites anything.
+
+`cp` and `mv` treat a destination that exists as a directory to put the node
+in, and a destination that does not exist but whose parent does as the new
+name (`cp /A/OK /A/OK2` copies OK as OK2, `cp /A/OK /A/BOX` copies it into
+BOX). The destination is therefore resolved in two steps: `rcs_resolve` of the
+whole path; when that fails because of the last component only, the parent
+and the name. Errors in the parent part are the usual path errors.
+
+### cp [-r] SRC DST
+
+Copies a node, with its names. The position is always last (a tree at the end
+of `/`, an object the last child, a string or image at the end of its list).
+
+| SRC | DST (existing) | DST (new name, parent exists) |
+|---|---|---|
+| an object (`-r` when it has child objects; the colour icon with every version is part of the object) | a tree (below its root) or an object with children (as its last child): the copy keeps the name of SRC when it has one | below a tree or a reachable object: the copy is called NAME |
+| a tree (`-r` always) | `/`: the copy keeps the name of SRC | at `/`: the copy is called NAME |
+| a free string, a free image | `/.strings`, `/.images`: keeps the name | there: called NAME |
+
+Names of the copy. The copy of the object or tree itself gets NAME, or the
+first name of SRC; **a guessed name is not copied**: the copy is left unnamed
+and named again by the guess (`PANEL8`; with `--no-guess` it stays unnamed). A
+name of SRC that exists in the target is an error (`cp: the name 'X' is used by
+...`); give the copy a new name. The objects below a copied object keep their
+names (all names of one object); one that the target tree has already (always
+the case when the tree is the source's) is left out and counted in a note: `rcs-cli: note: cp: 3
+names of objects in the copy were not carried: the tree has them already`.
+The copy of a whole tree carries all object names (the new tree has none yet).
+Between files nothing is shared: strings, records, images and colour icons
+are copied with all versions and planes.
+
+Errors (besides the path errors and `cp: usage: cp [-r] SRC DST`,
+`cp: unknown option 'X'`):
+
+| Message | When |
+|---|---|
+| `cp: SRC: is a directory (use -r)` | an object with children, or a tree, without `-r` |
+| `cp: SRC: not reachable from the root of its tree` | an object no root reaches |
+| `cp: DST: an object can only go into a tree or an object` | an object to `/`, `/.strings`, a string... |
+| `cp: DST: exists and is not a directory (it has no children; to put something inside, give a name: DST/NAME)` | an object onto an object without children |
+| `cp: DST: not reachable from the root of its tree` | into an unreachable object |
+| `cp: DST: a tree can only be copied to /` | a tree anywhere else |
+| `cp: DST: a free string can only be copied to /.strings`, `... free image ... /.images` | |
+| `cp: DST: already exists` | a tree onto a tree, a string onto a string... |
+| `cp: SRC: cannot be copied` | `/`, `/.strings`, `/.images` |
+| `cp: SRC: colour icon entries cannot be copied yet (copy the object)` | `mono`, `4`... (stage 4) |
+| `cp: cannot copy: the tree would have more than 32767 objects, a link is broken or memory ran out` | |
+| `cp: cannot add the names (the name list is full or memory ran out)` | the copy is undone |
+| `cp: cannot name the copy: the name list has no room (use --no-guess)` | |
+
+    $ rcs-cli app.rsc -c 'cp -r /DIALOG /ABOUT' -c 'cp /DIALOG/OK /ABOUT/CLOSE'
+    $ rcs-cli app.rsc cp -r other.rsc:/MENU1 /          # merge a tree from another file
+    $ rcs-cli app.rsc cp other.rsc:/PANEL1/ICON /DIALOG/ICON2   # a colour icon with its versions
+
+`cp -r other.rsc:/#i /` for every tree, `cp other.rsc:/.strings/#k /.strings`
+and `cp other.rsc:/.images/#k /.images` for the free items is what the merge
+function of the GUI did (the test compares the listing and the file with the
+merge made by the library's calls).
+
+### mv SRC DST
+
+As `cp` for what goes where, then the source is gone. Within one tree an
+object is relinked (`rsc_obj_move`; its index and those of its subtree stay,
+and so do the names); between trees it is copied and the source is deleted (the
+objects get new indices, all names of the subtree move with it, and a name that
+the target tree has already is an error: `mv: the name 'X' of an object in SRC
+is used in the target tree already`). A tree or free item moves with
+`rsc_tree_move` and friends; the names follow (`rsc_names_tree_moved`...).
+The source must be in the main file (`mv: SRC: a second file is read-only, so
+nothing can be moved out of it (use cp)`).
+
+- `mv /A/OK /A/FINE`: the destination has the same parent as SRC and does not
+  exist: a **rename**, the position among the siblings stays.
+- `mv /A/OK /A/BOX/OK2`, `mv /A/OK /A/BOX`: relinked as the last child of BOX
+  (a rename when the name is new). `mv /A/OK /A` onto its own parent makes it
+  the last child of the parent.
+- `mv /DIALOG /ABOUT` renames a tree (it stays where it is), `mv /DIALOG /`
+  moves it to the end; likewise `/.strings/K` and `/.images/K`.
+- Errors beyond those of `cp`: `mv: SRC and DST are the same node`
+  (`mv /A/OK /A/ok` is that too: use `set /A/OK name=ok`), `mv: DST: is inside
+  SRC` (the destination is in the subtree of SRC, found without recursion),
+  `mv: SRC: the root of a tree cannot be moved (it is the tree: mv /TREE
+  /NEW)`, `mv: SRC: colour icon entries cannot be moved yet`, `mv: SRC:
+  cannot be moved`, `mv: DST: a tree can only go to /` (and the same for
+  strings and images), `mv: cannot move SRC (broken links or memory ran out)`,
+  `mv: usage: mv SRC DST`.
+- After a move between trees `rcs-cli: note: mv: N objects of the source tree
+  were renumbered (from #I on)`.
+
+### rm [-r] PATH
+
+Removes an object (with `-r` when it has children), a tree (`-r` always), a
+free string or a free image, from the main file. The unreachable objects of
+the tree are dropped with an object (`rsc_tree_compact`; the writer would drop
+them anyway), the indices behind it shift down and the names follow
+(`rsc_names_renumber`, `rsc_names_tree_removed`, `rsc_names_str_removed`...);
+the names of what is removed are removed. When any index shifted, a note says
+how many and from where: `rcs-cli: note: rm: 18 objects of /DIALOG were
+renumbered (from #2 on)`, `... 4 trees were renumbered (from #1 on)`, `... 4
+free strings ...`.
+
+Errors: `rm: SRC: is a directory (use -r)`, `rm: PATH: the root of a tree
+cannot be removed (remove the tree: rm -r /TREE)`, `rm: PATH: not reachable
+from the root of its tree (a write drops it)`, `rm: /: the root cannot be
+removed`, `rm: /.strings: cannot be removed (remove its entries)`, `rm: PATH:
+colour icon entries cannot be removed yet`, `rm: PATH: a second file is
+read-only`, `rm: missing PATH`, `rm: too many arguments`, `rm: unknown option
+'X'`, `rm: cannot remove PATH ...`.
+
+### mkdir NAME [--type dialog|menu|panel|alert]
+
+A new tree at the end of `/` (`--type` may come before or after NAME; NAME may
+have one leading `/`; the default type is `dialog`). The tree gets the name and
+the kind (`DIAL`, `MENU`, `PANL`) in the names.
+
+- `dialog`: one `G_BOX` root, spec `0x00021100` (frame 2, colour 1), 32 x 8
+  cells at 0,0. `panel`: the same with spec `0x00001100` (no frame).
+- `menu`: the AES skeleton: a `G_IBOX` root of 80 x 25 cells; its first child
+  the bar (`G_BOX`, 80 x 1) with the `G_IBOX` of the titles (7 x 1 at x 2)
+  holding one `G_TITLE` `" Title "`; its second child the screen (`G_IBOX`,
+  80 x 24 at y 1) holding one drop-down `G_BOX` (14 x 1) with one `G_STRING`
+  `"  Item  "`.
+- `alert`: a free string `[1][text][OK]`, named NAME (kind `ALRT`).
+
+With `--pixels` the sizes are multiplied by the cell. Errors: `mkdir: missing
+NAME`, `mkdir: too many arguments`, `mkdir: unknown option 'X'`, `mkdir:
+--type needs dialog, menu, panel or alert`, `mkdir: bad type 'X' (dialog,
+menu, panel or alert)`, the name errors, `mkdir: cannot create the tree
+(memory ran out or too many trees)`.
+
+### touch PATH [--type TYPE]
+
+If PATH exists: nothing (but this is an edit command, so the file is written;
+see below). Otherwise a new node named by the last component:
+
+- below a tree or a reachable object: an object, as last child of the parent
+  (`/T/NEW` below the root, `/T/BOX/NEW` below BOX, also below an object that
+  has no children). TYPE is an AES name (`G_BUTTON`, `button`, any case) or a
+  number (decimal or `0x`, up to `0xFFFF`); the default is `G_BOX`. Spec:
+  boxes `0x00001100` (`G_BOXCHAR` with the character space), strings the empty
+  string, `G_TEXT`/`G_BOXTEXT`/`G_FTEXT`/`G_FBOXTEXT` a TEDINFO with empty text,
+  template and validation, font 3 (IBM), colour `0x1100`, `G_ICON` an ICONBLK
+  and `G_CICON` a colour icon (no versions) of 32 x 32 pixels with blank
+  images, `G_IMAGE` a BITBLK of 16 x 16 pixels (`bi_wb` 2, `bi_hl` 16), blank.
+  Size 8 x 1 cells at 0,0 (icons 4 x 2, images 2 x 1).
+- `/.strings/NAME`: a free string with empty text; `/.images/NAME`: a free
+  image of 16 x 16 pixels, blank.
+
+Names are looked up in the whole tree, so a name that another object of the
+tree has, under another parent, is `touch: the name 'X' is used by object #N
+already in that tree ...`. Errors: `touch: PATH: use mkdir to create a tree`
+(`/NAME`), `touch: PATH: nothing can be created there` (below a string, a
+colour icon entry, ...), `touch: the parent of PATH is not reachable from the
+root of its tree`, `touch: bad type 'X' (an AES type name such as G_BUTTON, or
+a number)`, `touch: --type needs a type`, `touch: the name list is full (at most 65535 entries)`, `touch: cannot create ...`, `touch: missing PATH`, `touch: too
+many arguments`, `touch: unknown option 'X'`.
+
+### chmod [--state] MODE... PATH
+
+Changes the flags of an object, or with `--state` its state. Each MODE is `+NAME[,NAME...]` (set), `-NAME[,NAME...]` (clear) or
+`=[NAME[,NAME...]]` (set exactly these: `=` alone clears everything but
+`LASTOB`); they apply from the left. Names are the ones `ls` shows, in any
+case, with or without the `OF_` / `OS_` prefix: flags `SELECTABLE DEFAULT EXIT
+EDITABLE RBUTTON TOUCHEXIT HIDETREE INDIRECT FL3DIND FL3DBAK FL3DACT` (the
+last is both 3D bits), states `SELECTED CROSSED CHECKED DISABLED OUTLINED
+SHADOWED`. `LASTOB` is refused (`chmod: LASTOB is kept by the library and
+cannot be changed`), also in `=`: `=` keeps it. Changing `INDIRECT` of an
+object whose type has a pointer spec releases the old spec: `rcs-cli: note:
+chmod: INDIRECT changed the kind of the spec: the old spec was released`.
+
+Errors: `chmod: usage: chmod [--state] [+-=]NAME[,NAME...]... PATH`, `chmod:
+bad mode 'X' (+NAME, -NAME or =NAME,... )` (a MODE not starting with `+ - =`),
+`chmod: bad mode '+' (no names)`, `chmod: bad mode 'X' (empty name)`, `chmod:
+unknown flag 'X'` / `unknown state 'X'`, `chmod: PATH: not an object`, `chmod:
+PATH: a second file is read-only`.
+
+### set PATH key=value...
+
+Sets properties of an object. All the assignments are checked first, against
+the type that the earlier ones leave (`type=G_FTEXT text=Hi` works, `type=G_BOX
+text=Hi` is refused), and then applied in order; if one is refused nothing
+changes.
+
+| Key | Value | Applies to |
+|---|---|---|
+| `text` | any string | `G_STRING`/`G_BUTTON`/`G_TITLE`, the TEDINFO kinds (`te_txtlen` follows: `rsc_obj_set_str`; not trimmed to the template), `G_ICON`, `G_CICON` (at most 12 characters); for a free string (`set /.strings/K text=...`) its text, and the alert/other kind of its name follows the new shape |
+| `template`, `valid` | any string | TEDINFO kinds (`te_tmplen` follows, `te_txtlen` not) |
+| `x` `y` `w` `h` | file form: `3`, `3+4`, `3-2` (cells 0 to 255, remainder `+0..+128` or `-0..-127`); with `--pixels` a whole number of pixels from -127 to 255 * cell + 128 | any object |
+| `color` | a hex word, `0x` optional, up to `FFFF` | TEDINFO kinds (`te_color`), `G_BOX`/`G_IBOX`/`G_BOXCHAR` without `INDIRECT` (the low 16 bits of the spec) |
+| `thickness` | -128 to 127 | the same (`te_thickness`; bits 23-16 of the spec) |
+| `font` | `IBM` (3), `SMALL` (5) or 0 to 32767 | TEDINFO kinds |
+| `just` | `left`, `right`, `center` or 0 to 2 | TEDINFO kinds |
+| `type` | an AES name or a number, as for `touch` | any object (a change of the kind of spec releases the old spec; a later `text=` makes a new record) |
+| `name` | a new name | a tree, object, free string or free image (the same as `mv` within the parent) |
+
+Errors: `set: usage: set PATH key=value...`, `set: bad assignment 'X'
+(key=value)`, `set: unknown key 'K'`, `set: bad value 'K=V'` (with, for the
+coordinates, what is expected), `set: bad type 'X' ...`, `set: PATH: KEY does
+not apply to a G_BOX object` (the type is the one the earlier assignments
+leave, `with INDIRECT` when it has the flag), `set: PATH: the value of KEY is too long (at most 12 characters)` (32766 for a
+TEDINFO string), `set: PATH: only name= applies to a tree` (free image;
+`... a free string (and text=) or image`), `set: PATH: not an object`, `set:
+PATH: a second file is read-only`, `set: too many assignments` (more than 64),
+and the name errors.
+
+## Writing the result
+
+After the last command, when **all** commands succeeded and **an edit command
+ran** (also `touch` of a node that exists, a `chmod` that changed nothing: the
+file is then rewritten through the writer), the result is written. A command
+line without an edit command never writes (with `-o` it says so: `rcs-cli:
+note: no edit command ran: OUT was not written`). The first failing command
+ends the run with exit status 1 and nothing is written.
+
+1. `rsc_validate` checks the model (`rcs-cli: FILE: the result is not valid:
+   MESSAGE`, which names the tree and object); then `rsc_atari_write` encodes
+   it with the cell it was read with (`FILE: cannot write the result:
+   MESSAGE`, for instance `classic part exceeds 65535 bytes` for a result the
+   format cannot hold). Nothing is written when either fails.
+2. `-n`: that is all; `rcs-cli: note: dry run: nothing written (would write
+   FILE, N bytes, and the names to NAMES)`.
+3. The names (below), then the resource; each atomically (a temporary file
+   `FILE.XXXXXX` in the target's directory, renamed over it once written and
+   closed; the mode of an existing file is kept, a new file has the mode
+   `fopen` gives). The target of the resource is the input file, or OUT with
+   `-o`.
+4. If writing the resource fails after the names were written: a name file
+   that was new is removed again (`; the new name file was removed`), one that
+   replaced a file stays replaced (`; the name file had already been
+   replaced`). If the name file cannot be written nothing is written at all
+   (`NAMES: cannot write the names: REASON; nothing was written`).
+
+### The names
+
+The names are written as a **DFN** file (the program's own format) when the
+resource is written. Entries that `rsc_names_guess` made are not written (they
+are a guess, made again when the file is read); everything that came from a
+name file or was given by a command is: the names of the edited nodes follow
+the edits as described for each command. Entries with a name file of another
+format (`.def`, `.rsd`, `.hrd`) are converted. Where:
+
+- with `--names-out FILE` there;
+- with `-o OUT.rsc`: `OUT.dfn` (an existing one is replaced; the input's own
+  name file is never touched);
+- otherwise next to the input: when the names were read from a `.dfn` (found
+  next to the input or given with `--names`, any case) that file is
+  replaced; when they came from another format or from nowhere,
+  `INPUT.dfn` is created, with a note `rcs-cli: note: the names were read from
+  X.def, which is left as it is; they are written to X.dfn`, and if `X.dfn`
+  exists already and is not the file the names came from the run fails before
+  writing (`X.dfn: exists, but the names of X.rsc did not come from it; use
+  --names X.dfn, --names-out FILE or --no-names`);
+- with `--no-names` none (an existing name file next to the output is left
+  as it is, and no longer fits).
+
+A `.dfn` file with no entry is only written when the file is there already
+(the old file would be stale otherwise), never newly.
+
+The `.DFN` format holds names of 8 bytes at most and object numbers up to
+255. Names that do not fit (`.hrd` names, objects behind 255) are not
+dropped silently: the run fails before anything is written with `NAMES: N
+names do not fit a .dfn file (names have at most 8 bytes, tree and object
+numbers at most 255), the first is 'LONGNAME' (tree T, object O); nothing was
+written; use --no-names to write no names, or --names-out FILE to write the
+others`. With `--names-out FILE` the names that fit are written and a warning
+says how many did not: `rcs-cli: warning: 2 names do not fit a .dfn file and
+were not written (the first is ...)`.
+
 ## Errors
 
 | Message | When |
@@ -331,6 +648,9 @@ be the input file (the input is read before anything is written).
 | `rcs-cli: CMD: not found: ...`, `ambiguous name ...`, `not a directory: ...`, `bad path ...` | path errors (above) |
 | `rcs-cli: cat: P: no text`, `cat: P: not supported yet` | |
 | `rcs-cli: convert: ...` | see convert |
+| `rcs-cli: -o needs a file name`, `--names-out needs a FILE`, `-n and -o exclude each other`, `--names-out and --no-names exclude each other` | options of the edit commands |
+| `rcs-cli: CMD: ...` | the errors of each edit command, in its section |
+| `rcs-cli: FILE: the result is not valid: ...`, `FILE: cannot write the result: ...`, `FILE: cannot write: REASON` | writing the result |
 
 ## Limits
 
@@ -343,7 +663,12 @@ be the input file (the input is read before anything is written).
 
 ## The node layer
 
-`src/cli/rcsnode.h` is written for reuse by the editing commands of stage 3:
+`src/cli/rcsnode.h` is written for reuse by the editing commands of stage 3
+(which `rcscmd.c` now holds; `rcsnode.*` gained `rcs_node_entry` (the first name
+entry of a node), `rcs_obj_parent`, `rcs_child_by_name` (a child lookup that
+does not mind whether the parent is a directory), `rcs_name_taken` (a name in
+its scope, without case) and `rcs_check_new_name`, and still reads no file and
+prints nothing):
 a `struct rcs_node` holds indices only (kind, tree, object, index, sel), and
 a `struct rcs_view` pairs a `const struct rsc *` with a `const struct
 rsc_names *` (or NULL) and caches per tree the parent of every object (from
@@ -365,5 +690,20 @@ not exist) and stderr with `NAME.err` when that file exists, and prints
 `ok NAME` or `FAIL NAME` with a diff. After the cases it runs the sweeps of
 truncated and mutated files (every outcome must be exit status 0, or 1 with
 exactly one `rcs-cli: ` line on stderr) and the `convert` byte comparisons.
+The edit cases run with `--selfcheck -n` (a dry run: the note `dry run:
+nothing written (would write FILE, N bytes ...)` is part of the expected
+stderr, so the size of the result is checked too) and list what they changed
+with `-c`. The cases that write files are in `run.sh`: `edit NAME SRC ...`
+copies a fixture into a scratch directory, runs the edit with `--selfcheck`,
+and compares the re-read listing (`ls -lR`, `tree`, `stat /`) with
+`tests/cli/edits/NAME.out`; further checks cover that `-o` and `-n` leave the
+input byte-identical, that a failing command line writes nothing, the names
+(carried, `.def` left alone, `.hrd` names that do not fit, `--names-out`,
+`--no-names`), failing writes (no temporary file, the new name file removed
+again), round trips that return to the writer's output byte for byte (`mkdir`
+then `rm`, `cp` then `rm`, `mv A B` then `mv B A`, with `--pixels` too), the
+merge regression, colour icons that arrive intact, and a 32767-level chain and
+65535 names. The sweeps of damaged files also run edit commands.
 `UPDATE=1 sh tests/cli/run.sh` rewrites the expected files of the cases
-from the program's output; they are a specification, so review every change.
+and of the write-back tests from the program's output; they are a
+specification, so review every change.
