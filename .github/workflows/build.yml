@@ -91,6 +91,7 @@ jobs:
           config.write_config()
           PY
           make CROSS_COMPILE= -j4
+          make CROSS_COMPILE= -j4 x32-desktop-test x32-desktop-window-test
       - name: Build RCS
         run: make -j4 x32 PTOS=build/ptos
       - name: Check shared library dependencies
