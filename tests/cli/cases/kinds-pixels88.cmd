@@ -1,0 +1,1 @@
+--pixels=8x8 $FIX/kinds.rsc ls -l /DIALOG

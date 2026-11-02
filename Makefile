@@ -6,6 +6,10 @@
 #   make rsc-test  the tests of the resource library (src/rsc) on this machine
 #                  (RSC_SAN=1: with AddressSanitizer and UBSan)
 #   make host-test the load/save round trip of the old code on this machine
+#   make host      build/host/rcs-cli, the command line tool (docs/rcs-cli.md)
+#   make cli-test  build rcs-cli and run its tests (tests/cli)
+#                  (RSC_SAN=1: build/host/rcs-cli-san, with AddressSanitizer
+#                  and UBSan)
 #   make clean
 #
 # Needs GNU make, python3 and rsync, and the m68k-atari-mintelf- toolchain on
@@ -37,7 +41,8 @@ RES_FILES = RCS.RSC RCSLOW.RSC RCS.DFN RCSLOW.DFN
 
 # The resource library (src/rsc, #29) is compiled for both targets so that
 # it keeps building there, but not linked into RCS.PRG yet.
-RSC_LIB_SRC = src/rsc/rscmodel.c src/rsc/rscatari_read.c src/rsc/rscatari_write.c
+RSC_LIB_SRC = src/rsc/rscmodel.c src/rsc/rscatari_read.c src/rsc/rscatari_write.c \
+              src/rsc/rscnames.c
 RSC_LIB_H   = $(wildcard src/rsc/*.h)
 
 m68k: build/m68k/$(PRG_NAME) $(addprefix build/m68k/,$(RES_FILES)) \
@@ -207,7 +212,7 @@ build/host/roundtrip: $(HOST_SRC) $(wildcard src/*.h src/host/*.h src/host/mint/
 # reader tests read the files of tests/golden.
 
 RSC_SAN        =
-RSC_TESTS      = test_rsc test_read test_write
+RSC_TESTS      = test_rsc test_read test_write test_names
 RSC_TEST_FLAGS = -std=gnu99 -fno-strict-aliasing -Wall -Wextra -DRSC_HOST -DRSC_TEST \
                  -Isrc/rsc -g
 ifeq ($(RSC_SAN),1)
@@ -225,3 +230,43 @@ rsc-test: $(RSC_TEST_BINS)
 build/host/rsc/%$(RSC_TEST_SUFFIX): tests/rsc/%.c $(RSC_LIB_SRC) $(RSC_LIB_H)
 	@mkdir -p $(dir $@)
 	$(HOST_CC) $(RSC_TEST_FLAGS) -o $@ $(RSC_LIB_SRC) $<
+
+# ---- rcs-cli --------------------------------------------------------------
+#
+#   make host                build/host/rcs-cli
+#   make cli-test            build it and run tests/cli/run.sh with it
+#   make cli-test RSC_SAN=1  the same with build/host/rcs-cli-san
+#
+# rcs-cli is the library of src/rsc (without the test hooks) and the
+# sources of src/cli; it is a host program only, not part of the m68k and
+# ARM builds.  tests/cli/mkfix.c writes the synthetic fixtures of the tests
+# with the library at test time.
+
+CLI_SRC   = src/cli/rcs-cli.c src/cli/rcscmd.c src/cli/rcsnode.c
+CLI_H     = $(wildcard src/cli/*.h)
+CLI_FLAGS = -std=gnu99 -fno-strict-aliasing -Wall -Wextra -DRSC_HOST -Isrc/rsc -Isrc/cli -O2 -g
+CLI_SAN_FLAGS = -std=gnu99 -fno-strict-aliasing -Wall -Wextra -DRSC_HOST -Isrc/rsc -Isrc/cli -O1 -g \
+                -fsanitize=address,undefined -fno-sanitize-recover=undefined
+ifeq ($(RSC_SAN),1)
+CLI_TEST_BIN = build/host/rcs-cli-san
+else
+CLI_TEST_BIN = build/host/rcs-cli
+endif
+
+.PHONY: host cli-test
+host: build/host/rcs-cli
+
+build/host/rcs-cli: $(CLI_SRC) $(CLI_H) $(RSC_LIB_SRC) $(RSC_LIB_H)
+	@mkdir -p $(dir $@)
+	$(HOST_CC) $(CLI_FLAGS) -o $@ $(CLI_SRC) $(RSC_LIB_SRC)
+
+build/host/rcs-cli-san: $(CLI_SRC) $(CLI_H) $(RSC_LIB_SRC) $(RSC_LIB_H)
+	@mkdir -p $(dir $@)
+	$(HOST_CC) $(CLI_SAN_FLAGS) -o $@ $(CLI_SRC) $(RSC_LIB_SRC)
+
+build/host/mkfix: tests/cli/mkfix.c $(RSC_LIB_SRC) $(RSC_LIB_H)
+	@mkdir -p $(dir $@)
+	$(HOST_CC) $(CLI_FLAGS) -o $@ tests/cli/mkfix.c $(RSC_LIB_SRC)
+
+cli-test: $(CLI_TEST_BIN) build/host/mkfix
+	RCS_CLI=$(CLI_TEST_BIN) MKFIX=build/host/mkfix sh tests/cli/run.sh

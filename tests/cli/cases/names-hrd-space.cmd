@@ -1,0 +1,1 @@
+--names $FIX/kinds.hrd $FIX/kinds.rsc stat /DIALOG/#18

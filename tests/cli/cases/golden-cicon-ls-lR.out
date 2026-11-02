@@ -1,0 +1,15 @@
+/:
+#0     PANEL1       PANL~ 2
+-      .strings     DIR   0
+-      .images      DIR   0
+
+/PANEL1:
+#1     -            G_CICON    LASTOB - 2,1,4,4
+
+/PANEL1/#1:
+mono      1 no
+4         4 no
+
+/.strings:
+
+/.images:

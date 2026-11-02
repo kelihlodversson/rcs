@@ -1,0 +1,1 @@
+-x $FIX/kinds.rsc ls

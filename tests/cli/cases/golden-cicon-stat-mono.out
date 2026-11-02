@@ -1,0 +1,12 @@
+path: /PANEL1/#1/mono
+tree: 0
+object: 1
+entry: mono
+version: -
+planes: 1
+selected: no
+has-selected: no
+w: 32
+h: 32
+data-bytes: 128
+mask-bytes: 128

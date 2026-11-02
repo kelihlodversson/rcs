@@ -1,0 +1,1 @@
+--names $FIX/kinds.dfn --no-names $FIX/kinds.rsc ls

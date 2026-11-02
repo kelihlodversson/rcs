@@ -1,0 +1,1 @@
+--names $ROOT/src/atari/rcslow.dfn $ROOT/src/atari/rcs.rsc ls

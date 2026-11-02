@@ -1,0 +1,18 @@
+path: /DIALOG/#4
+tree: 0
+index: 4
+name: DUP
+reachable: yes
+parent: 0
+children: 0
+next: 5
+head: -1
+tail: -1
+type: 0x0018 G_PROGDEF
+flags: 0x0000 -
+state: 0x0000 -
+x: 0
+y: 0
+w: 0
+h: 0
+spec: 0x12345678

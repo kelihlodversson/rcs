@@ -1,0 +1,15 @@
+/:
+PANEL1
+.strings
+.images
+
+/PANEL1:
+#1
+
+/PANEL1/#1:
+mono
+4
+
+/.strings:
+
+/.images:

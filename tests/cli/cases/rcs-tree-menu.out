@@ -1,0 +1,58 @@
+/MENUTREE
+|-- #1 - G_BOX - -
+|   `-- #2 - G_IBOX - -
+|       |-- #3 DESKMENU G_TITLE - -
+|       |-- #4 FILEMENU G_TITLE - -
+|       |-- #5 GLOBMENU G_TITLE - -
+|       |-- #6 EDITMENU G_TITLE - -
+|       |-- #7 OPTNMENU G_TITLE - -
+|       `-- #8 ARRMENU G_TITLE - -
+`-- #9 SCREEN G_IBOX - -
+    |-- #10 - G_BOX - -
+    |   |-- #11 ABOUITEM G_STRING - -
+    |   |-- #12 ACCLINE G_STRING - DISABLED
+    |   |-- #13 - G_STRING - -
+    |   |-- #14 - G_STRING - -
+    |   |-- #15 - G_STRING - -
+    |   |-- #16 - G_STRING - -
+    |   |-- #17 - G_STRING - -
+    |   `-- #18 - G_STRING - -
+    |-- #19 - G_BOX - -
+    |   |-- #20 NEWITEM G_STRING - -
+    |   |-- #21 OPENITEM G_STRING - -
+    |   |-- #22 MERGITEM G_STRING - -
+    |   |-- #23 - G_STRING - DISABLED
+    |   |-- #24 CLOSITEM G_STRING - -
+    |   |-- #25 SAVEITEM G_STRING - -
+    |   |-- #26 SVASITEM G_STRING - -
+    |   |-- #27 RVRTITEM G_STRING - -
+    |   |-- #28 - G_STRING - DISABLED
+    |   `-- #29 QUITITEM G_STRING - -
+    |-- #30 - G_BOX - -
+    |   |-- #31 OUTPITEM G_STRING - -
+    |   |-- #32 SAFEITEM G_STRING - -
+    |   |-- #33 SVOSITEM G_STRING - -
+    |   |-- #34 - G_STRING - DISABLED
+    |   |-- #35 PARTITEM G_STRING - -
+    |   `-- #36 TOOLITEM G_STRING - -
+    |-- #37 - G_BOX - -
+    |   |-- #38 CUTITEM G_STRING - -
+    |   |-- #39 COPYITEM G_STRING - -
+    |   |-- #40 PASTITEM G_STRING - -
+    |   |-- #41 - G_STRING - DISABLED
+    |   |-- #42 DELITEM G_STRING - -
+    |   |-- #43 - G_STRING - DISABLED
+    |   |-- #44 INVITEM G_STRING - -
+    |   |-- #45 SOLIDIMG G_STRING - -
+    |   `-- #46 SIZEITEM G_STRING - -
+    |-- #47 - G_BOX - -
+    |   |-- #48 INFITEM G_STRING - -
+    |   |-- #49 RNAMITEM G_STRING - -
+    |   |-- #50 TYPEITEM G_STRING - -
+    |   |-- #51 LOADITEM G_STRING - -
+    |   `-- #52 ICNEDITM G_STRING - -
+    `-- #53 - G_BOX - -
+        |-- #54 SRTITEM G_STRING - -
+        |-- #55 UNHDITEM G_STRING - -
+        |-- #56 - G_STRING - DISABLED
+        `-- #57 FLTITEM G_STRING LASTOB -

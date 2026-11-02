@@ -1,0 +1,33 @@
+path: /DIALOG/Title
+tree: 0
+index: 1
+name: Title
+reachable: yes
+parent: 0
+children: 0
+next: 2
+head: -1
+tail: -1
+type: 0x0015 G_TEXT
+flags: 0x0000 -
+state: 0x0000 -
+x: 3+4
+y: 3-2
+w: 10
+h: 1
+text: "Name: \"x\"\\"
+template: "____"
+validation: "XXXX"
+font: 3 (IBM)
+fontid: 0
+fontsize: 0
+just: 2 (center)
+color: 0x1180
+frame-color: 1
+text-color: 1
+text-mode: opaque
+fill-pattern: 0
+fill-color: 0
+thickness: -1
+txtlen: 11
+tmplen: 5

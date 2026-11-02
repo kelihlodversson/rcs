@@ -1,0 +1,1 @@
+--no-guess $ROOT/tests/golden/rcs.rsc ls

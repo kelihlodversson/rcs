@@ -1,0 +1,375 @@
+/
+|-- #0 DIALOG DIAL 20
+|   |-- #1 Title G_TEXT - -
+|   |-- #2 TITLE G_BOXTEXT - -
+|   |-- #3 DUP G_IMAGE - -
+|   |-- #4 DUP G_PROGDEF - -
+|   |-- #5 BUTTONS G_IBOX - -
+|   |   |-- #6 OK G_BUTTON SELECTABLE,DEFAULT,EXIT -
+|   |   `-- #7 CANCEL G_BUTTON SELECTABLE,EXIT SELECTED
+|   |-- #8 BOXCHAR G_BOXCHAR - -
+|   |-- #9 #3 G_STRING - -
+|   |-- #10 F\x9b\xe4 G_FTEXT - -
+|   |-- #11 EDIT G_FBOXTEXT EDITABLE -
+|   |-- #12 ICON G_ICON - -
+|   |-- #13 dup G_TITLE - -
+|   |-- #14 CICON G_CICON - -
+|   |   |-- mono 1 no
+|   |   |-- 4 4 no
+|   |   |-- 4.sel 4 yes
+|   |   |-- 8 8 no
+|   |   |-- 4#2 4 no
+|   |   `-- 4#2.sel 4 yes
+|   |-- #15 - 0x50 - -
+|   |-- #16 - G_BUTTON:17 FL3DACT,0x2800 CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0
+|   |-- #17 - G_STRING RBUTTON,TOUCHEXIT,HIDETREE,INDIRECT -
+|   |-- #18 - G_BOX FL3DIND -
+|   `-- #19 - G_BOX LASTOB,FL3DBAK -
+|-- #1 MAINMENU MENU 9
+|   |-- #1 - G_BOX - -
+|   |   `-- #2 - G_IBOX - -
+|   |       |-- #3 DESK G_TITLE - -
+|   |       `-- #4 - G_TITLE - -
+|   `-- #5 - G_IBOX - -
+|       `-- #6 - G_BOX - -
+|           |-- #7 - G_STRING - -
+|           `-- #8 - G_STRING LASTOB -
+|-- #2 PANEL3 PANL~ 2
+|   `-- #1 - G_STRING LASTOB -
+|-- #3 TREE4 UNKN~ 1
+|-- #4 BIG PANL 321
+|   |-- #1 - G_BOX - -
+|   |   |-- #2 - G_STRING - -
+|   |   |-- #3 - G_STRING - -
+|   |   |-- #4 - G_STRING - -
+|   |   |-- #5 - G_STRING - -
+|   |   |-- #6 - G_STRING - -
+|   |   |-- #7 - G_STRING - -
+|   |   |-- #8 - G_STRING - -
+|   |   |-- #9 - G_STRING - -
+|   |   |-- #10 - G_STRING - -
+|   |   |-- #11 - G_STRING - -
+|   |   |-- #12 - G_STRING - -
+|   |   |-- #13 - G_STRING - -
+|   |   |-- #14 - G_STRING - -
+|   |   |-- #15 - G_STRING - -
+|   |   `-- #16 - G_STRING - -
+|   |-- #17 - G_BOX - -
+|   |   |-- #18 - G_STRING - -
+|   |   |-- #19 - G_STRING - -
+|   |   |-- #20 - G_STRING - -
+|   |   |-- #21 - G_STRING - -
+|   |   |-- #22 - G_STRING - -
+|   |   |-- #23 - G_STRING - -
+|   |   |-- #24 - G_STRING - -
+|   |   |-- #25 - G_STRING - -
+|   |   |-- #26 - G_STRING - -
+|   |   |-- #27 - G_STRING - -
+|   |   |-- #28 - G_STRING - -
+|   |   |-- #29 - G_STRING - -
+|   |   |-- #30 - G_STRING - -
+|   |   |-- #31 - G_STRING - -
+|   |   `-- #32 - G_STRING - -
+|   |-- #33 - G_BOX - -
+|   |   |-- #34 - G_STRING - -
+|   |   |-- #35 - G_STRING - -
+|   |   |-- #36 - G_STRING - -
+|   |   |-- #37 - G_STRING - -
+|   |   |-- #38 - G_STRING - -
+|   |   |-- #39 - G_STRING - -
+|   |   |-- #40 - G_STRING - -
+|   |   |-- #41 - G_STRING - -
+|   |   |-- #42 - G_STRING - -
+|   |   |-- #43 - G_STRING - -
+|   |   |-- #44 - G_STRING - -
+|   |   |-- #45 - G_STRING - -
+|   |   |-- #46 - G_STRING - -
+|   |   |-- #47 - G_STRING - -
+|   |   `-- #48 - G_STRING - -
+|   |-- #49 - G_BOX - -
+|   |   |-- #50 - G_STRING - -
+|   |   |-- #51 - G_STRING - -
+|   |   |-- #52 - G_STRING - -
+|   |   |-- #53 - G_STRING - -
+|   |   |-- #54 - G_STRING - -
+|   |   |-- #55 - G_STRING - -
+|   |   |-- #56 - G_STRING - -
+|   |   |-- #57 - G_STRING - -
+|   |   |-- #58 - G_STRING - -
+|   |   |-- #59 - G_STRING - -
+|   |   |-- #60 - G_STRING - -
+|   |   |-- #61 - G_STRING - -
+|   |   |-- #62 - G_STRING - -
+|   |   |-- #63 - G_STRING - -
+|   |   `-- #64 - G_STRING - -
+|   |-- #65 - G_BOX - -
+|   |   |-- #66 - G_STRING - -
+|   |   |-- #67 - G_STRING - -
+|   |   |-- #68 - G_STRING - -
+|   |   |-- #69 - G_STRING - -
+|   |   |-- #70 - G_STRING - -
+|   |   |-- #71 - G_STRING - -
+|   |   |-- #72 - G_STRING - -
+|   |   |-- #73 - G_STRING - -
+|   |   |-- #74 - G_STRING - -
+|   |   |-- #75 - G_STRING - -
+|   |   |-- #76 - G_STRING - -
+|   |   |-- #77 - G_STRING - -
+|   |   |-- #78 - G_STRING - -
+|   |   |-- #79 - G_STRING - -
+|   |   `-- #80 - G_STRING - -
+|   |-- #81 - G_BOX - -
+|   |   |-- #82 - G_STRING - -
+|   |   |-- #83 - G_STRING - -
+|   |   |-- #84 - G_STRING - -
+|   |   |-- #85 - G_STRING - -
+|   |   |-- #86 - G_STRING - -
+|   |   |-- #87 - G_STRING - -
+|   |   |-- #88 - G_STRING - -
+|   |   |-- #89 - G_STRING - -
+|   |   |-- #90 - G_STRING - -
+|   |   |-- #91 - G_STRING - -
+|   |   |-- #92 - G_STRING - -
+|   |   |-- #93 - G_STRING - -
+|   |   |-- #94 - G_STRING - -
+|   |   |-- #95 - G_STRING - -
+|   |   `-- #96 - G_STRING - -
+|   |-- #97 - G_BOX - -
+|   |   |-- #98 - G_STRING - -
+|   |   |-- #99 - G_STRING - -
+|   |   |-- #100 - G_STRING - -
+|   |   |-- #101 - G_STRING - -
+|   |   |-- #102 - G_STRING - -
+|   |   |-- #103 - G_STRING - -
+|   |   |-- #104 - G_STRING - -
+|   |   |-- #105 - G_STRING - -
+|   |   |-- #106 - G_STRING - -
+|   |   |-- #107 - G_STRING - -
+|   |   |-- #108 - G_STRING - -
+|   |   |-- #109 - G_STRING - -
+|   |   |-- #110 - G_STRING - -
+|   |   |-- #111 - G_STRING - -
+|   |   `-- #112 - G_STRING - -
+|   |-- #113 - G_BOX - -
+|   |   |-- #114 - G_STRING - -
+|   |   |-- #115 - G_STRING - -
+|   |   |-- #116 - G_STRING - -
+|   |   |-- #117 - G_STRING - -
+|   |   |-- #118 - G_STRING - -
+|   |   |-- #119 - G_STRING - -
+|   |   |-- #120 - G_STRING - -
+|   |   |-- #121 - G_STRING - -
+|   |   |-- #122 - G_STRING - -
+|   |   |-- #123 - G_STRING - -
+|   |   |-- #124 - G_STRING - -
+|   |   |-- #125 - G_STRING - -
+|   |   |-- #126 - G_STRING - -
+|   |   |-- #127 - G_STRING - -
+|   |   `-- #128 - G_STRING - -
+|   |-- #129 - G_BOX - -
+|   |   |-- #130 - G_STRING - -
+|   |   |-- #131 - G_STRING - -
+|   |   |-- #132 - G_STRING - -
+|   |   |-- #133 - G_STRING - -
+|   |   |-- #134 - G_STRING - -
+|   |   |-- #135 - G_STRING - -
+|   |   |-- #136 - G_STRING - -
+|   |   |-- #137 - G_STRING - -
+|   |   |-- #138 - G_STRING - -
+|   |   |-- #139 - G_STRING - -
+|   |   |-- #140 - G_STRING - -
+|   |   |-- #141 - G_STRING - -
+|   |   |-- #142 - G_STRING - -
+|   |   |-- #143 - G_STRING - -
+|   |   `-- #144 - G_STRING - -
+|   |-- #145 - G_BOX - -
+|   |   |-- #146 - G_STRING - -
+|   |   |-- #147 - G_STRING - -
+|   |   |-- #148 - G_STRING - -
+|   |   |-- #149 - G_STRING - -
+|   |   |-- #150 - G_STRING - -
+|   |   |-- #151 - G_STRING - -
+|   |   |-- #152 - G_STRING - -
+|   |   |-- #153 - G_STRING - -
+|   |   |-- #154 - G_STRING - -
+|   |   |-- #155 - G_STRING - -
+|   |   |-- #156 - G_STRING - -
+|   |   |-- #157 - G_STRING - -
+|   |   |-- #158 - G_STRING - -
+|   |   |-- #159 - G_STRING - -
+|   |   `-- #160 - G_STRING - -
+|   |-- #161 - G_BOX - -
+|   |   |-- #162 - G_STRING - -
+|   |   |-- #163 - G_STRING - -
+|   |   |-- #164 - G_STRING - -
+|   |   |-- #165 - G_STRING - -
+|   |   |-- #166 - G_STRING - -
+|   |   |-- #167 - G_STRING - -
+|   |   |-- #168 - G_STRING - -
+|   |   |-- #169 - G_STRING - -
+|   |   |-- #170 - G_STRING - -
+|   |   |-- #171 - G_STRING - -
+|   |   |-- #172 - G_STRING - -
+|   |   |-- #173 - G_STRING - -
+|   |   |-- #174 - G_STRING - -
+|   |   |-- #175 - G_STRING - -
+|   |   `-- #176 - G_STRING - -
+|   |-- #177 - G_BOX - -
+|   |   |-- #178 - G_STRING - -
+|   |   |-- #179 - G_STRING - -
+|   |   |-- #180 - G_STRING - -
+|   |   |-- #181 - G_STRING - -
+|   |   |-- #182 - G_STRING - -
+|   |   |-- #183 - G_STRING - -
+|   |   |-- #184 - G_STRING - -
+|   |   |-- #185 - G_STRING - -
+|   |   |-- #186 - G_STRING - -
+|   |   |-- #187 - G_STRING - -
+|   |   |-- #188 - G_STRING - -
+|   |   |-- #189 - G_STRING - -
+|   |   |-- #190 - G_STRING - -
+|   |   |-- #191 - G_STRING - -
+|   |   `-- #192 - G_STRING - -
+|   |-- #193 - G_BOX - -
+|   |   |-- #194 - G_STRING - -
+|   |   |-- #195 - G_STRING - -
+|   |   |-- #196 - G_STRING - -
+|   |   |-- #197 - G_STRING - -
+|   |   |-- #198 - G_STRING - -
+|   |   |-- #199 - G_STRING - -
+|   |   |-- #200 - G_STRING - -
+|   |   |-- #201 - G_STRING - -
+|   |   |-- #202 - G_STRING - -
+|   |   |-- #203 - G_STRING - -
+|   |   |-- #204 - G_STRING - -
+|   |   |-- #205 - G_STRING - -
+|   |   |-- #206 - G_STRING - -
+|   |   |-- #207 - G_STRING - -
+|   |   `-- #208 - G_STRING - -
+|   |-- #209 - G_BOX - -
+|   |   |-- #210 - G_STRING - -
+|   |   |-- #211 - G_STRING - -
+|   |   |-- #212 - G_STRING - -
+|   |   |-- #213 - G_STRING - -
+|   |   |-- #214 - G_STRING - -
+|   |   |-- #215 - G_STRING - -
+|   |   |-- #216 - G_STRING - -
+|   |   |-- #217 - G_STRING - -
+|   |   |-- #218 - G_STRING - -
+|   |   |-- #219 - G_STRING - -
+|   |   |-- #220 - G_STRING - -
+|   |   |-- #221 - G_STRING - -
+|   |   |-- #222 - G_STRING - -
+|   |   |-- #223 - G_STRING - -
+|   |   `-- #224 - G_STRING - -
+|   |-- #225 - G_BOX - -
+|   |   |-- #226 - G_STRING - -
+|   |   |-- #227 - G_STRING - -
+|   |   |-- #228 - G_STRING - -
+|   |   |-- #229 - G_STRING - -
+|   |   |-- #230 - G_STRING - -
+|   |   |-- #231 - G_STRING - -
+|   |   |-- #232 - G_STRING - -
+|   |   |-- #233 - G_STRING - -
+|   |   |-- #234 - G_STRING - -
+|   |   |-- #235 - G_STRING - -
+|   |   |-- #236 - G_STRING - -
+|   |   |-- #237 - G_STRING - -
+|   |   |-- #238 - G_STRING - -
+|   |   |-- #239 - G_STRING - -
+|   |   `-- #240 - G_STRING - -
+|   |-- #241 - G_BOX - -
+|   |   |-- #242 - G_STRING - -
+|   |   |-- #243 - G_STRING - -
+|   |   |-- #244 - G_STRING - -
+|   |   |-- #245 - G_STRING - -
+|   |   |-- #246 - G_STRING - -
+|   |   |-- #247 - G_STRING - -
+|   |   |-- #248 - G_STRING - -
+|   |   |-- #249 - G_STRING - -
+|   |   |-- #250 - G_STRING - -
+|   |   |-- #251 - G_STRING - -
+|   |   |-- #252 - G_STRING - -
+|   |   |-- #253 - G_STRING - -
+|   |   |-- #254 - G_STRING - -
+|   |   |-- #255 - G_STRING - -
+|   |   `-- #256 - G_STRING - -
+|   |-- #257 - G_BOX - -
+|   |   |-- #258 - G_STRING - -
+|   |   |-- #259 - G_STRING - -
+|   |   |-- #260 - G_STRING - -
+|   |   |-- #261 - G_STRING - -
+|   |   |-- #262 - G_STRING - -
+|   |   |-- #263 - G_STRING - -
+|   |   |-- #264 - G_STRING - -
+|   |   |-- #265 - G_STRING - -
+|   |   |-- #266 - G_STRING - -
+|   |   |-- #267 - G_STRING - -
+|   |   |-- #268 - G_STRING - -
+|   |   |-- #269 - G_STRING - -
+|   |   |-- #270 - G_STRING - -
+|   |   |-- #271 - G_STRING - -
+|   |   `-- #272 - G_STRING - -
+|   |-- #273 - G_BOX - -
+|   |   |-- #274 - G_STRING - -
+|   |   |-- #275 - G_STRING - -
+|   |   |-- #276 - G_STRING - -
+|   |   |-- #277 - G_STRING - -
+|   |   |-- #278 - G_STRING - -
+|   |   |-- #279 - G_STRING - -
+|   |   |-- #280 - G_STRING - -
+|   |   |-- #281 - G_STRING - -
+|   |   |-- #282 - G_STRING - -
+|   |   |-- #283 - G_STRING - -
+|   |   |-- #284 - G_STRING - -
+|   |   |-- #285 - G_STRING - -
+|   |   |-- #286 - G_STRING - -
+|   |   |-- #287 - G_STRING - -
+|   |   `-- #288 - G_STRING - -
+|   |-- #289 - G_BOX - -
+|   |   |-- #290 - G_STRING - -
+|   |   |-- #291 - G_STRING - -
+|   |   |-- #292 - G_STRING - -
+|   |   |-- #293 - G_STRING - -
+|   |   |-- #294 - G_STRING - -
+|   |   |-- #295 - G_STRING - -
+|   |   |-- #296 - G_STRING - -
+|   |   |-- #297 - G_STRING - -
+|   |   |-- #298 - G_STRING - -
+|   |   |-- #299 - G_STRING - -
+|   |   |-- #300 - G_STRING - -
+|   |   |-- #301 - G_STRING - -
+|   |   |-- #302 - G_STRING - -
+|   |   |-- #303 - G_STRING - -
+|   |   `-- #304 - G_STRING - -
+|   `-- #305 - G_BOX - -
+|       |-- #306 - G_STRING - -
+|       |-- #307 - G_STRING - -
+|       |-- #308 - G_STRING - -
+|       |-- #309 - G_STRING - -
+|       |-- #310 - G_STRING - -
+|       |-- #311 - G_STRING - -
+|       |-- #312 - G_STRING - -
+|       |-- #313 - G_STRING - -
+|       |-- #314 - G_STRING - -
+|       |-- #315 - G_STRING - -
+|       |-- #316 - G_STRING - -
+|       |-- #317 - G_STRING - -
+|       |-- #318 - G_STRING - -
+|       |-- #319 - G_STRING - -
+|       `-- #320 - G_STRING LASTOB -
+|-- #5 .images UNKN 2
+|   `-- #1 - G_BOX LASTOB -
+|-- #6 UNREACH DIAL 4
+|   |-- #1 A G_STRING - -
+|   |-- #2 LOST G_STRING - -
+|   `-- #3 C G_STRING LASTOB -
+|-- - .strings DIR 5
+|   |-- #0 HELLO 12 - "Hello, world"
+|   |-- #1 ALERT1 37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+|   |-- #2 ASK 21 ALERT "[2][Question][Yes|No]"
+|   |-- #3 - 19 - "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|   `-- #4 - 100 - "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+`-- - .images DIR 2
+    |-- #0 LOGO 16x8
+    `-- #1 - 24x4

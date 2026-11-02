@@ -1,0 +1,6 @@
+path: /.strings/ALERT1
+index: 1
+name: ALERT1
+length: 37
+text: "[1][Delete this?|Really][ OK |Cancel]"
+alert: yes
