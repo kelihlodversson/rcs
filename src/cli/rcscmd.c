@@ -2325,7 +2325,7 @@ static int cp_images(struct rcs_ctx *c, const struct imgopts *o, struct rcs_src 
 	if (S->r == c->r)
 	{
 		if (!d.create && from.tree == d.sel.tree && from.obj == d.sel.obj && from.version == d.sel.version
-		    && from.sel == d.sel.sel && from.mask == d.sel.mask)
+		    && from.sel == d.sel.sel)
 		{
 			rcs_error("cp: %s and %s are the same image", sb, d.t.arg);
 			return 1;
