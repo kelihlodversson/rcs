@@ -178,6 +178,36 @@ struct rcs_desc
 	size_t		data_bytes, mask_bytes;
 };
 
+/* The first name entry of a tree, object, free string or free image node
+ * into *out (the tkind, whether it was guessed, the name); 0, or -1 when the
+ * node has no entry or is of another kind. */
+int rcs_node_entry(struct rcs_view *v, const struct rcs_node *node, struct rsc_name *out);
+
+/* The parent of object obj of tree tree as the view knows it: the index of
+ * the parent object, -1 for the root, -2 for an object the root does not
+ * reach, -3 for a bad index, broken links or no memory. */
+int rcs_obj_parent(struct rcs_view *v, int tree, int obj);
+
+/* The child of directory dir (the root, a tree, an object the root reaches,
+ * or one of the two directories) called comp, looked up as rcs_resolve looks
+ * up one component, except that any reachable object is a directory here
+ * (an object without children has none, and nothing is found).  Returns 0
+ * and *out, -1 for no such child, -2 for an ambiguous name. */
+int rcs_child_by_name(struct rcs_view *v, const struct rcs_node *dir, const char *comp,
+		      struct rcs_node *out);
+
+/* The index of a node of kind kind (RSC_NAME_TREE, OBJ, FRSTR or FRIMG; tree
+ * is the tree of an OBJ) that has an entry called name, the ASCII letters
+ * compared without case, other than the node skip (-1: none): or -1.  n may
+ * be NULL. */
+int rcs_name_taken(const struct rsc_names *n, int kind, int tree, const char *name, int skip);
+
+/* Whether name can be given to a new node: returns 0, or -1 with the reason
+ * in why (size bytes; never echoing the name): empty, longer than
+ * RSC_NAME_MAX, a control character, shaped like an index ("#digits"), has a
+ * '/', and at_root (a tree name) ".strings" or ".images". */
+int rcs_check_new_name(const char *name, int at_root, char *why, size_t size);
+
 /* Fills *d for node.  Returns 0, or -1 for a node that does not exist. */
 int rcs_describe(struct rcs_view *v, const struct rcs_node *node, struct rcs_desc *d);
 
