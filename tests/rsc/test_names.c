@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <dirent.h>
 #include "rscmodel.h"
 #include "rscfile.h"
@@ -1222,6 +1223,66 @@ static void test_guess_desk(void)
 	CHECK(live() == 0);
 }
 
+/* The guesser names string 0 (alert-shaped) of a resource with one tree
+ * and two free strings after the entries of add (kind, tree, obj, name;
+ * kind -1 ends); the name it gives string 0 must be want, and no name may
+ * then be in the list twice (without case). */
+static void alert0_case(const int *kind, const int *tree, const int *obj, const char *const *name,
+			const char *want)
+{
+	struct rsc	*r = rsc_new();
+	struct rsc_names	*n = rsc_names_new();
+	struct rsc_name	a, b;
+	int	i, j, dup = 0, named = 0;
+
+	rsc_tree_add(r, 1);
+	rsc_frstr_add(r, "[1][a][b]");
+	rsc_frstr_add(r, "plain");
+	for (i = 0; kind[i] >= 0; i++)
+	{
+		CHECK(rsc_names_add(n, kind[i], RSC_TKIND_UNKN, tree[i], obj[i], name[i], 0) == 0);
+		named |= kind[i] == RSC_NAME_TREE;
+	}
+	CHECK(rsc_names_guess(n, r) == 2 - named);
+	CHECK_STR(rsc_names_str_name(n, 0), want);
+	CHECK(rsc_names_find_str(n, want, 2) == 0);
+	for (i = 0; i < rsc_names_count(n); i++)
+		for (j = i + 1; j < rsc_names_count(n); j++)
+		{
+			a = entry(n, i);
+			b = entry(n, j);
+			dup += strcasecmp(a.name, b.name) == 0;
+		}
+	CHECK(dup == 0);
+	rsc_names_free(n);
+	rsc_free(r);
+	CHECK(live() == 0);
+}
+
+/* ALERT0 is a name the guesser makes (alerts count from 0), so an existing
+ * ALERT0 of any kind is taken, as for any other number; leading zeros
+ * still make another name. */
+static void test_guess_alert0(void)
+{
+	static const int	tk[] = { RSC_NAME_TREE, -1 }, t0[] = { 0 }, o0[] = { 0 };
+	static const char *const	tn[] = { "ALERT0" };
+	static const int	ok[] = { RSC_NAME_OBJ, -1 };
+	static const char *const	on[] = { "alert0" };
+	static const int	sk[] = { RSC_NAME_FRSTR, -1 }, s1[] = { 1 };
+	static const char *const	sn[] = { "ALERT0" };
+	static const int	ck[] = { RSC_NAME_TREE, RSC_NAME_OBJ, RSC_NAME_FRSTR, RSC_NAME_FRIMG, -1 };
+	static const int	ct[] = { 0, 0, 0, 0 }, co[] = { 0, 1, 1, 0 };
+	static const char *const	cn[] = { "ALERT0", "Alert1", "ALERT2", "ALERT4" };
+	static const int	zk[] = { RSC_NAME_OBJ, RSC_NAME_OBJ, -1 }, zo[] = { 0, 1 };
+	static const char *const	zn[] = { "ALERT007", "ALERT00" };
+
+	alert0_case(tk, t0, o0, tn, "ALERT1");
+	alert0_case(ok, t0, o0, on, "ALERT1");
+	alert0_case(sk, t0, s1, sn, "ALERT1");
+	alert0_case(ck, ct, co, cn, "ALERT3");
+	alert0_case(zk, ct, zo, zn, "ALERT0");
+}
+
 /* ---- lookup ---------------------------------------------------------------------------- */
 
 static void test_lookup(void)
@@ -1563,6 +1624,7 @@ int main(void)
 	test_renumber();
 	test_guess_rcs();
 	test_guess_desk();
+	test_guess_alert0();
 	test_budget();
 	test_limit();
 	test_truncation();

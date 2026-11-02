@@ -748,8 +748,9 @@ static int uf_find(int *nx, int x)
  * MENU, DIAL. */
 static const char *const pattern[5] = { "ALERT", "TREE", "PANEL", "MENU", "DIALOG" };
 
-/* When name is pattern p followed by a number without leading zeros below
- * lim, the number; else -1. */
+/* When name is pattern p followed by a number below lim written without
+ * leading zeros ("0" itself included: alerts count from 0), the number;
+ * else -1. */
 static long numbered(const char *name, const char *p, long lim)
 {
 	long	v = 0;
@@ -759,7 +760,11 @@ static long numbered(const char *name, const char *p, long lim)
 		name++;
 		p++;
 	}
-	if (*p || *name < '1' || *name > '9')
+	if (*p)
+		return -1;
+	if (name[0] == '0' && name[1] == '\0')
+		return 0;
+	if (*name < '1' || *name > '9')
 		return -1;
 	for (; *name; name++)
 	{
