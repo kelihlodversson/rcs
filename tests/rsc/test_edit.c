@@ -918,7 +918,11 @@ static void test_tree_copy(void)
 	/* first, last, the same model */
 	CHECK(rsc_tree_copy(a, 0, a, 3 - 1, NULL) == 0);
 	CHECK_STR(shape(a, 0), "0(1)");
+	/* the root's ob_next is not looked at (a file may have anything there) and is -1 in the copy */
+	rsc_tree_objects(a, 1, NULL)[0].ob_next = 1;
 	CHECK(rsc_tree_copy(a, -1, a, 1, NULL) == 4);
+	CHECK(rsc_tree_objects(a, 4, NULL)[0].ob_next == -1);
+	rsc_tree_objects(a, 1, NULL)[0].ob_next = -1;
 	CHECK(rsc_tree_copy(a, rsc_ntrees(a), a, 1, NULL) == 5);
 	CHECK(rsc_ntrees(a) == 6 && model_ok(a));
 	CHECK(hash_shape(a, 1) == hash_shape(a, 1));
@@ -1819,8 +1823,9 @@ static void test_names_write(void)
 	CHECK(add_name(n, RSC_NAME_FRIMG, 0, 0, 2, "FARIMG", 0) == 0);
 	CHECK(add_name(n, RSC_NAME_TREE, 0, 7, 0, "FARTREE", 0) == 0);
 	CHECK(add_name(n, RSC_NAME_OBJ, 0, 9, 1, "FARTOBJ", 0) == 0);
+	CHECK(add_name(n, RSC_NAME_OBJ, 0, 1, 2, "EDGE", 0) == 0);	/* tree 1 has objects 0 and 1 */
 	CHECK(rsc_names_write_dfn(n, r, NULL, 0, &e) == len);
-	CHECK(rsc_names_write_dfn(n, NULL, NULL, 0, &e) == len + 14 * 5);
+	CHECK(rsc_names_write_dfn(n, NULL, NULL, 0, &e) == len + 14 * 6);
 	/* the writer does not allocate */
 	rsc_test_fail_alloc_after(0);
 	CHECK(rsc_names_write_dfn(n, r, buf, sizeof buf, &e) == len);
