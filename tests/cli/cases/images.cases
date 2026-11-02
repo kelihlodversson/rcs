@@ -1702,58 +1702,86 @@ err
 === img-cp-out-ic16
 cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/IC16 host:$TMP/exp/e-ic16.pbm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-ic16.pbm, 24 bytes)
 
 === img-cp-out-ic16-ascii
 cmd --selfcheck -n $FIX/images.rsc -c 'cp --ascii /ICONS/IC16 host:$TMP/exp/e-ic16.pbm1'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-ic16.pbm1, 144 bytes)
 
 === img-cp-out-ic16-mask
 cmd --selfcheck -n $FIX/images.rsc -c 'cp --mask /ICONS/IC16 host:$TMP/exp/e-ic16m.pbm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-ic16m.pbm, 24 bytes)
 
 === img-cp-out-ic20
 cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/IC20 host:$TMP/exp/e-ic20.pbm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-ic20.pbm, 17 bytes)
 
 === img-cp-out-bm
 cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/BM host:$TMP/exp/e-bm.pbm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-bm.pbm, 16 bytes)
 
 === img-cp-out-frimg
 cmd --selfcheck -n $FIX/images.rsc -c 'cp /.images/SMALL host:$TMP/exp/e-small.pbm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-small.pbm, 11 bytes)
 
 === img-cp-out-cic4
 cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/CIC/4 host:$TMP/exp/e-cic4.ppm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-cic4.ppm, 396 bytes)
 
 === img-cp-out-cic4-ascii
 cmd --selfcheck -n $FIX/images.rsc -c 'cp --ascii /ICONS/CIC/4 host:$TMP/exp/e-cic4.ppm3'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-cic4.ppm3, 1356 bytes)
 
 === img-cp-out-cic4sel
 cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/CIC/4.sel host:$TMP/exp/e-cic4s.ppm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-cic4s.ppm, 396 bytes)
 
 === img-cp-out-cic2
 cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/CIC/2 host:$TMP/exp/e-cic2.ppm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-cic2.ppm, 396 bytes)
 
 === img-cp-out-cic8
 cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/CIC/8 host:$TMP/exp/e-cic8.ppm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-cic8.ppm, 396 bytes)
 
 === img-cp-out-cic4mask
 cmd --selfcheck -n $FIX/images.rsc -c 'cp --mask /ICONS/CIC/4 host:$TMP/exp/e-cic4m.pbm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-cic4m.pbm, 24 bytes)
 
 === img-cp-out-mono
 cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/CIC/mono host:$TMP/exp/e-mono.pbm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-mono.pbm, 24 bytes)
 
 === img-cp-out-second
 cmd --selfcheck -n $FIX/images.rsc -c 'cp $TMP/pnm/images.rsc:/ICONS/CIC/2 host:$TMP/exp/e-second.ppm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/e-second.ppm, 396 bytes)
 
 === img-cp-out-exists
 cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/IC16 host:$TMP/exp/exists.pbm'
@@ -1765,20 +1793,21 @@ err
 === img-cp-out-force
 cmd --selfcheck -n $FIX/images.rsc -c 'cp -f /ICONS/IC16 host:$TMP/exp/exists2.pbm'
 out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/exists2.pbm, 24 bytes)
 
 === img-cp-out-nodir
 cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/IC16 host:$TMP/exp/nodir/x.pbm'
-rc 1
 out
 err
-|rcs-cli: cp: host:$TMP/exp/nodir/x.pbm: cannot write: No such file or directory
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/nodir/x.pbm, 24 bytes)
 
 === img-cp-out-isdir
 cmd --selfcheck -n $FIX/images.rsc -c 'cp -f /ICONS/IC16 host:$TMP/exp'
 rc 1
 out
 err
-|rcs-cli: cp: host:$TMP/exp: cannot write: Is a directory
+|rcs-cli: cp: host:$TMP/exp: exists and is not a regular file
 
 === img-cp-out-bm-mask
 cmd --selfcheck -n $FIX/images.rsc -c 'cp --mask /ICONS/BM host:$TMP/exp/never.pbm'
@@ -1828,61 +1857,6 @@ rc 1
 out
 err
 |rcs-cli: cp: --threshold applies to an import (cp host:FILE PATH) only
-
-=== img-cp-roundtrip-cic4
-cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/CIC/4 host:$TMP/exp/rt1.ppm' -c 'cp host:$TMP/exp/rt1.ppm /ICONS/CIC0/4' -c 'cp /ICONS/CIC0/4 host:$TMP/exp/rt2.ppm' -c 'cat --ascii /ICONS/CIC0/4'
-out
-|P3
-|16 8
-|255
-|255 255 255 255 0 0 0 255 0 255 255 0 0 0 255 255 0 255 0 255 255 182
-|182 182 109 109 109 255 109 109 109 255 109 255 255 109 109 109 255
-|255 109 255 109 255 255 0 0 0
-|255 0 0 0 255 0 255 255 0 0 0 255 255 0 255 0 255 255 182 182 182 109
-|109 109 255 109 109 109 255 109 255 255 109 109 109 255 255 109 255
-|109 255 255 0 0 0 255 255 255
-|0 255 0 255 255 0 0 0 255 255 0 255 0 255 255 182 182 182 109 109 109
-|255 109 109 109 255 109 255 255 109 109 109 255 255 109 255 109 255
-|255 0 0 0 255 255 255 255 0 0
-|255 255 0 0 0 255 255 0 255 0 255 255 182 182 182 109 109 109 255 109
-|109 109 255 109 255 255 109 109 109 255 255 109 255 109 255 255 0 0 0
-|255 255 255 255 0 0 0 255 0
-|0 0 255 255 0 255 0 255 255 182 182 182 109 109 109 255 109 109 109
-|255 109 255 255 109 109 109 255 255 109 255 109 255 255 0 0 0 255 255
-|255 255 0 0 0 255 0 255 255 0
-|255 0 255 0 255 255 182 182 182 109 109 109 255 109 109 109 255 109
-|255 255 109 109 109 255 255 109 255 109 255 255 0 0 0 255 255 255 255
-|0 0 0 255 0 255 255 0 0 0 255
-|0 255 255 182 182 182 109 109 109 255 109 109 109 255 109 255 255 109
-|109 109 255 255 109 255 109 255 255 0 0 0 255 255 255 255 0 0 0 255 0
-|255 255 0 0 0 255 255 0 255
-|182 182 182 109 109 109 255 109 109 109 255 109 255 255 109 109 109
-|255 255 109 255 109 255 255 0 0 0 255 255 255 255 0 0 0 255 0 255 255
-|0 0 0 255 255 0 255 0 255 255
-err
-|rcs-cli: note: dry run: nothing written (would write $FIX/images.rsc, 1364 bytes, and the names to $FIX/images.dfn)
-
-=== img-cp-roundtrip-ic16
-cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/IC16 host:$TMP/exp/rt3.pbm' -c 'cp host:$TMP/exp/rt3.pbm /ICONS/CIC/mono' -c 'cp /ICONS/CIC/mono host:$TMP/exp/rt4.pbm' -c 'cat --ascii /ICONS/CIC/mono'
-out
-|P1
-|16 8
-|1000000000000001
-|0100000000000010
-|0010000000000100
-|0001000000001000
-|0000100000010000
-|0000010000100000
-|0000001001000000
-|0000000110000000
-
-=== img-cp-roundtrip-noop
-cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/IC16 host:$TMP/exp/rt5.pbm' -c 'cp host:$TMP/exp/rt5.pbm /ICONS/IC16'
-out
-
-=== img-cp-roundtrip-mask-noop
-cmd --selfcheck -n $FIX/images.rsc -c 'cp --mask /ICONS/IC16 host:$TMP/exp/rt6.pbm' -c 'cp --mask host:$TMP/exp/rt6.pbm /ICONS/IC16'
-out
 
 === img-cp-mono-to-4
 cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/IC16 /ICONS/CIC/4' -c 'cat --ascii /ICONS/CIC/4' -c 'cat --ascii --mask /ICONS/CIC/4' -c 'cat --ascii /ICONS/CIC/4.sel'
@@ -3376,6 +3350,7 @@ out
 |version-1: planes=4 selected=yes
 |version-2: planes=8 selected=no
 err
+|rcs-cli: note: set: iw=8: the AES draws a colour icon whose width is not a multiple of 16 wrongly
 |rcs-cli: note: dry run: nothing written (would write $FIX/images.rsc, 1046 bytes, and the names to $FIX/images.dfn)
 
 === img-set-cic-grow
@@ -3424,6 +3399,7 @@ out
 |255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
 |255 255 255 255 255 255 255 255 255
 err
+|rcs-cli: note: set: iw=20: the AES draws a colour icon whose width is not a multiple of 16 wrongly
 |rcs-cli: note: dry run: nothing written (would write $FIX/images.rsc, 1802 bytes, and the names to $FIX/images.dfn)
 
 === img-set-cic0
@@ -3707,6 +3683,7 @@ cmd --selfcheck -n $FIX/images.rsc -c 'set /ICONS/CIC iw=32767 ih=4096'
 rc 1
 out
 err
+|rcs-cli: note: set: iw=32767: the AES draws a colour icon whose width is not a multiple of 16 wrongly
 |rcs-cli: set: /ICONS/CIC: cannot resize the image (memory ran out or it would be too big)
 
 === img-set-second
@@ -3770,3 +3747,232 @@ out
 |mono      1 no
 err
 |rcs-cli: note: dry run: nothing written (would write $FIX/images.rsc, 1262 bytes, and the names to $FIX/images.dfn)
+
+=== img-cp-out-then-import
+cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/IC16 host:$TMP/exp/stage.pbm' -c 'cp host:$TMP/exp/stage.pbm /ICONS/CIC/mono'
+rc 1
+out
+err
+|rcs-cli: cp: host:$TMP/exp/stage.pbm: cannot open: No such file or directory
+
+=== img-cp-out-failed-seq
+cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/IC16 host:$TMP/exp/seqfail.pbm' -c 'rm /nosuch'
+rc 1
+out
+err
+|rcs-cli: rm: not found: 'nosuch' in /
+
+=== img-cp-out-twice
+cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/IC16 host:$TMP/exp/twice.pbm' -c 'cp /ICONS/IC20 host:$TMP/exp/twice.pbm'
+rc 1
+out
+err
+|rcs-cli: cp: host:$TMP/exp/twice.pbm: is written twice in this run
+
+=== img-cp-out-self
+cmd --selfcheck -n $FIX/images.rsc cp -f /ICONS/IC16 host:$FIX/images.rsc
+rc 1
+out
+err
+|rcs-cli: cp: host:$FIX/images.rsc: is the resource file itself
+
+=== img-cp-out-fifo
+cmd --selfcheck -n $FIX/images.rsc cp -f /ICONS/IC16 host:$TMP/exp/fifo
+rc 1
+out
+err
+|rcs-cli: cp: host:$TMP/exp/fifo: exists and is not a regular file
+
+=== img-cp-out-two-staged
+cmd --selfcheck -n $FIX/images.rsc -c 'cp /ICONS/IC16 host:$TMP/exp/a1.pbm' -c 'cp /ICONS/IC20 host:$TMP/exp/a2.pbm'
+out
+err
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/a1.pbm, 24 bytes)
+|rcs-cli: note: dry run: not exporting (would write host:$TMP/exp/a2.pbm, 17 bytes)
+
+=== img-set-cic-width20
+cmd --selfcheck -n $FIX/images.rsc -c 'set /ICONS/CIC iw=20' -c 'stat /ICONS/CIC/4'
+out
+|path: /ICONS/CIC/4
+|tree: 0
+|object: 4
+|entry: 4
+|version: 1
+|planes: 4
+|selected: no
+|has-selected: yes
+|w: 20
+|h: 8
+|data-bytes: 128
+|mask-bytes: 32
+|image: 20x8 planes=4
+|mask: yes
+|sel: yes
+err
+|rcs-cli: note: set: iw=20: the AES draws a colour icon whose width is not a multiple of 16 wrongly
+|rcs-cli: note: dry run: nothing written (would write $FIX/images.rsc, 1694 bytes, and the names to $FIX/images.dfn)
+
+=== img-set-cic-width32
+cmd --selfcheck -n $FIX/images.rsc -c 'set /ICONS/CIC iw=32' -c 'stat /ICONS/CIC/4'
+out
+|path: /ICONS/CIC/4
+|tree: 0
+|object: 4
+|entry: 4
+|version: 1
+|planes: 4
+|selected: no
+|has-selected: yes
+|w: 32
+|h: 8
+|data-bytes: 128
+|mask-bytes: 32
+|image: 32x8 planes=4
+|mask: yes
+|sel: yes
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/images.rsc, 1694 bytes, and the names to $FIX/images.dfn)
+
+=== img-set-ic16-width20-nonote
+cmd --selfcheck -n $FIX/images.rsc set /ICONS/IC16 iw=20
+out
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/images.rsc, 1294 bytes, and the names to $FIX/images.dfn)
+
+=== img-cp-blank-within
+cmd --selfcheck -n $FIX/images.rsc -c 'touch /ICONS/BL --type G_ICON' -c 'set /ICONS/BL iw=16 ih=8' -c 'cp /ICONS/BL /ICONS/CIC/4' -c 'cat --ascii --mask /ICONS/CIC/4' -c 'cat --ascii /ICONS/CIC/4'
+out
+|P1
+|16 8
+|0000000000000000
+|0011111111111100
+|0011111111111100
+|0011111111111100
+|0011111111111100
+|0011111111111100
+|0011111111111100
+|0000000000000000
+|P3
+|16 8
+|255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255
+|255 255 255 255 255 255 255 255 255 255 255 255 255 255
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/images.rsc, 1354 bytes, and the names to $FIX/images.dfn)
+
+=== img-cp-blank-mask-only
+cmd --selfcheck -n $FIX/images.rsc -c 'touch /ICONS/BL --type G_ICON' -c 'set /ICONS/BL iw=16 ih=8' -c 'cp --mask /ICONS/BL /ICONS/CIC/4' -c 'cat --ascii --mask /ICONS/CIC/4'
+out
+|P1
+|16 8
+|0000000000000000
+|0000000000000000
+|0000000000000000
+|0000000000000000
+|0000000000000000
+|0000000000000000
+|0000000000000000
+|0000000000000000
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/images.rsc, 1354 bytes, and the names to $FIX/images.dfn)
+
+=== img-cp-into-blank
+cmd --selfcheck -n $FIX/images.rsc -c 'touch /ICONS/BL --type G_ICON' -c 'set /ICONS/BL iw=16 ih=8' -c 'cp /ICONS/CIC/4 /ICONS/BL' -c 'stat /ICONS/BL' -c 'cat --ascii --mask /ICONS/BL'
+out
+|path: /ICONS/BL
+|tree: 0
+|index: 8
+|name: BL
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 0
+|head: -1
+|tail: -1
+|type: 0x001F G_ICON
+|flags: 0x0020 LASTOB
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 4
+|h: 2
+|text: ""
+|char: '\x00'
+|fg-color: 1
+|bg-color: 0
+|char-pos: 0,0
+|icon: 0,0,16,8
+|text-box: 0,32,32,8
+|data-bytes: 16
+|mask-bytes: 16
+|image: 16x8 planes=1
+|mask: yes
+|P1
+|16 8
+|0000000000000000
+|0011111111111100
+|0011111111111100
+|0011111111111100
+|0011111111111100
+|0011111111111100
+|0011111111111100
+|0000000000000000
+err
+|rcs-cli: note: cp: 112 pixels changed colour in the conversion to 1 plane
+|rcs-cli: note: dry run: nothing written (would write $FIX/images.rsc, 1354 bytes, and the names to $FIX/images.dfn)
+
+=== img-stat-blank
+cmd --selfcheck -n $FIX/images.rsc -c 'touch /ICONS/BL --type G_ICON' -c 'set /ICONS/BL iw=16 ih=8' -c 'stat /ICONS/BL'
+out
+|path: /ICONS/BL
+|tree: 0
+|index: 8
+|name: BL
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 0
+|head: -1
+|tail: -1
+|type: 0x001F G_ICON
+|flags: 0x0020 LASTOB
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 4
+|h: 2
+|text: ""
+|char: '\x00'
+|fg-color: 1
+|bg-color: 0
+|char-pos: 0,0
+|icon: 0,0,16,8
+|text-box: 0,32,32,8
+|data-bytes: 16
+|mask-bytes: 16
+|image: 16x8 planes=1
+|mask: no
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/images.rsc, 1354 bytes, and the names to $FIX/images.dfn)

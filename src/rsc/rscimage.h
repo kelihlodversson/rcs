@@ -244,7 +244,8 @@ int rsc_image_set(struct rsc *r, const struct rsc_imgsel *s, const struct rsc_pi
  * *inexact as there, may be NULL): mono to colour, colour to colour by
  * the nearest colour, colour to mono.  `from` and `to` may be the same
  * model object, but not the same image.  With flags RSC_COPY_MASK the mask
- * of `from` is copied to the mask of `to` as well (when both have one; the
+ * of `from` is copied to the mask of `to` as well (when both have one, and the
+ * mask of `from` has data, i.e. is not a blank NULL mask: that leaves the mask of `to` as it is; the
  * `mask` field of the selectors is then 0 and is ignored).  The sizes must
  * be equal (RSC_IMG_ESIZE).  All or nothing. */
 #define RSC_COPY_MASK	1

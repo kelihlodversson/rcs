@@ -10,6 +10,16 @@
 /* The most second files (FILE.rsc:/PATH) one run opens. */
 #define RCS_OTHER_MAX	8
 
+/* A host file an export (cp PATH host:FILE) will write once every command of
+ * the run has succeeded. */
+struct rcs_export
+{
+	char		*file;
+	void		*buf;		/* rsc_malloc'd */
+	size_t		len;
+	int		force;		/* replace an existing file */
+};
+
 /* A resource file with its names and a view of the two: the main file, or
  * a second file the copy commands read from (never written). */
 struct rcs_src
@@ -37,6 +47,9 @@ struct rcs_ctx
 	/* Opens a second file with the options of the run: fills *out (r, n, v)
 	 * and returns 0, or returns -1 after an error line. */
 	int			(*load)(struct rcs_ctx *c, const char *file, struct rcs_src *out);
+	struct rcs_export	*exports;	/* staged exports, in order */
+	int			nexports;
+	size_t			export_bytes;
 	struct rcs_src		other[RCS_OTHER_MAX];
 	int			nother;
 };
@@ -44,6 +57,13 @@ struct rcs_ctx
 /* Runs one command (argv[0] is its name) and returns 0, or 1 after an
  * error line on stderr. */
 int rcs_run(struct rcs_ctx *c, int argc, char **argv);
+
+/* Writes the staged exports (atomically each, in order) and frees them; with
+ * dry only says what would be written.  Returns 0, or 1 after an error line
+ * (the exports after the failed one are not written). */
+int rcs_exports_flush(struct rcs_ctx *c, int dry);
+/* Drops the staged exports without writing them. */
+void rcs_exports_free(struct rcs_ctx *c);
 
 /* Frees the second files of c (not the main file). */
 void rcs_ctx_free_others(struct rcs_ctx *c);

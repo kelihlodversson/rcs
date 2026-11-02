@@ -178,6 +178,8 @@ static void test_palette(void)
 	rgb_is(8, 253, 68, 17, 0);
 	rgb_is(8, 254, 255, 255, 255);	/* pen 254 */
 	rgb_is(8, 255, 0, 0, 0);	/* pen 1 */
+	rgb_is(8, 15, 0, 0, 0);		/* pen 255: the last entry of the extended palette, black */
+	CHECK(rsc_palette_nearest(8, 0, 0, 0) == 15);	/* the lowest pixel of the black ones */
 
 	/* errors */
 	CHECK(rsc_palette_rgb(3, 0, &r, &g, &b) == RSC_IMG_ENODEPTH);
@@ -727,6 +729,33 @@ static void test_parse_forms(void)
 	rsc_pnm_free(&p);
 	CHECK(PARSE("P5 # c\n1 1 # d\n200\n\x07", &p) == 0 && p.maxval == 200 && p.samples[0] == 7);
 	rsc_pnm_free(&p);
+	/* a comment right after the last header number is the separator of the data (as netpbm reads it) */
+	CHECK(PARSE("P5\n1 1\n200# d\n\x07", &p) == 0 && p.maxval == 200 && p.samples[0] == 7);
+	rsc_pnm_free(&p);
+	CHECK(PARSE("P4\n8 1# d\n\x80", &p) == 0 && samples_are(&p, "\1\0\0\0\0\0\0\0", 8));
+	rsc_pnm_free(&p);
+	CHECK(PARSE("P5\n1 1\n200# d", &p) == RSC_IMG_ETRUNC);
+	CHECK(PARSE("P5\n1 1\n200#", &p) == RSC_IMG_ETRUNC);
+	CHECK(PARSE("P5\n1 1\n200x\x07", &p) == RSC_IMG_EFORMAT);
+	/* samples scale from the maxval with rounding; the luminance weights are 299 R, 587 G, 114 B */
+	{
+		int	r, g, b;
+		struct rsc_pixmap	pm;
+
+		CHECK(PARSE("P2\n1 1\n2\n1", &p) == 0 && rsc_pnm_rgb(&p, 0, 0, &r, &g, &b) == 0 && r == 128 && g == 128 && b == 128);
+		rsc_pnm_free(&p);
+		/* red is 70.2 percent dark, blue 88.6 */
+		CHECK(PARSE("P3\n2 1\n255\n255 0 0 0 0 255", &p) == 0);
+		CHECK(rsc_pnm_to_pixmap(&p, 1, 70, 0, &pm, NULL) == 0 && pm.pix[0] == 1 && pm.pix[1] == 1);
+		rsc_pixmap_free(&pm);
+		CHECK(rsc_pnm_to_pixmap(&p, 1, 71, 0, &pm, NULL) == 0 && pm.pix[0] == 0 && pm.pix[1] == 1);
+		rsc_pixmap_free(&pm);
+		CHECK(rsc_pnm_to_pixmap(&p, 1, 88, 0, &pm, NULL) == 0 && pm.pix[0] == 0 && pm.pix[1] == 1);
+		rsc_pixmap_free(&pm);
+		CHECK(rsc_pnm_to_pixmap(&p, 1, 89, 0, &pm, NULL) == 0 && pm.pix[0] == 0 && pm.pix[1] == 0);
+		rsc_pixmap_free(&pm);
+		rsc_pnm_free(&p);
+	}
 	CHECK(PARSE("P6\n1 2\n15\n\x0f\x00\x05\x01\x02\x03", &p) == 0);
 	CHECK(p.format == 6 && p.channels == 3 && samples_are(&p, "\x0f\0\5\1\2\3", 6));
 	{
@@ -1705,7 +1734,7 @@ static void test_versions(void)
 {
 	struct rsc	*r = build();
 	struct rsc_cicon	*c = rsc_obj_cicon(r, 0, 3);
-	struct rsc_pixmap	pm, pm2;
+	struct rsc_pixmap	pm;
 	struct rsc_imgsel	s;
 	struct rsc_cicon_version	*v;
 	uint64_t	before;
@@ -2079,7 +2108,7 @@ static void test_copy(void)
 		short	d2[4], m2[4];
 		uint64_t	f1;
 		struct rsc_pixmap	g;
-		int	o;
+		int	o, o2;
 
 		memset(&b2, 0, sizeof b2);
 		words(d2, 4, 21);
@@ -2099,6 +2128,14 @@ static void test_copy(void)
 		CHECK(rsc_image_get(r, &from, &a) == 0 && rsc_image_get(r, &to, &g) == 0 && pm_equal(&a, &g));
 		rsc_pixmap_free(&a);
 		rsc_pixmap_free(&g);
+		/* a source whose mask is blank (NULL data): the mask of the target stays as it was */
+		b2.ib_pmask = NULL;
+		o2 = rsc_obj_add(r, 0, 0, G_ICON);
+		CHECK(o2 == o + 1 && rsc_obj_set_iconblk(r, 0, o2, &b2) == 0);
+		CHECK(rsc_tree_objects(r, 0, NULL)[o2].ob_spec.iconblk->ib_pmask == NULL);
+		from = S(0, o2, -1, 0, 0);
+		CHECK(rsc_image_copy(r, &from, &to, RSC_COPY_MASK, &inex) == 0);
+		CHECK(memcmp(rsc_tree_objects(r, 0, NULL)[o].ob_spec.iconblk->ib_pmask, m2, sizeof m2) == 0);
 	}
 	CHECK(rsc_validate(r, NULL) == 0);
 	rsc_free(r);

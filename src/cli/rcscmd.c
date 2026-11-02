@@ -1962,6 +1962,10 @@ static int cp_free(struct rcs_ctx *c, struct rcs_src *S, const struct rcs_node *
 
 /* ---- cp of images: import, export, conversion --------------------------------- */
 
+/* The most exports and bytes of them one run stages. */
+#define EXPORT_MAX		1024
+#define EXPORT_BYTES_MAX	(256UL * 1024 * 1024)
+
 /* The most bytes of a host image file read. */
 #define HOST_MAX	(64UL * 1024 * 1024)
 
@@ -2243,7 +2247,50 @@ done:
 	return rc;
 }
 
-/* cp PATH host:FILE */
+void rcs_exports_free(struct rcs_ctx *c)
+{
+	int	i;
+
+	for (i = 0; i < c->nexports; i++)
+	{
+		free(c->exports[i].file);
+		rsc_mfree(c->exports[i].buf);
+	}
+	free(c->exports);
+	c->exports = NULL;
+	c->nexports = 0;
+	c->export_bytes = 0;
+}
+
+int rcs_exports_flush(struct rcs_ctx *c, int dry)
+{
+	struct stat	st;
+	char		fb[300], why[200];
+	int		i, rc = 0;
+
+	for (i = 0; i < c->nexports && rc == 0; i++)
+	{
+		struct rcs_export	*e = &c->exports[i];
+
+		arg_path(fb, sizeof fb, e->file);
+		if (dry)
+			rcs_note("dry run: not exporting (would write host:%s, %lu bytes)", fb, (unsigned long)e->len);
+		else if (stat(e->file, &st) == 0 && !e->force)
+		{
+			rcs_error("cp: host:%s: exists already (use -f to replace it)", fb);
+			rc = 1;
+		}
+		else if (rcs_write_file(e->file, e->buf, e->len, 1, why, sizeof why) != 0)
+		{
+			rcs_error("cp: host:%s: cannot write: %s", fb, why);
+			rc = 1;
+		}
+	}
+	rcs_exports_free(c);
+	return rc;
+}
+
+/* cp PATH host:FILE: staged, the file is written when the run has succeeded */
 static int cp_export(struct rcs_ctx *c, const struct imgopts *o, const char *src, const char *file)
 {
 	struct rcs_src		S;
@@ -2255,8 +2302,9 @@ static int cp_export(struct rcs_ctx *c, const struct imgopts *o, const char *src
 	unsigned char		*out = NULL;
 	size_t			len = 0;
 	const char		*path;
-	char			sb[200], fb[300], why[200];
-	int			err, ascii = (o->flags & IO_ASCII) != 0;
+	struct rcs_export	*ex;
+	char			sb[200], fb[300], *nm;
+	int			err, i, ascii = (o->flags & IO_ASCII) != 0;
 
 	if (io_only("cp", o, IO_EXACT | IO_RESIZE | IO_THRESH, "an import (cp host:FILE PATH)") != 0)
 		return 1;
@@ -2266,9 +2314,33 @@ static int cp_export(struct rcs_ctx *c, const struct imgopts *o, const char *src
 		return 1;
 	if (img_info("cp", S.r, &sn, (o->flags & IO_MASK) != 0, sb, 1, &sel, &info) != 0)
 		return 1;
-	if (stat(file, &st) == 0 && !(o->flags & IO_FORCE))
+	if (stat(file, &st) == 0)
 	{
-		rcs_error("cp: host:%s: exists already (use -f to replace it)", fb);
+		if (!S_ISREG(st.st_mode))
+		{
+			rcs_error("cp: host:%s: exists and is not a regular file", fb);
+			return 1;
+		}
+		if (c->file && same_file(c->file, file))
+		{
+			rcs_error("cp: host:%s: is the resource file itself", fb);
+			return 1;
+		}
+		if (!(o->flags & IO_FORCE))
+		{
+			rcs_error("cp: host:%s: exists already (use -f to replace it)", fb);
+			return 1;
+		}
+	}
+	for (i = 0; i < c->nexports; i++)
+		if (strcmp(c->exports[i].file, file) == 0)
+		{
+			rcs_error("cp: host:%s: is written twice in this run", fb);
+			return 1;
+		}
+	if (c->nexports >= EXPORT_MAX)
+	{
+		rcs_error("cp: too many exports in one run (at most %d)", EXPORT_MAX);
 		return 1;
 	}
 	err = rsc_image_get(S.r, &sel, &pm);
@@ -2287,13 +2359,23 @@ static int cp_export(struct rcs_ctx *c, const struct imgopts *o, const char *src
 		img_fail("cp", sb, err, info.planes);
 		return 1;
 	}
-	if (rcs_write_file(file, out, len, 1, why, sizeof why) != 0)
+	if (len > EXPORT_BYTES_MAX || c->export_bytes + len > EXPORT_BYTES_MAX
+	    || (ex = realloc(c->exports, (size_t)(c->nexports + 1) * sizeof *ex)) == NULL
+	    || (nm = malloc(strlen(file) + 1)) == NULL)
 	{
 		rsc_mfree(out);
-		rcs_error("cp: host:%s: cannot write: %s", fb, why);
+		rcs_error("cp: cannot stage the export (out of memory or more than %lu bytes of exports)",
+			  (unsigned long)EXPORT_BYTES_MAX);
 		return 1;
 	}
-	rsc_mfree(out);
+	strcpy(nm, file);
+	c->exports = ex;
+	ex[c->nexports].file = nm;
+	ex[c->nexports].buf = out;
+	ex[c->nexports].len = len;
+	ex[c->nexports].force = (o->flags & IO_FORCE) != 0;
+	c->nexports++;
+	c->export_bytes += len;
 	c->unchanged = 1;	/* the resource did not change */
 	return 0;
 }
@@ -3767,6 +3849,8 @@ toolong:
 			if (bitmap && iw > 0 && iw % 8 != 0)
 				rcs_note("set: iw=%d was rounded up to %d (a bitmap is a whole number of bytes wide)", iw,
 					 (iw + 7) / 8 * 8);
+			if (iw > 0 && iw % 16 != 0 && cicon_of(c, &nd) != NULL)
+				rcs_note("set: iw=%d: the AES draws a colour icon whose width is not a multiple of 16 wrongly", iw);
 			if (resize_image(c, &nd, iw, ih) != 0)
 			{
 				rcs_error("set: %s: cannot resize the image (memory ran out or it would be too big)", sb);

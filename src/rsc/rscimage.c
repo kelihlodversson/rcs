@@ -796,10 +796,19 @@ static int pnm_header(struct rd *d, size_t max_pixels, struct rsc_pnm *p, size_t
 	text = fmt <= 3;
 	if (!text)
 	{
-		/* exactly one whitespace byte, then the data */
+		/* exactly one whitespace byte, then the data; a comment right after the
+		 * last number is skipped to the end of its line, which is that byte
+		 * (as netpbm reads it) */
 		if (d->pos >= d->len)
 			return RSC_IMG_ETRUNC;
-		if (!is_ws(d->b[d->pos]))
+		if (d->b[d->pos] == '#')
+		{
+			while (d->pos < d->len && d->b[d->pos] != '\n' && d->b[d->pos] != '\r')
+				d->pos++;
+			if (d->pos >= d->len)
+				return RSC_IMG_ETRUNC;
+		}
+		else if (!is_ws(d->b[d->pos]))
 			return RSC_IMG_EFORMAT;
 		d->pos++;
 	}
@@ -1461,7 +1470,7 @@ int rsc_image_copy(struct rsc *r, const struct rsc_imgsel *from, const struct rs
 	err = build_block(&LT, &cv, &nd);
 	if (err)
 		goto done;
-	want_mask = (flags & RSC_COPY_MASK) && LF.mp && LT.mp;
+	want_mask = (flags & RSC_COPY_MASK) && LF.mp && *LF.mp && LT.mp;
 	if (want_mask)
 	{
 		/* the mask of `from`, whatever the depth, into the mask of `to` */

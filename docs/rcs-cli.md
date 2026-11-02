@@ -592,6 +592,17 @@ and the name errors.
 
 Icon and bitmap images are files: PBM/PPM for `cat` and `cp`.
 
+| Command | `G_ICON` object | `G_IMAGE` object, free image | `G_CICON` object | colour icon entry |
+|---|---|---|---|---|
+| `cat PATH` | the label (text) | the image | the label (text) | the image |
+| `cat --image\|--mask\|--ascii PATH` | the image (the mask) | the image (`--mask`: `no mask`) | `no image` | the image (the mask) |
+| `cp host:F PATH`, `cp PATH host:F` | the image | the image | `no image` | the image |
+| `cp A B` | copies the object | copies the object | copies the object (all versions) | an image copy |
+| `cp --image\|--mask A B` | an image copy | an image copy | `no image` | an image copy |
+
+An image copy is one with an entry of a colour icon on either side, or with
+`--image` or `--mask`.
+
 **Which image.** A path addresses an image when it is a `G_ICON` or `G_IMAGE`
 object, a free image (`/.images/K`) or an entry of a colour icon (`mono`, `N`,
 `N.sel`). `--mask` selects the mask instead of the data (always one plane; a
@@ -619,7 +630,7 @@ N is not supported` (their masks, `ls`, `stat`, `rm` and copying the whole
 object work).
 
 **cp host:FILE PATH (import).** FILE is PBM/PGM/PPM (`P1` to `P6`, comments
-allowed, maxval up to 255; bigger is refused). A mono image or mask thresholds
+allowed, maxval up to 255; bigger is refused; a comment right after the last header number of a binary form ends the header, as in netpbm). A mono image or mask thresholds
 the darkness at 50% (`--threshold N`, 1 to 100, mono and masks only); a colour
 version maps each pixel to the nearest palette colour (`--exact` refuses a
 pixel that is not in the palette and names the first; colour only). The size
@@ -632,10 +643,19 @@ mono mask (`N.sel`: also a copy of the normal image). Importing the same
 picture as there already is changes nothing and writes nothing.
 
 **cp PATH host:FILE (export).** As `cat`, to a new file; an existing file is
-`host:F: exists already (use -f to replace it)`, `-f` replaces it. The file is
-written to a temporary file next to it and renamed. `--ascii` writes the text
-forms. An export does not change the resource; `-n` and `-o` concern the
-resource file only, so a dry run still writes the exported file.
+`host:F: exists already (use -f to replace it)`, `-f` replaces it (keeping its
+mode). `--ascii` writes the text forms. Exports are **staged**: the file is
+checked when the command runs, but nothing is written to the host until every
+command of the run has succeeded (and the resource has been written, if it
+was to be); then the files are written in order, each to a temporary file
+next to it and renamed. So a failing command leaves no file. A dry run (`-n`)
+writes none and says what it would: `rcs-cli: note: dry run: not exporting
+(would write host:F, N bytes)`. An import in the same run of a file that an
+earlier command exports sees the old state (the file is not there yet). An
+export does not change the resource, so it is no edit. Refused:
+`host:F: is the resource file itself`, `host:F: exists and is not a regular
+file` (also with `-f`), `host:F: is written twice in this run`, `cp: too many
+exports in one run` (1024 files, 256 MiB).
 
 **cp PATH1 PATH2 (images).** Copies and converts between images, also of
 another file (`FILE.rsc:/PATH`, read only) and also from a mono icon to a
@@ -644,7 +664,7 @@ another's: mono to N planes makes a set pixel pen 1 (black, value
 `(1 << N) - 1`) and a clear pixel 0; N to M planes uses the nearest colour of
 the new palette (`rcs-cli: note: cp: 64 pixels changed colour in the
 conversion to 8 planes` when some pixel's colour is not the same afterwards);
-the mask is copied too (not with `--mask`, which copies the masks only). The
+the mask is copied too (not with `--mask`, which copies the masks only; a blank source mask, one with no data, leaves the destination mask as it is, within a file and from a second file alike, while `--mask` copies it as zeros). The
 sizes must be equal (`cp: SRC is WxH but DST is WxH (the sizes must be equal)`)
 and the images different (`cp: A and B are the same image`). A destination
 that does not exist is created like an import. Errors: `no image`, `no mask`,
@@ -677,7 +697,8 @@ top left part kept and the rest zero: the mono icon and mask and every colour
 version (`rsc_cicon_resize`), a `G_ICON` (`rsc_obj_resize_icon`), the bitmap of
 a `G_IMAGE` or a free image (the width rounded up to a multiple of 8, with
 `rcs-cli: note: set: iw=10 was rounded up to 16 (a bitmap is a whole number
-of bytes wide)`). Both keys at once resize once. Errors: `set: bad value
+of bytes wide)`). Both keys at once resize once. A colour icon whose width is not a multiple of 16 is allowed, but the AES
+draws such an icon wrongly (it assumes whole words per row); `rcs-cli: note: set: iw=20: the AES draws a colour icon whose width is not a multiple of 16 wrongly`. Errors: `set: bad value
 'iw=0'`, `set: P: iw does not apply to a G_BOX object`, `set: P: only name=
 applies to a tree`, `set: P: iw and ih cannot be set together with type`,
 `set: P: the image would be too big` (a plane of more than 32 MiB),
@@ -831,7 +852,7 @@ of `rscnames.h`). After an edit, `rcs_view_reset` drops the caches. `rcs_resolve
 
 `tests/cli/run.sh` (POSIX sh, run from the repository root; `make cli-test`
 runs it) builds the fixtures with `build/host/mkfix` into
-`build/host/cli-fix`, then runs every case of `tests/cli/cases/*.cases` (one file per area: `ls-tree`,
+a scratch directory under `/tmp` (with a short symbolic link to the repository, so that no message depends on the length of the checkout path; `KEEP=1` keeps it), then runs every case of `tests/cli/cases/*.cases` (one file per area: `ls-tree`,
 `stat`, `cat`, `cp`, `mv`, `paths`, `names`, `errors`, ...). A case is a block
 that starts with `=== NAME` and has a `cmd` line (the arguments of one
 `rcs-cli` invocation, split by the shell after `$ROOT`, the repository root,

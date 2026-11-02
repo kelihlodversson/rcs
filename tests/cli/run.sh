@@ -39,20 +39,28 @@ if [ ! -f tests/cli/run.sh ] || [ ! -d tests/cli/cases ]; then
     echo "run.sh: run this from the root of the repository" >&2
     exit 2
 fi
-ROOT=$(pwd)
+REAL=$(pwd)
+ROOT=$REAL
 CLI=${RCS_CLI:-build/host/rcs-cli}
 MKFIX=${MKFIX:-build/host/mkfix}
-case $CLI in /*) ;; *) CLI=$ROOT/$CLI ;; esac
-case $MKFIX in /*) ;; *) MKFIX=$ROOT/$MKFIX ;; esac
+case $CLI in /*) ;; *) CLI=$REAL/$CLI ;; esac
+case $MKFIX in /*) ;; *) MKFIX=$REAL/$MKFIX ;; esac
 for p in "$CLI" "$MKFIX"; do
     if [ ! -x "$p" ]; then
         echo "run.sh: $p is missing: make host build/host/mkfix (or make cli-test)" >&2
         exit 2
     fi
 done
-FIX=$ROOT/build/host/cli-fix
-TMP=$ROOT/build/host/cli-tmp
-WORK=$ROOT/build/host/cli-work
+# Everything the cases print goes through paths made short here (messages cut a path after 128
+# characters, so a long checkout path must not show in them): a scratch directory under /tmp, with
+# a symbolic link to the repository as $ROOT.  KEEP=1 leaves it for a look.
+SCR=$(mktemp -d /tmp/rcscli.XXXXXX) || exit 2
+if [ -z "$KEEP" ]; then trap 'rm -rf "$SCR"' EXIT; else echo "run.sh: scratch directory $SCR"; fi
+ln -s "$REAL" "$SCR/r" || exit 2
+ROOT=$SCR/r
+FIX=$SCR/f
+TMP=$SCR/t
+WORK=$SCR/w
 rm -rf "$FIX" "$TMP" "$WORK"
 mkdir -p "$FIX" "$TMP" "$WORK" || exit 2
 "$MKFIX" all "$FIX" || { echo "run.sh: mkfix failed" >&2; exit 2; }
@@ -193,10 +201,11 @@ awk 'BEGIN {
     for (y = 0; y < 8; y++) { s = ""; for (x = 0; x < 16; x++) { p = (x + y) % 4; s = s d[3 * p + 1] " " d[3 * p + 2] " " d[3 * p + 3] " " } print s > f }
     close(f) }'
 cp "$FIX/images.rsc" "$FIX/images.dfn" "$PN/"
-# where the export cases write (and two files that are there already)
+# where the export cases (all dry runs) would write, and a file and a fifo that are there already
 mkdir -p "$TMP/exp"
 echo old > "$TMP/exp/exists.pbm"
 echo old > "$TMP/exp/exists2.pbm"
+mkfifo "$TMP/exp/fifo" 2> /dev/null
 
 SPLIT=$WORK/cases
 mkdir -p "$SPLIT"
@@ -867,46 +876,102 @@ same_as() {
     shift
     "$CLI" "$IMG" "$@" > "$IM/same.out" 2> /dev/null && cmp -s "$f" "$IM/same.out"
 }
-# exported files (the cases of images.cases wrote them) are what cat prints
+# exports are written when the run has succeeded, and not by a dry run (the cases of images.cases are all
+# -n: they must have left no file); the real exports here are what cat prints
+E=$TMP/exp
+if [ "$(ls -A "$E" | tr '\n' ' ')" = "exists.pbm exists2.pbm fifo " ] || [ "$(ls -A "$E" | tr '\n' ' ')" = "exists.pbm exists2.pbm " ]; then
+    ok "-n and failed runs leave no exported file"
+else
+    bad "-n and failed runs leave no exported file: $(ls -A "$E" | tr '\n' ' ')"
+fi
+X=$IM/x
+mkdir -p "$X"
+# rx FILE ARGS...: cp ARGS host:X/FILE on the fixture (an export changes no resource)
+rx() { f=$1; shift; "$CLI" "$IMG" cp "$@" "host:$X/$f" 2> "$IM/rx.err" || { bad "export $f"; cat "$IM/rx.err"; }; }
 ck() { # LABEL FILE ARGS...
     lbl=$1
     shift
     if same_as "$@"; then ok "export $lbl equals cat"; else bad "export $lbl equals cat"; fi
 }
-E=$TMP/exp
-ck ic16 "$E/e-ic16.pbm" cat --image /ICONS/IC16
-ck ic16-ascii "$E/e-ic16.pbm1" cat --ascii /ICONS/IC16
-ck ic16-mask "$E/e-ic16m.pbm" cat --mask --image /ICONS/IC16
-ck ic20 "$E/e-ic20.pbm" cat --image /ICONS/IC20
-ck bitmap "$E/e-bm.pbm" cat /ICONS/BM
-ck free-image "$E/e-small.pbm" cat /.images/SMALL
-ck cic4 "$E/e-cic4.ppm" cat /ICONS/CIC/4
-ck cic4-ascii "$E/e-cic4.ppm3" cat --ascii /ICONS/CIC/4
-ck cic4-sel "$E/e-cic4s.ppm" cat /ICONS/CIC/4.sel
-ck cic2 "$E/e-cic2.ppm" cat /ICONS/CIC/2
-ck cic8 "$E/e-cic8.ppm" cat /ICONS/CIC/8
-ck cic4-mask "$E/e-cic4m.pbm" cat --mask /ICONS/CIC/4
-ck mono "$E/e-mono.pbm" cat /ICONS/CIC/mono
-ck second-file "$E/e-second.ppm" cat /ICONS/CIC/2
+rx e-ic16.pbm /ICONS/IC16
+rx e-ic16.pbm1 --ascii /ICONS/IC16
+rx e-ic16m.pbm --mask /ICONS/IC16
+rx e-ic20.pbm /ICONS/IC20
+rx e-bm.pbm /ICONS/BM
+rx e-small.pbm /.images/SMALL
+rx e-cic4.ppm /ICONS/CIC/4
+rx e-cic4.ppm3 --ascii /ICONS/CIC/4
+rx e-cic4s.ppm /ICONS/CIC/4.sel
+rx e-cic2.ppm /ICONS/CIC/2
+rx e-cic8.ppm /ICONS/CIC/8
+rx e-cic4m.pbm --mask /ICONS/CIC/4
+rx e-mono.pbm /ICONS/CIC/mono
+rx e-second.ppm "$PN/images.rsc:/ICONS/CIC/2"
+ck ic16 "$X/e-ic16.pbm" cat --image /ICONS/IC16
+ck ic16-ascii "$X/e-ic16.pbm1" cat --ascii /ICONS/IC16
+ck ic16-mask "$X/e-ic16m.pbm" cat --mask --image /ICONS/IC16
+ck ic20 "$X/e-ic20.pbm" cat --image /ICONS/IC20
+ck bitmap "$X/e-bm.pbm" cat /ICONS/BM
+ck free-image "$X/e-small.pbm" cat /.images/SMALL
+ck cic4 "$X/e-cic4.ppm" cat /ICONS/CIC/4
+ck cic4-ascii "$X/e-cic4.ppm3" cat --ascii /ICONS/CIC/4
+ck cic4-sel "$X/e-cic4s.ppm" cat /ICONS/CIC/4.sel
+ck cic2 "$X/e-cic2.ppm" cat /ICONS/CIC/2
+ck cic8 "$X/e-cic8.ppm" cat /ICONS/CIC/8
+ck cic4-mask "$X/e-cic4m.pbm" cat --mask /ICONS/CIC/4
+ck mono "$X/e-mono.pbm" cat /ICONS/CIC/mono
+ck second-file "$X/e-second.ppm" cat /ICONS/CIC/2
 # the bytes of a bitmap, written by hand
 printf 'P4\n16 4\n\377\000\017\360\125\252\200\001' > "$IM/bm.want"
-if cmp -s "$IM/bm.want" "$E/e-bm.pbm"; then ok "export of the bitmap is P4 with the right bytes"; else bad "export of the bitmap is P4 with the right bytes"; fi
-# round trips: export, import, export again: the same bytes
-if cmp -s "$E/rt1.ppm" "$E/rt2.ppm" && cmp -s "$E/rt3.pbm" "$E/rt4.pbm"; then ok "export, import, export: identical files"; else bad "export, import, export: identical files"; fi
-# an existing file stays unless -f; failed exports leave nothing
-if [ "$(cat "$E/exists.pbm")" = old ] && cmp -s "$E/exists2.pbm" "$E/e-ic16.pbm"; then ok "export: an existing file is kept, -f replaces it"; else bad "export: an existing file is kept, -f replaces it"; fi
-if [ ! -e "$E/never.pbm" ] && [ ! -e "$E/never.ppm" ] && [ ! -d "$E/nodir" ] && [ -d "$E" ] \
-    && [ "$(ls -A "$E" | grep -c '\.[A-Za-z0-9]\{6\}$')" = 0 ]; then
-    ok "failed exports leave no file and no temporary file"
+if cmp -s "$IM/bm.want" "$X/e-bm.pbm"; then ok "export of the bitmap is P4 with the right bytes"; else bad "export of the bitmap is P4 with the right bytes"; fi
+# round trips as separate runs: export, import into a copy (written back), export again: the same bytes
+cp "$FIX/images.rsc" "$FIX/images.dfn" "$IM/"
+"$CLI" "$IM/images.rsc" cp /ICONS/CIC/4 "host:$X/rt1.ppm" && "$CLI" "$IM/images.rsc" cp "host:$X/rt1.ppm" /ICONS/CIC0/4 \
+    && "$CLI" "$IM/images.rsc" cp /ICONS/CIC0/4 "host:$X/rt2.ppm" \
+    && "$CLI" "$IM/images.rsc" cp /ICONS/IC16 "host:$X/rt3.pbm" && "$CLI" "$IM/images.rsc" cp "host:$X/rt3.pbm" /ICONS/CIC/mono \
+    && "$CLI" "$IM/images.rsc" cp /ICONS/CIC/mono "host:$X/rt4.pbm"
+if cmp -s "$X/rt1.ppm" "$X/rt2.ppm" && cmp -s "$X/rt3.pbm" "$X/rt4.pbm" && [ -s "$X/rt2.ppm" ] && ! bytes_same "$IM/images.rsc" "$FIX/images.rsc"; then
+    ok "export, import, export: identical files"
 else
-    bad "failed exports leave no file and no temporary file"
+    bad "export, import, export: identical files"
 fi
-if [ "$(ls -l "$E/e-ic16.pbm" | cut -c1-10)" != "-rw-------" ]; then ok "an exported file has the mode of a new file, not the temporary file's"; else bad "an exported file has the mode of a new file, not the temporary file's"; fi
+# an existing file stays unless -f
+echo old > "$X/exists.pbm"
+"$CLI" "$IMG" cp /ICONS/IC16 "host:$X/exists.pbm" 2> /dev/null
+r1=$?
+if [ $r1 = 1 ] && [ "$(cat "$X/exists.pbm")" = old ]; then ok "export: an existing file is kept"; else bad "export: an existing file is kept"; fi
+"$CLI" "$IMG" cp -f /ICONS/IC16 "host:$X/exists.pbm" 2> /dev/null && cmp -s "$X/exists.pbm" "$X/e-ic16.pbm" \
+    && ok "export: -f replaces an existing file" || bad "export: -f replaces an existing file"
+# a failed run exports nothing, also the commands that came before; -n exports nothing; the note says what
+"$CLI" "$IMG" -c "cp /ICONS/BM host:$X/seq.pbm" -c 'rm /nosuch' 2> /dev/null
+if [ $? = 1 ] && [ ! -e "$X/seq.pbm" ]; then ok "a failing command stops the exports of the run"; else bad "a failing command stops the exports of the run"; fi
+"$CLI" -n "$IMG" cp /ICONS/BM "host:$X/dry.pbm" 2> "$IM/dry.err"
+if [ $? = 0 ] && [ ! -e "$X/dry.pbm" ] && grep -q "dry run: not exporting (would write host:$X/dry.pbm, 16 bytes)" "$IM/dry.err"; then
+    ok "-n writes no host file and says what it would write"
+else
+    bad "-n writes no host file and says what it would write"; cat "$IM/dry.err"
+fi
+"$CLI" "$IMG" -c "cp /ICONS/BM host:$X/two.pbm" -c "cp /ICONS/IC16 host:$X/two.pbm" 2> "$IM/dry.err"
+if [ $? = 1 ] && [ ! -e "$X/two.pbm" ] && grep -q 'is written twice' "$IM/dry.err"; then ok "two exports to one file are refused"; else bad "two exports to one file are refused"; fi
+# staged exports are written in order once the run is over; an import of such a file in the same run sees the old state
+"$CLI" "$IMG" -c "cp /ICONS/BM host:$X/st1.pbm" -c "cp /ICONS/IC16 host:$X/st2.pbm" 2> /dev/null
+if [ $? = 0 ] && cmp -s "$X/st1.pbm" "$X/e-bm.pbm" && cmp -s "$X/st2.pbm" "$X/e-ic16.pbm"; then ok "staged exports are written when the run succeeds"; else bad "staged exports are written when the run succeeds"; fi
+# the target is the resource file itself, or not a regular file
+cp "$FIX/images.rsc" "$IM/self.rsc"
+"$CLI" "$IM/self.rsc" cp -f /ICONS/IC16 "host:$IM/self.rsc" 2> /dev/null
+if [ $? = 1 ] && bytes_same "$IM/self.rsc" "$FIX/images.rsc"; then ok "an export onto the resource file itself is refused"; else bad "an export onto the resource file itself is refused"; fi
+if mkfifo "$IM/ff" 2> /dev/null; then
+    "$CLI" "$IMG" cp -f /ICONS/IC16 "host:$IM/ff" 2> /dev/null
+    if [ $? = 1 ] && [ -p "$IM/ff" ]; then ok "-f onto a fifo is refused, the fifo stays"; else bad "-f onto a fifo is refused, the fifo stays"; fi
+fi
+"$CLI" "$IMG" cp /ICONS/IC16 "host:$IM/nodir/x.pbm" 2> /dev/null
+if [ $? = 1 ] && [ ! -d "$IM/nodir" ] && [ "$(ls -A "$X" | grep -c '\.[A-Za-z0-9]\{6\}$')" = 0 ]; then ok "failed exports leave no file and no temporary file"; else bad "failed exports leave no file and no temporary file"; fi
+if [ "$(ls -l "$X/e-ic16.pbm" | cut -c1-10)" != "-rw-------" ]; then ok "an exported file has the mode of a new file, not the temporary file's"; else bad "an exported file has the mode of a new file, not the temporary file's"; fi
 # -f keeps the mode of the file it replaces
 echo old > "$IM/mode.pbm"
 chmod 640 "$IM/mode.pbm"
 "$CLI" "$IMG" cp -f /ICONS/IC16 "host:$IM/mode.pbm" && [ "$(ls -l "$IM/mode.pbm" | cut -c1-10)" = "-rw-r-----" ] \
-    && cmp -s "$IM/mode.pbm" "$E/e-ic16.pbm" && ok "-f keeps the mode of the replaced file" || bad "-f keeps the mode of the replaced file"
+    && cmp -s "$IM/mode.pbm" "$X/e-ic16.pbm" && ok "-f keeps the mode of the replaced file" || bad "-f keeps the mode of the replaced file"
 # an export is no edit: the resource is not written, also not with the name file
 d=$IM/exp-only
 mkdir -p "$d"

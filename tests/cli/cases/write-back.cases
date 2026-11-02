@@ -7613,7 +7613,7 @@ out
 === edit:wb-img-import
 out
 |exit status 1
-|rcs-cli: cp: host:$ROOT/build/host/cli-tmp/pnm/a16.pbm: the image is 16x8 but /ICONS/BM is 16x4 (use --resize to scale it)
+|rcs-cli: cp: host:/tmp/rcscli.3tnsVg/t/pnm/a16.pbm: the image is 16x8 but /ICONS/BM is 16x4 (use --resize to scale it)
 |/:
 |#0     ICONS        DIAL  8
 |-      .strings     DIR   0
@@ -7749,6 +7749,7 @@ out
 === edit:wb-img-set
 out
 |exit status 0
+|rcs-cli: note: set: iw=8: the AES draws a colour icon whose width is not a multiple of 16 wrongly
 |rcs-cli: note: set: iw=10 was rounded up to 16 (a bitmap is a whole number of bytes wide)
 |/:
 |#0     ICONS        DIAL  8
