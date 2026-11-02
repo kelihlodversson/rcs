@@ -1,0 +1,18 @@
+path: /DIALOG/#16
+tree: 0
+index: 16
+name: -
+reachable: yes
+parent: 0
+children: 0
+next: 17
+head: -1
+tail: -1
+type: 0x111A G_BUTTON:17
+flags: 0x2E00 FL3DACT,0x2800
+state: 0x00FE CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0
+x: 0
+y: 0
+w: 0
+h: 0
+text: "Ext"

@@ -1,0 +1,17 @@
+#1     Title        G_TEXT     - - 28,46,80,16
+#2     TITLE        G_BOXTEXT  - - 0,0,0,0
+#3     DUP          G_IMAGE    - - 0,0,0,0
+#4     DUP          G_PROGDEF  - - 0,0,0,0
+#5     BUTTONS      G_IBOX     - - 0,0,0,0
+#8     BOXCHAR      G_BOXCHAR  - - 0,0,0,0
+#9     #3           G_STRING   - - 0,0,0,0
+#10    F\x9b\xe4    G_FTEXT    - - 0,0,0,0
+#11    EDIT         G_FBOXTEXT EDITABLE - 0,0,0,0
+#12    ICON         G_ICON     - - 0,0,0,0
+#13    dup          G_TITLE    - - 0,0,0,0
+#14    CICON        G_CICON    - - 0,0,0,0
+#15    -            0x50       - - 0,0,0,0
+#16    -            G_BUTTON:17 FL3DACT,0x2800 CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0 0,0,0,0
+#17    -            G_STRING   RBUTTON,TOUCHEXIT,HIDETREE,INDIRECT - 0,0,0,0
+#18    -            G_BOX      FL3DIND - 0,0,0,0
+#19    -            G_BOX      LASTOB,FL3DBAK - 2168,-127,9,-1

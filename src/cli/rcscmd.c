@@ -851,7 +851,7 @@ static int do_convert(struct rcs_ctx *c, int argc, char **argv)
 	rsc_cell(c->r, &cw, &ch);
 	if (rsc_atari_write(c->r, cw, ch, &buf, &len, &err) != 0)
 	{
-		rcs_error("convert: %s (offset %lu)", err.msg, (unsigned long)err.offset);
+		rcs_error("convert: %s", err.msg);
 		return 1;
 	}
 	f = fopen(out, "wb");

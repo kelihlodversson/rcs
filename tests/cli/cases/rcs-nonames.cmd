@@ -1,0 +1,1 @@
+--no-names $ROOT/src/atari/rcs.rsc ls -l

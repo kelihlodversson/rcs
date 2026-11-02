@@ -1,0 +1,13 @@
+#1     -            G_STRING   - - 64,16,232,16
+#2     -            G_STRING   - - 80,32,192,16
+#3     -            G_STRING   - - 144,80,56,16
+#4     -            G_STRING   - - 144,96,64,16
+#5     AOKITEM      G_BUTTON   SELECTABLE,DEFAULT,EXIT - 248,112,64,16
+#6     -            G_STRING   - - 72,176,200,16
+#7     -            G_STRING   - - 88,192,176,16
+#8     -            G_STRING   - - 120,144,112,16
+#9     -            G_ICON     - - 32,96,48,36
+#10    -            G_STRING   - - 136,128,80,16
+#11    -            G_STRING   - - 144,112,64,16
+#12    -            G_STRING   - - 112,160,144,16
+#13    -            G_STRING   LASTOB - 80,48,192,16

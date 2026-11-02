@@ -1,0 +1,33 @@
+path: /DIALOG/F\x9b\xe4
+tree: 0
+index: 10
+name: F\x9b\xe4
+reachable: yes
+parent: 0
+children: 0
+next: 11
+head: -1
+tail: -1
+type: 0x001D G_FTEXT
+flags: 0x0000 -
+state: 0x0000 -
+x: 0
+y: 0
+w: 0
+h: 0
+text: "12"
+template: "Age: __"
+validation: "99"
+font: 3 (IBM)
+fontid: 0
+fontsize: 0
+just: 0 (left)
+color: 0x1100
+frame-color: 1
+text-color: 1
+text-mode: transparent
+fill-pattern: 0
+fill-color: 0
+thickness: 0
+txtlen: 3
+tmplen: 8

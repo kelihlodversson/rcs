@@ -1,0 +1,18 @@
+path: /BIG/ITEM300
+tree: 4
+index: 320
+name: ITEM300
+reachable: yes
+parent: 305
+children: 0
+next: 305
+head: -1
+tail: -1
+type: 0x001C G_STRING
+flags: 0x0020 LASTOB
+state: 0x0000 -
+x: 0
+y: 0
+w: 0
+h: 0
+text: "item 299"

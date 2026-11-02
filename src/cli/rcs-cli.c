@@ -338,7 +338,7 @@ int main(int argc, char **argv)
 	buf = NULL;
 	if (!ctx.r)
 	{
-		rcs_error("%s: %s (offset %lu)", esc(eb, sizeof eb, file), err.msg, (unsigned long)err.offset);
+		rcs_error("%s: %s", esc(eb, sizeof eb, file), err.msg);
 		goto out;
 	}
 
@@ -353,8 +353,7 @@ int main(int argc, char **argv)
 		buf = NULL;
 		if (!ctx.n)
 		{
-			rcs_error("%s: %s (offset %lu)", esc(eb, sizeof eb, names_file), err.msg,
-				  (unsigned long)err.offset);
+			rcs_error("%s: %s", esc(eb, sizeof eb, names_file), err.msg);
 			goto out;
 		}
 		if (rsc_names_check(ctx.n, ctx.r, &dropped) != 0)

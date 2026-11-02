@@ -1,0 +1,26 @@
+path: /ABOUTREE/#9
+tree: 9
+index: 9
+name: -
+reachable: yes
+parent: 0
+children: 0
+next: 10
+head: -1
+tail: -1
+type: 0x001F G_ICON
+flags: 0x0000 -
+state: 0x0000 -
+x: 4
+y: 6
+w: 6
+h: 2+4
+text: ""
+char: '\x00'
+fg-color: 1
+bg-color: 0
+char-pos: 0,0
+icon: 0,0,48,32
+text-box: 24,24,0,8
+data-bytes: 192
+mask-bytes: 192

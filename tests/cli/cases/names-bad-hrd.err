@@ -1,0 +1,1 @@
+rcs-cli: $FIX/bad.hrd: name without NUL at offset 0xe

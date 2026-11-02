@@ -1,0 +1,12 @@
+path: /DIALOG/CICON/4
+tree: 0
+object: 14
+entry: 4
+version: 0
+planes: 4
+selected: no
+has-selected: yes
+w: 16
+h: 16
+data-bytes: 128
+mask-bytes: 32

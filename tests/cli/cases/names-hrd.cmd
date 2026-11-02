@@ -1,0 +1,1 @@
+--names $FIX/kinds.hrd $FIX/kinds.rsc ls -l /DIALOG

@@ -1,0 +1,1 @@
+--pixels $FIX/kinds.rsc stat /DIALOG/Title

@@ -1,0 +1,1 @@
+$FIX/empty.rsc ls

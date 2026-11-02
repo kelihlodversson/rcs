@@ -1,0 +1,16 @@
+usage: rcs-cli [OPTIONS] FILE.rsc COMMAND [ARGS...]
+       rcs-cli [OPTIONS] FILE.rsc -c 'COMMAND ARGS' [-c 'COMMAND ARGS'...]
+
+options (before FILE.rsc):
+  --names FILE     read the names from FILE (.dfn, .def, .rsd, .hrd)
+  --no-names       read no name file
+  --no-guess       do not guess names and tree kinds
+  --pixels[=WxH]   coordinates in pixels, cell WxH (default 8x16)
+  --help           this text
+
+commands:
+  ls [-l] [-R] [PATH]   list the children of PATH (default /)
+  tree [PATH]           draw the subtree of PATH
+  stat PATH             every property of a node
+  cat [-v] PATH         the text of a node
+  convert -o OUT.rsc    write the resource with the library's writer

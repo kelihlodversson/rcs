@@ -1,0 +1,24 @@
+path: /DIALOG/#18
+tree: 0
+index: 18
+name: -
+reachable: yes
+parent: 0
+children: 0
+next: 19
+head: -1
+tail: -1
+type: 0x0014 G_BOX
+flags: 0x0200 FL3DIND
+state: 0x0000 -
+x: 0
+y: 0
+w: 0
+h: 0
+spec: 0x00FF1100
+frame: -1
+frame-color: 1
+text-color: 1
+text-mode: transparent
+fill-pattern: 0
+fill-color: 0
