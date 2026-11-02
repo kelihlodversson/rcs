@@ -1,1 +1,1 @@
-rcs-cli: cp: not found: 'Users' in /
+rcs-cli: cp: bad path 'nofile.rsc:/x': paths start with /

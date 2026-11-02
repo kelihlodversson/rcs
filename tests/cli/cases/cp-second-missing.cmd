@@ -1,1 +1,1 @@
---selfcheck -n $FIX/kinds.rsc cp -r $FIX/nofile.rsc:/x /y
+--selfcheck -n $FIX/kinds.rsc cp -r nofile.rsc:/x /y
