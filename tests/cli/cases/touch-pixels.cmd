@@ -1,1 +1,0 @@
---selfcheck -n --pixels $FIX/kinds.rsc -c 'touch /PANEL3/B1' -c 'touch /PANEL3/I1 --type icon' -c 'stat /PANEL3/B1' -c 'stat /PANEL3/I1'

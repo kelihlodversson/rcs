@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'touch /PANEL3/B1' -c 'stat /PANEL3/B1'

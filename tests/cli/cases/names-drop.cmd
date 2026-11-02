@@ -1,1 +1,0 @@
---names $FIX/drop.dfn $FIX/kinds.rsc ls

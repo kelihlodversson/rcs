@@ -1,1 +1,0 @@
-rcs-cli: rm: $ROOT/tests/golden/cicon.rsc:/PANEL1: a second file is read-only

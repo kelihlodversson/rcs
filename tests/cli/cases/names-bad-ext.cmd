@@ -1,1 +1,0 @@
---names $FIX/names.txt $FIX/kinds.rsc ls

@@ -22,9 +22,8 @@ test hooks) and `src/cli/*.c`. It is not part of the m68k and ARM builds.
 | `src/cli/rcsnode.h`, `rcsnode.c` | the node layer: paths, children, the data of `ls -l` and `stat`; no I/O, no printing |
 | `src/cli/rcscmd.h`, `rcscmd.c` | the commands and their output formats |
 | `src/cli/rcs-cli.c` | options, loading, name file lookup, `-c`, exit status |
-| `tests/cli/run.sh` | the test runner; `tests/cli/cases/` the cases |
+| `tests/cli/run.sh` | the test runner; `tests/cli/cases/AREA.cases` the cases, one file per command or topic |
 | `tests/cli/mkfix.c` | writes the synthetic fixtures at test time; `mkfix merge A B OUT` (the merge of the library's calls) and `mkfix cicon-equal ...` (deep comparison of two colour icons) for the edit tests |
-| `tests/cli/edits/` | the expected re-read listings of the write-back tests |
 
 ## Command line
 
@@ -711,12 +710,16 @@ of `rscnames.h`). After an edit, `rcs_view_reset` drops the caches. `rcs_resolve
 
 `tests/cli/run.sh` (POSIX sh, run from the repository root; `make cli-test`
 runs it) builds the fixtures with `build/host/mkfix` into
-`build/host/cli-fix`, then runs every `tests/cli/cases/NAME.cmd`: one line,
-the arguments of one `rcs-cli` invocation, split by the shell after `$ROOT`
-(the repository root) and `$FIX` (the fixture directory) are replaced. It
-compares stdout with `NAME.out` (or, for very long outputs, its `cksum`
-with `NAME.cksum`), the exit status with `NAME.rc` (0 when the file does
-not exist) and stderr with `NAME.err` when that file exists, and prints
+`build/host/cli-fix`, then runs every case of `tests/cli/cases/*.cases` (one file per area: `ls-tree`,
+`stat`, `cat`, `cp`, `mv`, `paths`, `names`, `errors`, ...). A case is a block
+that starts with `=== NAME` and has a `cmd` line (the arguments of one
+`rcs-cli` invocation, split by the shell after `$ROOT`, the repository root,
+`$FIX`, the fixture directory, and `$TMP` are replaced), an optional `rc N`
+(the exit status, 0 when absent), and the sections `out` (stdout) and `err`
+(stderr, empty when absent); a very long stdout is given as `cksum SUM LENGTH`
+instead of `out`. Every line of a section is `|` followed by the exact line,
+so output can never look like a marker, and a lone `\` after the last line of
+a section says that it does not end in a newline. The runner prints
 `ok NAME` or `FAIL NAME` with a diff. After the cases it runs the sweeps of
 truncated and mutated files (every outcome must be exit status 0, or 1 with
 exactly one `rcs-cli: ` line on stderr) and the `convert` byte comparisons.
@@ -726,7 +729,7 @@ stderr, so the size of the result is checked too) and list what they changed
 with `-c`. The cases that write files are in `run.sh`: `edit NAME SRC ...`
 copies a fixture into a scratch directory, runs the edit with `--selfcheck`,
 and compares the re-read listing (`ls -lR`, `tree`, `stat /`) with
-`tests/cli/edits/NAME.out`; further checks cover that `-o` and `-n` leave the
+the block `=== edit:NAME` of `tests/cli/cases/write-back.cases`; further checks cover that `-o` and `-n` leave the
 input byte-identical, that a failing command line writes nothing, the names
 (carried, `.def` left alone, `.hrd` names that do not fit, `--names-out`,
 `--no-names`), failing writes (no temporary file, the new name file removed
@@ -734,6 +737,8 @@ again), round trips that return to the writer's output byte for byte (`mkdir`
 then `rm`, `cp` then `rm`, `mv A B` then `mv B A`, with `--pixels` too), the
 merge regression, colour icons that arrive intact, and a 32767-level chain and
 65535 names. The sweeps of damaged files also run edit commands.
-`UPDATE=1 sh tests/cli/run.sh` rewrites the expected files of the cases
-and of the write-back tests from the program's output; they are a
+`UPDATE=1 sh tests/cli/run.sh` rewrites the sections and the exit status of
+every block (also the `edit:` ones) from the program's output, keeping the
+`cmd` lines and the order (a new case needs only its `=== NAME` and `cmd`
+lines; comments between blocks are not kept); the expectations are a
 specification, so review every change.

@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'ls /' -c 'mkdir Z' -c 'ls /' -c 'rm -r /Z' -c 'ls /'

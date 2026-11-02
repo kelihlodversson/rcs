@@ -1,1 +1,0 @@
---names $FIX/kinds.def $FIX/kinds.rsc ls /DIALOG

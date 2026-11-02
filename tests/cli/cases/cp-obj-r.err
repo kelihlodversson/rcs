@@ -1,2 +1,0 @@
-rcs-cli: note: cp: 3 names of objects in the copy were not carried: the tree has them already
-rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13352 bytes, and the names to $FIX/kinds.dfn)

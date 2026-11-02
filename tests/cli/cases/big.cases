@@ -1,0 +1,120 @@
+=== deep-ls-R
+cmd $FIX/deep.rsc ls -R
+cksum 3082542816 764215
+
+=== deep-ls-lR
+cmd $FIX/deep.rsc ls -lR
+cksum 3424947211 1992340
+
+=== deep-stat-last
+cmd $FIX/deep.rsc stat /#0/#32766
+out
+|path: /PANEL1/#32766
+|tree: 0
+|index: 32766
+|name: -
+|reachable: yes
+|parent: 32765
+|children: 0
+|next: 32765
+|head: -1
+|tail: -1
+|type: 0x0019 G_IBOX
+|flags: 0x0020 LASTOB
+|state: 0x0000 -
+|x: 126
+|y: 0
+|w: 1
+|h: 1
+|spec: 0x00000000
+|frame: 0
+|frame-color: 0
+|text-color: 0
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+
+=== deep-tree
+cmd $FIX/deep.rsc tree
+cksum 2003225322 1028215
+
+=== deep-tree-mid
+cmd $FIX/deep.rsc tree /#0/#32730
+out
+|/PANEL1/#32730
+|`-- #32731 - G_IBOX - -
+|    `-- #32732 - G_IBOX - -
+|        `-- #32733 - G_IBOX - -
+|            `-- #32734 - G_IBOX - -
+|                `-- #32735 - G_IBOX - -
+|                    `-- #32736 - G_IBOX - -
+|                        `-- #32737 - G_IBOX - -
+|                            `-- #32738 - G_IBOX - -
+|                                `-- #32739 - G_IBOX - -
+|                                    `-- #32740 - G_IBOX - -
+|                                        `-- #32741 - G_IBOX - -
+|                                            `-- #32742 - G_IBOX - -
+|                                                `-- #32743 - G_IBOX - -
+|                                                    `-- #32744 - G_IBOX - -
+|                                                        `-- #32745 - G_IBOX - -
+|                                                            `-- #32746 - G_IBOX - -
+|                                                                `-- #32747 - G_IBOX - -
+|                                                                    `-- #32748 - G_IBOX - -
+|                                                                        `-- #32749 - G_IBOX - -
+|                                                                            `-- #32750 - G_IBOX - -
+|                                                                                `-- #32751 - G_IBOX - -
+|                                                                                    `-- #32752 - G_IBOX - -
+|                                                                                        `-- #32753 - G_IBOX - -
+|                                                                                            `-- #32754 - G_IBOX - -
+|                                                                                                `-- #32755 - G_IBOX - -
+|                                                                                                    `-- #32756 - G_IBOX - -
+|                                                                                                        `-- #32757 - G_IBOX - -
+|                                                                                                            `-- #32758 - G_IBOX - -
+|                                                                                                                `-- #32759 - G_IBOX - -
+|                                                                                                                    `-- #32760 - G_IBOX - -
+|                                                                                                                        `-- #32761 - G_IBOX - -
+|                                                                                                                            `-- #32762 - G_IBOX - -
+|[33] `-- #32763 - G_IBOX - -
+|[34] `-- #32764 - G_IBOX - -
+|[35] `-- #32765 - G_IBOX - -
+|[36] `-- #32766 - G_IBOX LASTOB -
+
+=== flat-ls-R
+cmd $FIX/flat.rsc ls -R
+cksum 3328151803 28947
+
+=== flat-ls-lR
+cmd $FIX/flat.rsc ls -lR
+cksum 1695948261 220779
+
+=== flat-stat-root
+cmd $FIX/flat.rsc stat /#0/#0
+out
+|path: /PANEL1/#0
+|tree: 0
+|index: 0
+|name: -
+|reachable: yes
+|parent: -
+|children: 4999
+|next: -1
+|head: 1
+|tail: 4999
+|type: 0x0019 G_IBOX
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 1
+|h: 1
+|spec: 0x00000000
+|frame: 0
+|frame-color: 0
+|text-color: 0
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+
+=== flat-tree
+cmd $FIX/flat.rsc tree
+cksum 1979100608 133939

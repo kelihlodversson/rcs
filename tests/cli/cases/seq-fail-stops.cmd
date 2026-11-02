@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'mkdir Z' -c 'rm /NOSUCH' -c 'mkdir Y'

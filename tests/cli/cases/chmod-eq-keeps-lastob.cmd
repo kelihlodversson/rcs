@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'chmod =SELECTABLE /DIALOG/#19' -c 'ls -l /DIALOG/#19'

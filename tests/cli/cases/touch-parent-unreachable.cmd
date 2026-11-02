@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds-lost.rsc touch /UNREACH/LOST/x

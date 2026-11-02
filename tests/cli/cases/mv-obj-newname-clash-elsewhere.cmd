@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc mv /DIALOG/#16 /DIALOG/BUTTONS/EDIT

@@ -1,0 +1,143 @@
+=== dry-run-fail
+cmd -n $FIX/deep.rsc -c 'touch /TREE/N1'
+rc 1
+out
+err
+|rcs-cli: touch: not found: 'TREE' in /
+
+=== dry-run-names
+cmd -n --names-out $TMP/dry.dfn $FIX/kinds.rsc -c 'mkdir Z' -c 'touch /Z/B'
+out
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13322 bytes, and the names to $TMP/dry.dfn)
+
+=== dry-run-note
+cmd -n $FIX/kinds.rsc -c 'mkdir Z'
+out
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13298 bytes, and the names to $FIX/kinds.dfn)
+
+=== file-long-name
+cmd /nonexistent/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff ls /
+rc 1
+out
+err
+|rcs-cli: /nonexistent/fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff...: cannot open: No such file or directory
+
+=== help
+cmd --help
+out
+|usage: rcs-cli [OPTIONS] FILE.rsc COMMAND [ARGS...]
+|       rcs-cli [OPTIONS] FILE.rsc -c 'COMMAND ARGS' [-c 'COMMAND ARGS'...]
+|
+|options (before FILE.rsc):
+|  --names FILE     read the names from FILE (.dfn, .def, .rsd, .hrd)
+|  --no-names       read no name file
+|  --no-guess       do not guess names and tree kinds
+|  --pixels[=WxH]   coordinates in pixels, cell WxH (default 8x16)
+|  -o OUT.rsc       write the result of the edit commands to OUT.rsc
+|  -n               dry run: run the commands, write nothing
+|  --names-out FILE write the names to FILE (.dfn)
+|  --help           this text
+|
+|commands:
+|  ls [-l] [-R] [PATH]   list the children of PATH (default /)
+|  tree [PATH]           draw the subtree of PATH
+|  stat PATH             every property of a node
+|  cat [-v] PATH         the text of a node
+|  convert -o OUT.rsc    write the resource with the library's writer
+|  cp [-r] SRC DST       copy (SRC may be FILE.rsc:/PATH)
+|  mv SRC DST            move or rename
+|  rm [-r] PATH          remove
+|  mkdir NAME [--type dialog|menu|panel|alert]   new tree
+|  touch PATH [--type T] new object, string or image
+|  chmod [--state] [+-=]NAME[,NAME...]... PATH   flags and states
+|  set PATH key=value... change an object
+
+=== help-first
+cmd --help $FIX/nosuch.rsc
+out
+|usage: rcs-cli [OPTIONS] FILE.rsc COMMAND [ARGS...]
+|       rcs-cli [OPTIONS] FILE.rsc -c 'COMMAND ARGS' [-c 'COMMAND ARGS'...]
+|
+|options (before FILE.rsc):
+|  --names FILE     read the names from FILE (.dfn, .def, .rsd, .hrd)
+|  --no-names       read no name file
+|  --no-guess       do not guess names and tree kinds
+|  --pixels[=WxH]   coordinates in pixels, cell WxH (default 8x16)
+|  -o OUT.rsc       write the result of the edit commands to OUT.rsc
+|  -n               dry run: run the commands, write nothing
+|  --names-out FILE write the names to FILE (.dfn)
+|  --help           this text
+|
+|commands:
+|  ls [-l] [-R] [PATH]   list the children of PATH (default /)
+|  tree [PATH]           draw the subtree of PATH
+|  stat PATH             every property of a node
+|  cat [-v] PATH         the text of a node
+|  convert -o OUT.rsc    write the resource with the library's writer
+|  cp [-r] SRC DST       copy (SRC may be FILE.rsc:/PATH)
+|  mv SRC DST            move or rename
+|  rm [-r] PATH          remove
+|  mkdir NAME [--type dialog|menu|panel|alert]   new tree
+|  touch PATH [--type T] new object, string or image
+|  chmod [--state] [+-=]NAME[,NAME...]... PATH   flags and states
+|  set PATH key=value... change an object
+
+=== noedit-n
+cmd --selfcheck -n $FIX/kinds.rsc ls /PANEL3
+out
+|#1
+
+=== noedit-o
+cmd --selfcheck -o $TMP/noedit-o.rsc $FIX/kinds.rsc ls /PANEL3
+out
+|#1
+err
+|rcs-cli: note: no edit command ran: $TMP/noedit-o.rsc was not written
+
+=== noop-chmod-set
+cmd --selfcheck -n $FIX/kinds.rsc -c 'chmod +SELECTABLE /DIALOG/OK' -c 'set /DIALOG/OK text=OK x=0' -c 'chmod --state -SELECTED /DIALOG/OK'
+out
+
+=== opt-n-o
+cmd -n -o $TMP/x.rsc $FIX/kinds.rsc ls /
+rc 1
+out
+err
+|rcs-cli: -n and -o exclude each other
+
+=== opt-names-out-ext
+cmd --names-out $TMP/x.def $FIX/kinds.rsc ls /
+rc 1
+out
+err
+|rcs-cli: --names-out: $TMP/x.def: only .dfn name files can be written yet
+
+=== opt-names-out-missing
+cmd --names-out
+rc 1
+out
+err
+|rcs-cli: --names-out needs a FILE
+
+=== opt-names-out-nonames
+cmd --names-out $TMP/x.dfn --no-names $FIX/kinds.rsc ls /
+rc 1
+out
+err
+|rcs-cli: --names-out and --no-names exclude each other
+
+=== opt-o-ext
+cmd -o $TMP/x.rsh $FIX/kinds.rsc ls /
+rc 1
+out
+err
+|rcs-cli: -o: $TMP/x.rsh: output format not supported yet
+
+=== opt-o-missing
+cmd -o
+rc 1
+out
+err
+|rcs-cli: -o needs a file name

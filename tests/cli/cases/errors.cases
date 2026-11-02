@@ -1,0 +1,104 @@
+=== err-directory
+cmd $FIX ls
+rc 1
+out
+err
+|rcs-cli: $FIX: not a regular file
+
+=== err-empty
+cmd $FIX/empty.rsc ls
+rc 1
+out
+err
+|rcs-cli: $FIX/empty.rsc: header truncated at offset 0x0
+
+=== err-ls-args
+cmd $FIX/kinds.rsc ls / /DIALOG
+rc 1
+out
+err
+|rcs-cli: ls: too many arguments
+
+=== err-ls-option
+cmd $FIX/kinds.rsc ls -x
+rc 1
+out
+err
+|rcs-cli: ls: unknown option '-x'
+
+=== err-missing-file
+cmd $FIX/nosuch.rsc ls
+rc 1
+out
+err
+|rcs-cli: $FIX/nosuch.rsc: cannot open: No such file or directory
+
+=== err-nocommand
+cmd $FIX/kinds.rsc
+rc 1
+out
+err
+|rcs-cli: missing COMMAND (try --help)
+
+=== err-nofile
+cmd 
+rc 1
+out
+err
+|rcs-cli: missing FILE.rsc (try --help)
+
+=== err-option-after
+cmd $FIX/kinds.rsc --no-names ls
+rc 1
+out
+err
+|rcs-cli: unknown command '--no-names'
+
+=== err-pixels-bad
+cmd --pixels=0x16 $FIX/kinds.rsc ls
+rc 1
+out
+err
+|rcs-cli: bad --pixels value '0x16' (WxH, each 1 to 127)
+
+=== err-pixels-big
+cmd --pixels=128x16 $FIX/kinds.rsc ls
+rc 1
+out
+err
+|rcs-cli: bad --pixels value '128x16' (WxH, each 1 to 127)
+
+=== err-pixels-junk
+cmd --pixels=8x $FIX/kinds.rsc ls
+rc 1
+out
+err
+|rcs-cli: bad --pixels value '8x' (WxH, each 1 to 127)
+
+=== err-stat-missing
+cmd $FIX/kinds.rsc stat
+rc 1
+out
+err
+|rcs-cli: stat: missing PATH
+
+=== err-unknown-command
+cmd $FIX/kinds.rsc frob
+rc 1
+out
+err
+|rcs-cli: unknown command 'frob'
+
+=== err-unknown-option
+cmd --frob $FIX/kinds.rsc ls
+rc 1
+out
+err
+|rcs-cli: unknown option '--frob' (try --help)
+
+=== err-unknown-short
+cmd -x $FIX/kinds.rsc ls
+rc 1
+out
+err
+|rcs-cli: unknown option '-x' (try --help)

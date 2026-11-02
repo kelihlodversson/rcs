@@ -1,1 +1,0 @@
---names-out $TMP/x.def $FIX/kinds.rsc ls /

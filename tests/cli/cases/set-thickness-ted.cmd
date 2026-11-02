@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT thickness=-2' -c 'stat /DIALOG/EDIT'

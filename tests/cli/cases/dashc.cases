@@ -1,0 +1,114 @@
+=== dashc-backslash
+cmd $FIX/kinds.rsc -c 'ls \'
+rc 1
+out
+err
+|rcs-cli: -c 'ls \\': trailing backslash
+
+=== dashc-empty
+cmd $FIX/kinds.rsc -c ''
+rc 1
+out
+err
+|rcs-cli: -c '': empty command
+
+=== dashc-missing
+cmd $FIX/kinds.rsc -c
+rc 1
+out
+err
+|rcs-cli: -c needs a command string, and only -c may follow it
+
+=== dashc-mixed
+cmd $FIX/kinds.rsc -c ls stat /
+rc 1
+out
+err
+|rcs-cli: -c needs a command string, and only -c may follow it
+
+=== dashc-quotes
+cmd $FIX/kinds.rsc -c 'cat "/DIALOG/OK"' -c "ls -l '/.strings'" -c 'cat /DIALOG/\OK'
+out
+|OK
+|#0     HELLO           12 -     "Hello, world"
+|#1     ALERT1          37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+|#2     ASK             21 ALERT "[2][Question][Yes|No]"
+|#3     -               19 -     "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|#4     -              100 -     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+|OK
+
+=== dashc-seq
+cmd $FIX/kinds.rsc -c 'ls /DIALOG/BUTTONS' -c 'cat /DIALOG/OK' -c 'stat /.strings/HELLO'
+out
+|OK
+|CANCEL
+|OK
+|path: /.strings/HELLO
+|index: 0
+|name: HELLO
+|length: 12
+|text: "Hello, world"
+|alert: no
+
+=== dashc-stop
+cmd $FIX/kinds.rsc -c 'cat /DIALOG/OK' -c 'cat /DIALOG' -c 'cat /DIALOG/CANCEL'
+rc 1
+out
+|OK
+err
+|rcs-cli: cat: /DIALOG: no text
+
+=== dashc-unknown
+cmd $FIX/kinds.rsc -c 'frob /'
+rc 1
+out
+err
+|rcs-cli: unknown command 'frob'
+
+=== dashc-unterminated
+cmd $FIX/kinds.rsc -c 'ls "/DIALOG'
+rc 1
+out
+err
+|rcs-cli: -c 'ls "/DIALOG': unterminated quote
+
+=== seq-fail-stops
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mkdir Z' -c 'rm /NOSUCH' -c 'mkdir Y'
+rc 1
+out
+err
+|rcs-cli: rm: not found: 'NOSUCH' in /
+
+=== seq-reads-see-edits
+cmd --selfcheck -n $FIX/kinds.rsc -c 'ls /' -c 'mkdir Z' -c 'ls /' -c 'rm -r /Z' -c 'ls /'
+out
+|DIALOG
+|MAINMENU
+|PANEL3
+|TREE4
+|BIG
+|#5
+|UNREACH
+|.strings
+|.images
+|DIALOG
+|MAINMENU
+|PANEL3
+|TREE4
+|BIG
+|#5
+|UNREACH
+|Z
+|.strings
+|.images
+|DIALOG
+|MAINMENU
+|PANEL3
+|TREE4
+|BIG
+|#5
+|UNREACH
+|.strings
+|.images
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)

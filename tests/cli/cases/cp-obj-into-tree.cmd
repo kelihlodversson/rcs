@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'cp /DIALOG/#16 /PANEL3' -c 'ls -lR /PANEL3'

@@ -1,1 +1,0 @@
-rcs-cli: $FIX/manyicons.rsc: the library cannot read the result back (decoded size exceeds the limit at offset 0xbdc); nothing was written

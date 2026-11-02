@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'chmod --state -SELECTED /DIALOG/CANCEL' -c 'ls -l /DIALOG/CANCEL'

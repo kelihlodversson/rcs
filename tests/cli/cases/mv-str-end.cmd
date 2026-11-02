@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'mv /.strings/HELLO /.strings' -c 'ls -l /.strings'

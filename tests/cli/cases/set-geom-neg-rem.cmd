@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK x=0-127' -c 'ls -l /DIALOG/OK'

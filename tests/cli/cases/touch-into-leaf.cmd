@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'touch /PANEL3/#1/KID' -c 'tree /PANEL3'

@@ -1,0 +1,1006 @@
+=== set-all-or-none
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK text=Done x=1 w=bogus'
+rc 1
+out
+err
+|rcs-cli: set: bad value 'w=bogus' (cells, as 3, 3+4 or 3-2)
+
+=== set-all-or-none-2
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK text=Done name=CANCEL'
+rc 1
+out
+err
+|rcs-cli: set: the name 'CANCEL' is used by object #7 already in that tree (give the new object another name)
+
+=== set-bad-assign
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK text
+rc 1
+out
+err
+|rcs-cli: set: bad assignment 'text' (key=value)
+
+=== set-bad-assign-escape
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK "$(printf 'a\033')"
+rc 1
+out
+err
+|rcs-cli: set: bad assignment 'a\x1b' (key=value)
+
+=== set-color-bad
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/#0 color=zz
+rc 1
+out
+err
+|rcs-cli: set: bad value 'color=zz'
+
+=== set-color-big
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/#0 color=0x10000
+rc 1
+out
+err
+|rcs-cli: set: bad value 'color=0x10000'
+
+=== set-color-box
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/#0 color=0x1173' -c 'stat /DIALOG/#0'
+out
+|path: /DIALOG/ROOT
+|tree: 0
+|index: 0
+|name: ROOT
+|reachable: yes
+|parent: -
+|children: 17
+|next: -1
+|head: 1
+|tail: 19
+|type: 0x0014 G_BOX
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 40
+|h: 20
+|spec: 0x00021173
+|frame: 2
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 7
+|fill-color: 3
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-color-box-zero
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/#0 color=0' -c 'stat /DIALOG/#0'
+out
+|path: /DIALOG/ROOT
+|tree: 0
+|index: 0
+|name: ROOT
+|reachable: yes
+|parent: -
+|children: 17
+|next: -1
+|head: 1
+|tail: 19
+|type: 0x0014 G_BOX
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 40
+|h: 20
+|spec: 0x00020000
+|frame: 2
+|frame-color: 0
+|text-color: 0
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-color-button
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK color=1
+rc 1
+out
+err
+|rcs-cli: set: /DIALOG/OK: color does not apply to a G_BUTTON object
+
+=== set-color-ted
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT color=1180' -c 'stat /DIALOG/EDIT'
+out
+|path: /DIALOG/EDIT
+|tree: 0
+|index: 11
+|name: EDIT
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 12
+|head: -1
+|tail: -1
+|type: 0x001E G_FBOXTEXT
+|flags: 0x0008 EDITABLE
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "abc"
+|template: "Edit: ___"
+|validation: "XXX"
+|font: 3 (IBM)
+|fontid: 0
+|fontsize: 0
+|just: 1 (right)
+|color: 0x1180
+|frame-color: 1
+|text-color: 1
+|text-mode: opaque
+|fill-pattern: 0
+|fill-color: 0
+|thickness: 2
+|txtlen: 4
+|tmplen: 10
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-empty-key
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK =x
+rc 1
+out
+err
+|rcs-cli: set: bad assignment '=x' (key=value)
+
+=== set-font
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT font=small' -c 'stat /DIALOG/EDIT'
+out
+|path: /DIALOG/EDIT
+|tree: 0
+|index: 11
+|name: EDIT
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 12
+|head: -1
+|tail: -1
+|type: 0x001E G_FBOXTEXT
+|flags: 0x0008 EDITABLE
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "abc"
+|template: "Edit: ___"
+|validation: "XXX"
+|font: 5 (SMALL)
+|fontid: 0
+|fontsize: 0
+|just: 1 (right)
+|color: 0x1181
+|frame-color: 1
+|text-color: 1
+|text-mode: opaque
+|fill-pattern: 0
+|fill-color: 1
+|thickness: 2
+|txtlen: 4
+|tmplen: 10
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-font-bad
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/EDIT font=huge
+rc 1
+out
+err
+|rcs-cli: set: bad value 'font=huge'
+
+=== set-font-box
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/#0 font=3
+rc 1
+out
+err
+|rcs-cli: set: /DIALOG/#0: font does not apply to a G_BOX object
+
+=== set-font-num
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT font=3' -c 'stat /DIALOG/EDIT'
+out
+|path: /DIALOG/EDIT
+|tree: 0
+|index: 11
+|name: EDIT
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 12
+|head: -1
+|tail: -1
+|type: 0x001E G_FBOXTEXT
+|flags: 0x0008 EDITABLE
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "abc"
+|template: "Edit: ___"
+|validation: "XXX"
+|font: 3 (IBM)
+|fontid: 0
+|fontsize: 0
+|just: 1 (right)
+|color: 0x1181
+|frame-color: 1
+|text-color: 1
+|text-mode: opaque
+|fill-pattern: 0
+|fill-color: 1
+|thickness: 2
+|txtlen: 4
+|tmplen: 10
+
+=== set-frstr-geom
+cmd --selfcheck -n $FIX/kinds.rsc set /.strings/HELLO x=1
+rc 1
+out
+err
+|rcs-cli: set: /.strings/HELLO: only name= applies to a free string (and text=) or image
+
+=== set-frstr-text
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /.strings/HELLO text=Bye' -c 'cat /.strings/HELLO'
+out
+|Bye
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13262 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-frstr-text-alert
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /.strings/HELLO text=[1][x][OK]' -c 'ls -l /.strings'
+out
+|#0     HELLO           10 ALERT "[1][x][OK]"
+|#1     ALERT1          37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+|#2     ASK             21 ALERT "[2][Question][Yes|No]"
+|#3     -               19 -     "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|#4     -              100 -     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13268 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-frstr-text-unalert
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /.strings/ASK text=plain' -c 'ls -l /.strings'
+out
+|#0     HELLO           12 -     "Hello, world"
+|#1     ALERT1          37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+|#2     ASK              5 -     "plain"
+|#3     -               19 -     "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|#4     -              100 -     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13254 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-frstr-text-unalert-guessed
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /.strings/#1 text=plain' -c 'ls -l /.strings'
+out
+|#0     HELLO           12 -     "Hello, world"
+|#1     -                5 -     "plain"
+|#2     ASK             21 ALERT "[2][Question][Yes|No]"
+|#3     -               19 -     "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|#4     -              100 -     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13238 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-geom
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK x=3+4 y=2 w=10 h=1-3' -c 'ls -l /DIALOG/BUTTONS'
+out
+|#6     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 3+4,2,10,1-3
+|#7     CANCEL       G_BUTTON   SELECTABLE,EXIT SELECTED 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-geom-bad
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK x=256
+rc 1
+out
+err
+|rcs-cli: set: bad value 'x=256' (cells, as 3, 3+4 or 3-2)
+
+=== set-geom-bad-rem
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK w=3+129
+rc 1
+out
+err
+|rcs-cli: set: bad value 'w=3+129' (cells, as 3, 3+4 or 3-2)
+
+=== set-geom-bad-text
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK w=wide
+rc 1
+out
+err
+|rcs-cli: set: bad value 'w=wide' (cells, as 3, 3+4 or 3-2)
+
+=== set-geom-neg-rem
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK x=0-127' -c 'ls -l /DIALOG/OK'
+out
+|#6     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 0-127,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-geom-pixels
+cmd --selfcheck -n --pixels $FIX/kinds.rsc -c 'set /DIALOG/OK x=30 y=-5 w=100 h=16' -c 'ls -l /DIALOG/BUTTONS'
+out
+|#6     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 30,-5,100,16
+|#7     CANCEL       G_BUTTON   SELECTABLE,EXIT SELECTED 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-geom-pixels-88
+cmd --selfcheck -n --pixels=8x8 $FIX/kinds.rsc -c 'set /DIALOG/OK x=7' -c 'ls -l /DIALOG/OK'
+out
+|#6     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 7,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-geom-pixels-bad
+cmd --selfcheck -n --pixels $FIX/kinds.rsc set /DIALOG/OK x=3+4
+rc 1
+out
+err
+|rcs-cli: set: bad value 'x=3+4' (a whole number of pixels)
+
+=== set-geom-pixels-max
+cmd --selfcheck -n --pixels $FIX/kinds.rsc -c 'set /DIALOG/OK x=2168 y=4208' -c 'ls -l /DIALOG/OK'
+out
+|#6     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 2168,4208,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-geom-pixels-neg
+cmd --selfcheck -n --pixels $FIX/kinds.rsc -c 'set /DIALOG/OK x=-127' -c 'ls -l /DIALOG/OK'
+out
+|#6     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - -127,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-geom-pixels-neg-over
+cmd --selfcheck -n --pixels $FIX/kinds.rsc set /DIALOG/OK x=-128
+rc 1
+out
+err
+|rcs-cli: set: bad value 'x=-128' (a whole number of pixels)
+
+=== set-geom-pixels-over
+cmd --selfcheck -n --pixels $FIX/kinds.rsc set /DIALOG/OK x=2169
+rc 1
+out
+err
+|rcs-cli: set: bad value 'x=2169' (a whole number of pixels)
+
+=== set-geom-pixels-over-y
+cmd --selfcheck -n --pixels $FIX/kinds.rsc set /DIALOG/OK y=4209
+rc 1
+out
+err
+|rcs-cli: set: bad value 'y=4209' (a whole number of pixels)
+
+=== set-geom-pixels-range
+cmd --selfcheck -n --pixels $FIX/kinds.rsc set /DIALOG/OK x=2200
+rc 1
+out
+err
+|rcs-cli: set: bad value 'x=2200' (a whole number of pixels)
+
+=== set-img-text
+cmd --selfcheck -n $FIX/kinds.rsc set /.images/LOGO text=x
+rc 1
+out
+err
+|rcs-cli: set: /.images/LOGO: only name= applies to a free string (and text=) or image
+
+=== set-just
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT just=center' -c 'stat /DIALOG/EDIT'
+out
+|path: /DIALOG/EDIT
+|tree: 0
+|index: 11
+|name: EDIT
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 12
+|head: -1
+|tail: -1
+|type: 0x001E G_FBOXTEXT
+|flags: 0x0008 EDITABLE
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "abc"
+|template: "Edit: ___"
+|validation: "XXX"
+|font: 3 (IBM)
+|fontid: 0
+|fontsize: 0
+|just: 2 (center)
+|color: 0x1181
+|frame-color: 1
+|text-color: 1
+|text-mode: opaque
+|fill-pattern: 0
+|fill-color: 1
+|thickness: 2
+|txtlen: 4
+|tmplen: 10
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-just-bad
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/EDIT just=3
+rc 1
+out
+err
+|rcs-cli: set: bad value 'just=3'
+
+=== set-just-num
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT just=1' -c 'stat /DIALOG/EDIT'
+out
+|path: /DIALOG/EDIT
+|tree: 0
+|index: 11
+|name: EDIT
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 12
+|head: -1
+|tail: -1
+|type: 0x001E G_FBOXTEXT
+|flags: 0x0008 EDITABLE
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "abc"
+|template: "Edit: ___"
+|validation: "XXX"
+|font: 3 (IBM)
+|fontid: 0
+|fontsize: 0
+|just: 1 (right)
+|color: 0x1181
+|frame-color: 1
+|text-color: 1
+|text-mode: opaque
+|fill-pattern: 0
+|fill-color: 1
+|thickness: 2
+|txtlen: 4
+|tmplen: 10
+
+=== set-name
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK name=FINE' -c 'ls /DIALOG/BUTTONS'
+out
+|FINE
+|CANCEL
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-name-bad
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK name=a/b
+rc 1
+out
+err
+|rcs-cli: set: 'a/b': a name cannot contain /
+
+=== set-name-case
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK name=ok' -c 'ls /DIALOG/BUTTONS'
+out
+|ok
+|CANCEL
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-name-clash
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK name=CANCEL
+rc 1
+out
+err
+|rcs-cli: set: the name 'CANCEL' is used by object #7 already in that tree (give the new object another name)
+
+=== set-name-img
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /.images/LOGO name=LOGO3' -c 'ls /.images'
+out
+|LOGO3
+|#1
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-name-index
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK name=#4
+rc 1
+out
+err
+|rcs-cli: set: '#4': a name that is # and digits is an index, not a name
+
+=== set-name-str
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /.strings/HELLO name=HI' -c 'ls -l /.strings'
+out
+|#0     HI              12 -     "Hello, world"
+|#1     ALERT1          37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+|#2     ASK             21 ALERT "[2][Question][Yes|No]"
+|#3     -               19 -     "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|#4     -              100 -     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-name-tree
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG name=ABOUT' -c 'ls /'
+out
+|ABOUT
+|MAINMENU
+|PANEL3
+|TREE4
+|BIG
+|#5
+|UNREACH
+|.strings
+|.images
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-name-tree-reserved
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG name=.strings
+rc 1
+out
+err
+|rcs-cli: set: '.strings': that name is reserved
+
+=== set-not-object
+cmd --selfcheck -n $FIX/kinds.rsc set / text=x
+rc 1
+out
+err
+|rcs-cli: set: /: not an object
+
+=== set-notfound
+cmd --selfcheck -n $FIX/kinds.rsc set /NOSUCH text=x
+rc 1
+out
+err
+|rcs-cli: set: not found: 'NOSUCH' in /
+
+=== set-second
+cmd --selfcheck -n $FIX/kinds.rsc set $ROOT/tests/golden/cicon.rsc:/PANEL1/#1 x=1
+rc 1
+out
+err
+|rcs-cli: set: $ROOT/tests/golden/cicon.rsc:/PANEL1/#1: a second file is read-only
+
+=== set-several
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK text=Done x=1 name=FINE type=G_STRING' -c 'ls -l /DIALOG/FINE' -c 'cat /DIALOG/FINE'
+out
+|#6     FINE         G_STRING   SELECTABLE,DEFAULT,EXIT - 1,0,0,0
+|Done
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13272 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-template-valid
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT template=__:__ valid=99' -c 'cat -v /DIALOG/EDIT' -c 'stat /DIALOG/EDIT'
+out
+|abc
+|__:__
+|99
+|path: /DIALOG/EDIT
+|tree: 0
+|index: 11
+|name: EDIT
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 12
+|head: -1
+|tail: -1
+|type: 0x001E G_FBOXTEXT
+|flags: 0x0008 EDITABLE
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "abc"
+|template: "__:__"
+|validation: "99"
+|font: 3 (IBM)
+|fontid: 0
+|fontsize: 0
+|just: 1 (right)
+|color: 0x1181
+|frame-color: 1
+|text-color: 1
+|text-mode: opaque
+|fill-pattern: 0
+|fill-color: 1
+|thickness: 2
+|txtlen: 4
+|tmplen: 6
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13266 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-text-32766
+cmd --selfcheck -n $FIX/kinds.rsc -c "set /DIALOG/EDIT text=$(head -c 32766 /dev/zero | tr '\0' a)" -c 'ls -l /DIALOG/EDIT'
+out
+|#11    EDIT         G_FBOXTEXT EDITABLE - 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 46034 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-text-32767
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/EDIT "text=$(head -c 32767 /dev/zero | tr '\0' a)"
+rc 1
+out
+err
+|rcs-cli: set: /DIALOG/EDIT: the value of text is too long (at most 32766 characters)
+
+=== set-text-box
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/#0 text=x
+rc 1
+out
+err
+|rcs-cli: set: /DIALOG/#0: text does not apply to a G_BOX object
+
+=== set-text-button
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK text=Done' -c 'cat /DIALOG/OK'
+out
+|Done
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13272 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-text-cicon
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/CICON text=abcdefghijkl' -c 'cat /DIALOG/CICON'
+out
+|abcdefghijkl
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-text-cicon-long
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/CICON text=abcdefghijklm
+rc 1
+out
+err
+|rcs-cli: set: /DIALOG/CICON: the value of text is too long (at most 12 characters)
+
+=== set-text-empty-value
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK text=' -c 'cat /DIALOG/OK'
+out
+|
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13268 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-text-icon
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/ICON text=IC2' -c 'cat /DIALOG/ICON'
+out
+|IC2
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-text-indirect
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/#17 text=x
+rc 1
+out
+err
+|rcs-cli: set: /DIALOG/#17: text does not apply to a G_STRING object with INDIRECT
+
+=== set-text-tedinfo
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT text=hello' -c 'stat /DIALOG/EDIT'
+out
+|path: /DIALOG/EDIT
+|tree: 0
+|index: 11
+|name: EDIT
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 12
+|head: -1
+|tail: -1
+|type: 0x001E G_FBOXTEXT
+|flags: 0x0008 EDITABLE
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "hello"
+|template: "Edit: ___"
+|validation: "XXX"
+|font: 3 (IBM)
+|fontid: 0
+|fontsize: 0
+|just: 1 (right)
+|color: 0x1181
+|frame-color: 1
+|text-color: 1
+|text-mode: opaque
+|fill-pattern: 0
+|fill-color: 1
+|thickness: 2
+|txtlen: 6
+|tmplen: 10
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13272 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-text-too-long
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/EDIT "text=$(head -c 33000 /dev/zero | tr '\0' a)"
+rc 1
+out
+err
+|rcs-cli: set: /DIALOG/EDIT: the value of text is too long (at most 32766 characters)
+
+=== set-text-value-escape
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK "text=a\\b\"c"' -c 'cat /DIALOG/OK' -c 'stat /DIALOG/OK'
+out
+|a\\b"c
+|path: /DIALOG/OK
+|tree: 0
+|index: 6
+|name: OK
+|reachable: yes
+|parent: 5
+|children: 0
+|next: 7
+|head: -1
+|tail: -1
+|type: 0x001A G_BUTTON
+|flags: 0x0007 SELECTABLE,DEFAULT,EXIT
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "a\\b\"c"
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13274 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-text-value-with-eq
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK text=a=b' -c 'cat /DIALOG/OK'
+out
+|a=b
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13272 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-thickness-bad
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/#0 thickness=128
+rc 1
+out
+err
+|rcs-cli: set: bad value 'thickness=128'
+
+=== set-thickness-box
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/#0 thickness=-3' -c 'stat /DIALOG/#0'
+out
+|path: /DIALOG/ROOT
+|tree: 0
+|index: 0
+|name: ROOT
+|reachable: yes
+|parent: -
+|children: 17
+|next: -1
+|head: 1
+|tail: 19
+|type: 0x0014 G_BOX
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 40
+|h: 20
+|spec: 0x00FD1100
+|frame: -3
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-thickness-ted
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT thickness=-2' -c 'stat /DIALOG/EDIT'
+out
+|path: /DIALOG/EDIT
+|tree: 0
+|index: 11
+|name: EDIT
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 12
+|head: -1
+|tail: -1
+|type: 0x001E G_FBOXTEXT
+|flags: 0x0008 EDITABLE
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "abc"
+|template: "Edit: ___"
+|validation: "XXX"
+|font: 3 (IBM)
+|fontid: 0
+|fontsize: 0
+|just: 1 (right)
+|color: 0x1181
+|frame-color: 1
+|text-color: 1
+|text-mode: opaque
+|fill-pattern: 0
+|fill-color: 1
+|thickness: -2
+|txtlen: 4
+|tmplen: 10
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-tree-text
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG text=x
+rc 1
+out
+err
+|rcs-cli: set: /DIALOG: only name= applies to a tree
+
+=== set-type
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK type=G_STRING' -c 'cat /DIALOG/OK' -c 'ls -l /DIALOG/OK'
+out
+|OK
+|#6     OK           G_STRING   SELECTABLE,DEFAULT,EXIT - 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-type-bad
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK type=nosuch
+rc 1
+out
+err
+|rcs-cli: set: bad type 'type=nosuch' (an AES type name such as G_BUTTON, or a number)
+
+=== set-type-cicon-record
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK type=G_CICON text=T' -c 'stat /DIALOG/OK'
+out
+|path: /DIALOG/OK
+|tree: 0
+|index: 6
+|name: OK
+|reachable: yes
+|parent: 5
+|children: 0
+|next: 7
+|head: -1
+|tail: -1
+|type: 0x0021 G_CICON
+|flags: 0x0007 SELECTABLE,DEFAULT,EXIT
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "T"
+|char: '\x00'
+|fg-color: 1
+|bg-color: 0
+|char-pos: 0,0
+|icon: 0,0,32,32
+|text-box: 0,32,32,8
+|data-bytes: 128
+|mask-bytes: 128
+|versions: 0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13578 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-type-icon-record
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK type=G_ICON text=T' -c 'stat /DIALOG/OK'
+out
+|path: /DIALOG/OK
+|tree: 0
+|index: 6
+|name: OK
+|reachable: yes
+|parent: 5
+|children: 0
+|next: 7
+|head: -1
+|tail: -1
+|type: 0x001F G_ICON
+|flags: 0x0007 SELECTABLE,DEFAULT,EXIT
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "T"
+|char: '\x00'
+|fg-color: 1
+|bg-color: 0
+|char-pos: 0,0
+|icon: 0,0,32,32
+|text-box: 0,32,32,8
+|data-bytes: 128
+|mask-bytes: 128
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13560 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-type-kind-change
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK type=G_FTEXT text=Hi' -c 'stat /DIALOG/OK'
+out
+|path: /DIALOG/OK
+|tree: 0
+|index: 6
+|name: OK
+|reachable: yes
+|parent: 5
+|children: 0
+|next: 7
+|head: -1
+|tail: -1
+|type: 0x001D G_FTEXT
+|flags: 0x0007 SELECTABLE,DEFAULT,EXIT
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "Hi"
+|template: ""
+|validation: ""
+|font: 3 (IBM)
+|fontid: 0
+|fontsize: 0
+|just: 0 (left)
+|color: 0x1100
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+|thickness: 0
+|txtlen: 3
+|tmplen: 1
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13300 bytes, and the names to $FIX/kinds.dfn)
+
+=== set-type-number
+cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK type=0x1a' -c 'ls -l /DIALOG/OK'
+out
+|#6     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 0,0,0,0
+
+=== set-type-then-text-bad
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK type=G_BOX text=Hi
+rc 1
+out
+err
+|rcs-cli: set: /DIALOG/OK: text does not apply to a G_BOX object
+
+=== set-unknown-key
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK size=3
+rc 1
+out
+err
+|rcs-cli: set: unknown key 'size'
+
+=== set-usage
+cmd --selfcheck -n $FIX/kinds.rsc set /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: set: usage: set PATH key=value...
+
+=== set-usage2
+cmd --selfcheck -n $FIX/kinds.rsc set
+rc 1
+out
+err
+|rcs-cli: set: usage: set PATH key=value...

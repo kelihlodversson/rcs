@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc chmod +EXIT $ROOT/tests/golden/cicon.rsc:/PANEL1/#1

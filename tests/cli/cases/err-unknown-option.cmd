@@ -1,1 +1,0 @@
---frob $FIX/kinds.rsc ls

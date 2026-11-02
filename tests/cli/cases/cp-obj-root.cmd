@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'cp -r /PANEL3/#0 /DIALOG/P3' -c 'tree /DIALOG/P3'

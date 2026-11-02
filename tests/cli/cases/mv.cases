@@ -1,0 +1,331 @@
+=== mv-icon-entry
+cmd --selfcheck -n $FIX/kinds.rsc mv /DIALOG/CICON/mono /x
+rc 1
+out
+err
+|rcs-cli: mv: /DIALOG/CICON/mono: colour icon entries cannot be moved yet
+
+=== mv-img-end
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /.images/#0 /.images' -c 'ls -l /.images'
+out
+|#0     -            24x4
+|#1     LOGO         16x8
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== mv-img-rename
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /.images/LOGO /.images/LOGO2' -c 'ls -l /.images'
+out
+|#0     LOGO2        16x8
+|#1     -            24x4
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== mv-notfound
+cmd --selfcheck -n $FIX/kinds.rsc mv /NOSUCH /x
+rc 1
+out
+err
+|rcs-cli: mv: not found: 'NOSUCH' in /
+
+=== mv-obj-cross-tree
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG/BUTTONS /PANEL3' -c 'ls -lR /PANEL3' -c 'ls -l /DIALOG'
+out
+|/PANEL3:
+|#1     -            G_STRING   - - 0,0,0,0
+|#2     BUTTONS      G_IBOX     - - 0,0,0,0
+|
+|/PANEL3/BUTTONS:
+|#3     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 0,0,0,0
+|#4     CANCEL       G_BUTTON   SELECTABLE,EXIT,LASTOB SELECTED 0,0,0,0
+|#1     Title        G_TEXT     - - 3+4,3-2,10,1
+|#2     TITLE        G_BOXTEXT  - - 0,0,0,0
+|#3     DUP          G_IMAGE    - - 0,0,0,0
+|#4     DUP          G_PROGDEF  - - 0,0,0,0
+|#5     BOXCHAR      G_BOXCHAR  - - 0,0,0,0
+|#6     #3           G_STRING   - - 0,0,0,0
+|#7     F\x9b\xe4    G_FTEXT    - - 0,0,0,0
+|#8     EDIT         G_FBOXTEXT EDITABLE - 0,0,0,0
+|#9     ICON         G_ICON     - - 0,0,0,0
+|#10    dup          G_TITLE    - - 0,0,0,0
+|#11    CICON        G_CICON    - - 0,0,0,0
+|#12    -            0x50       - - 0,0,0,0
+|#13    -            G_BUTTON:17 FL3DACT,0x2800 CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0 0,0,0,0
+|#14    -            G_STRING   RBUTTON,TOUCHEXIT,HIDETREE,INDIRECT - 0,0,0,0
+|#15    -            G_BOX      FL3DIND - 0,0,0,0
+|#16    -            G_BOX      LASTOB,FL3DBAK - 255+128,0-127,1+1,0-1
+err
+|rcs-cli: note: mv: 12 objects of the source tree were renumbered (from #8 on)
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== mv-obj-cross-tree-clash
+cmd --selfcheck -n $FIX/kinds.rsc -c 'cp -r /DIALOG/BUTTONS /PANEL3/B3' -c 'mv /DIALOG/BUTTONS /PANEL3/B4'
+rc 1
+out
+err
+|rcs-cli: mv: the name 'OK' of an object in /DIALOG/BUTTONS is used in the target tree already
+
+=== mv-obj-cross-tree-newname-clash
+cmd --selfcheck -n $FIX/kinds.rsc -c 'touch /PANEL3/X' -c 'mv /DIALOG/EDIT /PANEL3/#1/X'
+rc 1
+out
+err
+|rcs-cli: mv: the name 'X' is used by object #2 already in that tree (give the new object another name)
+
+=== mv-obj-cross-tree-rename
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG/BUTTONS /PANEL3/BTNS' -c 'tree /PANEL3'
+out
+|/PANEL3
+||-- #1 - G_STRING - -
+|`-- #2 BTNS G_IBOX - -
+|    |-- #3 OK G_BUTTON SELECTABLE,DEFAULT,EXIT -
+|    `-- #4 CANCEL G_BUTTON SELECTABLE,EXIT,LASTOB SELECTED
+err
+|rcs-cli: note: mv: 12 objects of the source tree were renumbered (from #8 on)
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== mv-obj-into-dir
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG/EDIT /DIALOG/BUTTONS' -c 'ls /DIALOG/BUTTONS'
+out
+|OK
+|CANCEL
+|EDIT
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== mv-obj-into-leaf-named
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG/EDIT /DIALOG/ICON/E2' -c 'tree /DIALOG/ICON'
+out
+|/DIALOG/ICON
+|`-- #11 E2 G_FBOXTEXT EDITABLE -
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== mv-obj-into-own-dir
+cmd --selfcheck -n $FIX/kinds.rsc mv /DIALOG/BUTTONS /DIALOG/BUTTONS
+rc 1
+out
+err
+|rcs-cli: mv: /DIALOG/BUTTONS and /DIALOG/BUTTONS are the same node
+
+=== mv-obj-into-own-subtree
+cmd --selfcheck -n $FIX/kinds.rsc mv /DIALOG/BUTTONS /DIALOG/BUTTONS/B
+rc 1
+out
+err
+|rcs-cli: mv: /DIALOG/BUTTONS/B: is inside /DIALOG/BUTTONS
+
+=== mv-obj-into-self
+cmd --selfcheck -n $FIX/kinds.rsc mv /DIALOG/BUTTONS /DIALOG/OK/x
+rc 1
+out
+err
+|rcs-cli: mv: /DIALOG/OK/x: is inside /DIALOG/BUTTONS
+
+=== mv-obj-newname-clash-elsewhere
+cmd --selfcheck -n $FIX/kinds.rsc mv /DIALOG/#16 /DIALOG/BUTTONS/EDIT
+rc 1
+out
+err
+|rcs-cli: mv: the name 'EDIT' is used by object #11 already in that tree (give the new object another name)
+
+=== mv-obj-rename
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG/OK /DIALOG/FINE' -c 'ls -l /DIALOG/BUTTONS' -c 'stat /DIALOG/FINE'
+out
+|#7     CANCEL       G_BUTTON   SELECTABLE,EXIT SELECTED 0,0,0,0
+|path: /DIALOG/FINE
+|tree: 0
+|index: 6
+|name: FINE
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 0
+|head: -1
+|tail: -1
+|type: 0x001A G_BUTTON
+|flags: 0x0007 SELECTABLE,DEFAULT,EXIT
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "OK"
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== mv-obj-rename-case
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG/OK /DIALOG/ok' -c 'ls /DIALOG/BUTTONS'
+rc 1
+out
+err
+|rcs-cli: mv: /DIALOG/OK and /DIALOG/ok are the same node
+
+=== mv-obj-rename-clash
+cmd --selfcheck -n $FIX/kinds.rsc mv /DIALOG/OK /DIALOG/CANCEL
+rc 1
+out
+err
+|rcs-cli: mv: /DIALOG/CANCEL: exists and is not a directory (it has no children; to put something inside, give a name: /DIALOG/CANCEL/NAME)
+
+=== mv-obj-reorder
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG/OK /DIALOG/BUTTONS' -c 'ls -l /DIALOG/BUTTONS'
+out
+|#7     CANCEL       G_BUTTON   SELECTABLE,EXIT SELECTED 0,0,0,0
+|#6     OK           G_BUTTON   SELECTABLE,DEFAULT,EXIT - 0,0,0,0
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== mv-obj-root
+cmd --selfcheck -n $FIX/kinds.rsc mv /DIALOG/#0 /PANEL3
+rc 1
+out
+err
+|rcs-cli: mv: /DIALOG/#0: the root of a tree cannot be moved (it is the tree: mv /TREE /NEW)
+
+=== mv-obj-same-node
+cmd --selfcheck -n $FIX/kinds.rsc mv /DIALOG/OK /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: mv: /DIALOG/OK and /DIALOG/OK are the same node
+
+=== mv-obj-to-strings
+cmd --selfcheck -n $FIX/kinds.rsc mv /DIALOG/OK /.strings
+rc 1
+out
+err
+|rcs-cli: mv: /.strings: an object can only go into a tree or an object
+
+=== mv-obj-unreachable
+cmd --selfcheck -n $FIX/kinds-lost.rsc mv /UNREACH/LOST /UNREACH
+rc 1
+out
+err
+|rcs-cli: mv: /UNREACH/LOST: not reachable from the root of its tree
+
+=== mv-root
+cmd --selfcheck -n $FIX/kinds.rsc mv / /x
+rc 1
+out
+err
+|rcs-cli: mv: /: cannot be moved
+
+=== mv-second-dst
+cmd --selfcheck -n $FIX/kinds.rsc mv /PANEL3 $ROOT/tests/golden/cicon.rsc:/x
+rc 1
+out
+err
+|rcs-cli: mv: $ROOT/tests/golden/cicon.rsc:/x: a second file is read-only (it is never written)
+
+=== mv-second-src
+cmd --selfcheck -n $FIX/kinds.rsc mv $ROOT/tests/golden/cicon.rsc:/PANEL1 /x
+rc 1
+out
+err
+|rcs-cli: mv: $ROOT/tests/golden/cicon.rsc:/PANEL1: a second file is read-only, so nothing can be moved out of it (use cp)
+
+=== mv-str-end
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /.strings/HELLO /.strings' -c 'ls -l /.strings'
+out
+|#0     ALERT1          37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+|#1     ASK             21 ALERT "[2][Question][Yes|No]"
+|#2     -               19 -     "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|#3     -              100 -     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+|#4     HELLO           12 -     "Hello, world"
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== mv-str-exists
+cmd --selfcheck -n $FIX/kinds.rsc mv /.strings/HELLO /.strings/ASK
+rc 1
+out
+err
+|rcs-cli: mv: /.strings/ASK: already exists
+
+=== mv-str-rename
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /.strings/HELLO /.strings/HI' -c 'ls -l /.strings'
+out
+|#0     HI              12 -     "Hello, world"
+|#1     ALERT1          37 ALERT "[1][Delete this?|Really][ OK |Cancel]"
+|#2     ASK             21 ALERT "[2][Question][Yes|No]"
+|#3     -               19 -     "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|#4     -              100 -     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefgh"...
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== mv-str-wrong
+cmd --selfcheck -n $FIX/kinds.rsc mv /.strings/HELLO /.images
+rc 1
+out
+err
+|rcs-cli: mv: /.images: a free string can only go to /.strings
+
+=== mv-tree-end
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG /' -c 'ls -l /' -c 'ls /MAINMENU'
+out
+|#0     MAINMENU     MENU  9
+|#1     PANEL3       PANL~ 2
+|#2     TREE4        UNKN~ 1
+|#3     BIG          PANL  321
+|#4     .images      UNKN  2
+|#5     UNREACH      DIAL  4
+|#6     DIALOG       DIAL  20
+|-      .strings     DIR   5
+|-      .images      DIR   2
+|#1
+|#5
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== mv-tree-exists
+cmd --selfcheck -n $FIX/kinds.rsc mv /PANEL3 /DIALOG
+rc 1
+out
+err
+|rcs-cli: mv: /DIALOG: already exists
+
+=== mv-tree-rename
+cmd --selfcheck -n $FIX/kinds.rsc -c 'mv /DIALOG /ABOUT' -c 'ls -l /' -c 'ls /ABOUT/BUTTONS'
+out
+|#0     ABOUT        DIAL  20
+|#1     MAINMENU     MENU  9
+|#2     PANEL3       PANL~ 2
+|#3     TREE4        UNKN~ 1
+|#4     BIG          PANL  321
+|#5     .images      UNKN  2
+|#6     UNREACH      DIAL  4
+|-      .strings     DIR   5
+|-      .images      DIR   2
+|OK
+|CANCEL
+err
+|rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13270 bytes, and the names to $FIX/kinds.dfn)
+
+=== mv-tree-rename-clash
+cmd --selfcheck -n $FIX/kinds.rsc mv /DIALOG /MAINMENU
+rc 1
+out
+err
+|rcs-cli: mv: /MAINMENU: already exists
+
+=== mv-tree-rename-reserved
+cmd --selfcheck -n $FIX/kinds.rsc mv /DIALOG /.images
+rc 1
+out
+err
+|rcs-cli: mv: /.images: a tree can only go to /
+
+=== mv-tree-wrong
+cmd --selfcheck -n $FIX/kinds.rsc mv /PANEL3 /DIALOG/OK
+rc 1
+out
+err
+|rcs-cli: mv: /DIALOG/OK: a tree can only go to /
+
+=== mv-usage
+cmd --selfcheck -n $FIX/kinds.rsc mv /DIALOG
+rc 1
+out
+err
+|rcs-cli: mv: usage: mv SRC DST

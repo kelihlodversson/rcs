@@ -1,1 +1,0 @@
--n $FIX/kinds.rsc -c 'mkdir Z'

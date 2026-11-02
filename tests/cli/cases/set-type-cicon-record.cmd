@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/OK type=G_CICON text=T' -c 'stat /DIALOG/OK'

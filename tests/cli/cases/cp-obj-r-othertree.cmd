@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'cp -r /DIALOG/BUTTONS /PANEL3/B2' -c 'ls -lR /PANEL3'

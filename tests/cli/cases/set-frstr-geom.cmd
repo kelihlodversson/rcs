@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc set /.strings/HELLO x=1

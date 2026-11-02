@@ -1,0 +1,656 @@
+=== kinds-stat-alert
+cmd $FIX/kinds.rsc stat /.strings/ALERT1
+out
+|path: /.strings/ALERT1
+|index: 1
+|name: ALERT1
+|length: 37
+|text: "[1][Delete this?|Really][ OK |Cancel]"
+|alert: yes
+
+=== kinds-stat-frimg
+cmd $FIX/kinds.rsc stat /.images/#1
+out
+|path: /.images/#1
+|index: 1
+|name: -
+|wb: 3
+|hl: 4
+|bi-x: 1
+|bi-y: 2
+|color: 3
+|data-bytes: 12
+
+=== kinds-stat-frimg-name
+cmd $FIX/kinds.rsc stat /.images/LOGO
+out
+|path: /.images/LOGO
+|index: 0
+|name: LOGO
+|wb: 2
+|hl: 8
+|bi-x: 0
+|bi-y: 0
+|color: 1
+|data-bytes: 16
+
+=== kinds-stat-frstr
+cmd $FIX/kinds.rsc stat /.strings/#3
+out
+|path: /.strings/#3
+|index: 3
+|name: -
+|length: 19
+|text: "Say \"hi\"\\ \x1b[0m \xe4 \x9b\x7f"
+|alert: no
+
+=== kinds-stat-imgdir
+cmd $FIX/kinds.rsc stat /.images
+out
+|path: /.images
+|entries: 2
+
+=== kinds-stat-obj0
+cmd $FIX/kinds.rsc stat /DIALOG/#0
+out
+|path: /DIALOG/ROOT
+|tree: 0
+|index: 0
+|name: ROOT
+|reachable: yes
+|parent: -
+|children: 17
+|next: -1
+|head: 1
+|tail: 19
+|type: 0x0014 G_BOX
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 40
+|h: 20
+|spec: 0x00021100
+|frame: 2
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+
+=== kinds-stat-obj1
+cmd $FIX/kinds.rsc stat /DIALOG/#1
+out
+|path: /DIALOG/Title
+|tree: 0
+|index: 1
+|name: Title
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 2
+|head: -1
+|tail: -1
+|type: 0x0015 G_TEXT
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 3+4
+|y: 3-2
+|w: 10
+|h: 1
+|text: "Name: \"x\"\\"
+|template: "____"
+|validation: "XXXX"
+|font: 3 (IBM)
+|fontid: 0
+|fontsize: 0
+|just: 2 (center)
+|color: 0x1180
+|frame-color: 1
+|text-color: 1
+|text-mode: opaque
+|fill-pattern: 0
+|fill-color: 0
+|thickness: -1
+|txtlen: 11
+|tmplen: 5
+
+=== kinds-stat-obj10
+cmd $FIX/kinds.rsc stat /DIALOG/#10
+out
+|path: /DIALOG/F\x9b\xe4
+|tree: 0
+|index: 10
+|name: F\x9b\xe4
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 11
+|head: -1
+|tail: -1
+|type: 0x001D G_FTEXT
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "12"
+|template: "Age: __"
+|validation: "99"
+|font: 3 (IBM)
+|fontid: 0
+|fontsize: 0
+|just: 0 (left)
+|color: 0x1100
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+|thickness: 0
+|txtlen: 3
+|tmplen: 8
+
+=== kinds-stat-obj11
+cmd $FIX/kinds.rsc stat /DIALOG/#11
+out
+|path: /DIALOG/EDIT
+|tree: 0
+|index: 11
+|name: EDIT
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 12
+|head: -1
+|tail: -1
+|type: 0x001E G_FBOXTEXT
+|flags: 0x0008 EDITABLE
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "abc"
+|template: "Edit: ___"
+|validation: "XXX"
+|font: 3 (IBM)
+|fontid: 0
+|fontsize: 0
+|just: 1 (right)
+|color: 0x1181
+|frame-color: 1
+|text-color: 1
+|text-mode: opaque
+|fill-pattern: 0
+|fill-color: 1
+|thickness: 2
+|txtlen: 4
+|tmplen: 10
+
+=== kinds-stat-obj12
+cmd $FIX/kinds.rsc stat /DIALOG/#12
+out
+|path: /DIALOG/ICON
+|tree: 0
+|index: 12
+|name: ICON
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 13
+|head: -1
+|tail: -1
+|type: 0x001F G_ICON
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "ICON"
+|char: 'I'
+|fg-color: 1
+|bg-color: 0
+|char-pos: 6,12
+|icon: 0,0,32,32
+|text-box: 0,32,72,8
+|data-bytes: 128
+|mask-bytes: 128
+
+=== kinds-stat-obj13
+cmd $FIX/kinds.rsc stat /DIALOG/#13
+out
+|path: /DIALOG/dup
+|tree: 0
+|index: 13
+|name: dup
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 14
+|head: -1
+|tail: -1
+|type: 0x0020 G_TITLE
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: " File "
+
+=== kinds-stat-obj14
+cmd $FIX/kinds.rsc stat /DIALOG/#14
+out
+|path: /DIALOG/CICON
+|tree: 0
+|index: 14
+|name: CICON
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 15
+|head: -1
+|tail: -1
+|type: 0x0021 G_CICON
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "CIC"
+|char: 'I'
+|fg-color: 1
+|bg-color: 0
+|char-pos: 6,12
+|icon: 0,0,16,16
+|text-box: 0,32,72,8
+|data-bytes: 32
+|mask-bytes: 32
+|versions: 3
+|version-0: planes=4 selected=yes
+|version-1: planes=8 selected=no
+|version-2: planes=4 selected=yes
+
+=== kinds-stat-obj15
+cmd $FIX/kinds.rsc stat /DIALOG/#15
+out
+|path: /DIALOG/#15
+|tree: 0
+|index: 15
+|name: -
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 16
+|head: -1
+|tail: -1
+|type: 0x0050 0x50
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|spec: 0xDEADBEEF
+
+=== kinds-stat-obj16
+cmd $FIX/kinds.rsc stat /DIALOG/#16
+out
+|path: /DIALOG/#16
+|tree: 0
+|index: 16
+|name: -
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 17
+|head: -1
+|tail: -1
+|type: 0x111A G_BUTTON:17
+|flags: 0x2E00 FL3DACT,0x2800
+|state: 0x00FE CROSSED,CHECKED,DISABLED,OUTLINED,SHADOWED,0x00C0
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "Ext"
+
+=== kinds-stat-obj17
+cmd $FIX/kinds.rsc stat /DIALOG/#17
+out
+|path: /DIALOG/#17
+|tree: 0
+|index: 17
+|name: -
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 18
+|head: -1
+|tail: -1
+|type: 0x001C G_STRING
+|flags: 0x01D0 RBUTTON,TOUCHEXIT,HIDETREE,INDIRECT
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|spec: 0x00000042
+
+=== kinds-stat-obj18
+cmd $FIX/kinds.rsc stat /DIALOG/#18
+out
+|path: /DIALOG/#18
+|tree: 0
+|index: 18
+|name: -
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 19
+|head: -1
+|tail: -1
+|type: 0x0014 G_BOX
+|flags: 0x0200 FL3DIND
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|spec: 0x00FF1100
+|frame: -1
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+
+=== kinds-stat-obj19
+cmd $FIX/kinds.rsc stat /DIALOG/#19
+out
+|path: /DIALOG/#19
+|tree: 0
+|index: 19
+|name: -
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 0
+|head: -1
+|tail: -1
+|type: 0x0014 G_BOX
+|flags: 0x0420 LASTOB,FL3DBAK
+|state: 0x0000 -
+|x: 255+128
+|y: 0-127
+|w: 1+1
+|h: 0-1
+|spec: 0x00011100
+|frame: 1
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+
+=== kinds-stat-obj2
+cmd $FIX/kinds.rsc stat /DIALOG/#2
+out
+|path: /DIALOG/TITLE
+|tree: 0
+|index: 2
+|name: TITLE
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 3
+|head: -1
+|tail: -1
+|type: 0x0016 G_BOXTEXT
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "Box text"
+|template: ""
+|validation: ""
+|font: 5 (SMALL)
+|fontid: 0
+|fontsize: 0
+|just: 0 (left)
+|color: 0x1072
+|frame-color: 1
+|text-color: 0
+|text-mode: transparent
+|fill-pattern: 7
+|fill-color: 2
+|thickness: 1
+|txtlen: 9
+|tmplen: 1
+
+=== kinds-stat-obj3
+cmd $FIX/kinds.rsc stat /DIALOG/#3
+out
+|path: /DIALOG/#3
+|tree: 0
+|index: 3
+|name: DUP
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 4
+|head: -1
+|tail: -1
+|type: 0x0017 G_IMAGE
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|wb: 2
+|hl: 8
+|bi-x: 0
+|bi-y: 0
+|color: 1
+|data-bytes: 16
+
+=== kinds-stat-obj4
+cmd $FIX/kinds.rsc stat /DIALOG/#4
+out
+|path: /DIALOG/#4
+|tree: 0
+|index: 4
+|name: DUP
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 5
+|head: -1
+|tail: -1
+|type: 0x0018 G_PROGDEF
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|spec: 0x12345678
+
+=== kinds-stat-obj5
+cmd $FIX/kinds.rsc stat /DIALOG/#5
+out
+|path: /DIALOG/BUTTONS
+|tree: 0
+|index: 5
+|name: BUTTONS
+|reachable: yes
+|parent: 0
+|children: 2
+|next: 8
+|head: 6
+|tail: 7
+|type: 0x0019 G_IBOX
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|spec: 0x00000000
+|frame: 0
+|frame-color: 0
+|text-color: 0
+|text-mode: transparent
+|fill-pattern: 0
+|fill-color: 0
+
+=== kinds-stat-obj6
+cmd $FIX/kinds.rsc stat /DIALOG/#6
+out
+|path: /DIALOG/OK
+|tree: 0
+|index: 6
+|name: OK
+|reachable: yes
+|parent: 5
+|children: 0
+|next: 7
+|head: -1
+|tail: -1
+|type: 0x001A G_BUTTON
+|flags: 0x0007 SELECTABLE,DEFAULT,EXIT
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "OK"
+
+=== kinds-stat-obj7
+cmd $FIX/kinds.rsc stat /DIALOG/#7
+out
+|path: /DIALOG/CANCEL
+|tree: 0
+|index: 7
+|name: CANCEL
+|reachable: yes
+|parent: 5
+|children: 0
+|next: 5
+|head: -1
+|tail: -1
+|type: 0x001A G_BUTTON
+|flags: 0x0005 SELECTABLE,EXIT
+|state: 0x0001 SELECTED
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "Cancel"
+
+=== kinds-stat-obj8
+cmd $FIX/kinds.rsc stat /DIALOG/#8
+out
+|path: /DIALOG/BOXCHAR
+|tree: 0
+|index: 8
+|name: BOXCHAR
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 9
+|head: -1
+|tail: -1
+|type: 0x001B G_BOXCHAR
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|spec: 0x41FF1172
+|char: 'A'
+|frame: -1
+|frame-color: 1
+|text-color: 1
+|text-mode: transparent
+|fill-pattern: 7
+|fill-color: 2
+
+=== kinds-stat-obj9
+cmd $FIX/kinds.rsc stat /DIALOG/#9
+out
+|path: /DIALOG/#9
+|tree: 0
+|index: 9
+|name: #3
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 10
+|head: -1
+|tail: -1
+|type: 0x001C G_STRING
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 0
+|h: 0
+|text: "Tab\there\x01\x7f \xe9 end"
+
+=== kinds-stat-root
+cmd $FIX/kinds.rsc stat /
+out
+|path: /
+|trees: 7
+|strings: 5
+|images: 2
+|cell: file
+|vrsn: 0x0000
+
+=== kinds-stat-strdir
+cmd $FIX/kinds.rsc stat /.strings
+out
+|path: /.strings
+|entries: 5
+
+=== kinds-stat-tree
+cmd $FIX/kinds.rsc stat /DIALOG
+out
+|path: /DIALOG
+|kind: DIAL
+|kind-source: file
+|name: DIALOG
+|index: 0
+|objects: 20
+|root-children: 17
+
+=== kinds-stat-tree-guessed
+cmd $FIX/kinds.rsc stat /PANEL3
+out
+|path: /PANEL3
+|kind: PANL
+|kind-source: guessed
+|name: PANEL3
+|index: 2
+|objects: 2
+|root-children: 1
+
+=== kinds-stat-tree-noguess
+cmd --no-guess $FIX/kinds.rsc stat /#2
+out
+|path: /#2
+|kind: UNKN
+|kind-source: none
+|name: -
+|index: 2
+|objects: 2
+|root-children: 1

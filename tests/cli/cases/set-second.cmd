@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc set $ROOT/tests/golden/cicon.rsc:/PANEL1/#1 x=1

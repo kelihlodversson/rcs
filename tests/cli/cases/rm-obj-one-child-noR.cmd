@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc rm /MAINMENU/#1

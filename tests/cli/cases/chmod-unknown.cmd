@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc chmod +NOSUCH /DIALOG/OK

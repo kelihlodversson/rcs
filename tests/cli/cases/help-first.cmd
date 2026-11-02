@@ -1,1 +1,0 @@
---help $FIX/nosuch.rsc

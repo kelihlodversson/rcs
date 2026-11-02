@@ -1,1 +1,0 @@
-rcs-cli: --names-out: $TMP/x.def: only .dfn name files can be written yet

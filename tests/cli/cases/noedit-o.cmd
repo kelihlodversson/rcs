@@ -1,1 +1,0 @@
---selfcheck -o $TMP/noedit-o.rsc $FIX/kinds.rsc ls /PANEL3

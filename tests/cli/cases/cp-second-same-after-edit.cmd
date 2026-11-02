@@ -1,1 +1,0 @@
---selfcheck -n $FIX/kinds.rsc -c 'mkdir Z' -c 'ls $FIX/kinds.rsc:/'

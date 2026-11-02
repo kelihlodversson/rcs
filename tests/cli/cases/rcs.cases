@@ -1,0 +1,2465 @@
+=== rcs-cat-string
+cmd $ROOT/src/atari/rcs.rsc cat /.strings/#1
+out
+|  Hide Parts          \x07P
+
+=== rcs-images
+cmd $ROOT/src/atari/rcs.rsc ls -l /.images
+out
+|#0     CLIPMPTY     48x44
+|#1     CLIPFULL     48x44
+
+=== rcs-ls
+cmd $ROOT/src/atari/rcs.rsc ls
+out
+|MENUTREE
+|TOOLBOX
+|FILEPBX
+|TYPETREE
+|DIALPBX
+|ICNPBX
+|NOBJTREE
+|MENUPBX
+|NEWMENU
+|ABOUTREE
+|SORTTREE
+|NEWALRT
+|ALRTPBX
+|NEWDIAL
+|NEWPANEL
+|OUTPTREE
+|STRDIAL
+|BITDIAL
+|ICONDIAL
+|BOXDIAL
+|TEXTDIAL
+|LOADDIAL
+|SAFEDIAL
+|INFODIAL
+|ICONTOOL
+|FREEPBX
+|POPSWTCH
+|POPRULE
+|POPPOSN
+|POPTHICK
+|POPPATRN
+|POPCOLOR
+|NAMETREE
+|PROGRESS
+|GRID
+|NEWICNSZ
+|.strings
+|.images
+
+=== rcs-ls-R
+cmd $ROOT/src/atari/rcs.rsc ls -R
+out
+|/:
+|MENUTREE
+|TOOLBOX
+|FILEPBX
+|TYPETREE
+|DIALPBX
+|ICNPBX
+|NOBJTREE
+|MENUPBX
+|NEWMENU
+|ABOUTREE
+|SORTTREE
+|NEWALRT
+|ALRTPBX
+|NEWDIAL
+|NEWPANEL
+|OUTPTREE
+|STRDIAL
+|BITDIAL
+|ICONDIAL
+|BOXDIAL
+|TEXTDIAL
+|LOADDIAL
+|SAFEDIAL
+|INFODIAL
+|ICONTOOL
+|FREEPBX
+|POPSWTCH
+|POPRULE
+|POPPOSN
+|POPTHICK
+|POPPATRN
+|POPCOLOR
+|NAMETREE
+|PROGRESS
+|GRID
+|NEWICNSZ
+|.strings
+|.images
+|
+|/MENUTREE:
+|#1
+|SCREEN
+|
+|/MENUTREE/#1:
+|#2
+|
+|/MENUTREE/#2:
+|DESKMENU
+|FILEMENU
+|GLOBMENU
+|EDITMENU
+|OPTNMENU
+|ARRMENU
+|
+|/MENUTREE/SCREEN:
+|#10
+|#19
+|#30
+|#37
+|#47
+|#53
+|
+|/MENUTREE/#10:
+|ABOUITEM
+|ACCLINE
+|#13
+|#14
+|#15
+|#16
+|#17
+|#18
+|
+|/MENUTREE/#19:
+|NEWITEM
+|OPENITEM
+|MERGITEM
+|#23
+|CLOSITEM
+|SAVEITEM
+|SVASITEM
+|RVRTITEM
+|#28
+|QUITITEM
+|
+|/MENUTREE/#30:
+|OUTPITEM
+|SAFEITEM
+|SVOSITEM
+|#34
+|PARTITEM
+|TOOLITEM
+|
+|/MENUTREE/#37:
+|CUTITEM
+|COPYITEM
+|PASTITEM
+|#41
+|DELITEM
+|#43
+|INVITEM
+|SOLIDIMG
+|SIZEITEM
+|
+|/MENUTREE/#47:
+|INFITEM
+|RNAMITEM
+|TYPEITEM
+|LOADITEM
+|ICNEDITM
+|
+|/MENUTREE/#53:
+|SRTITEM
+|UNHDITEM
+|#56
+|FLTITEM
+|
+|/TOOLBOX:
+|HOTBGCOL
+|HOTPATRN
+|HOTFGCOL
+|HOTRULE
+|HOTPOSN
+|HOTSWTCH
+|HOTBDCOL
+|HOTTHICK
+|CLIPBORD
+|TRASHCAN
+|#11
+|#12
+|
+|/FILEPBX:
+|UNKNICON
+|MENUICON
+|DIALICON
+|PANLICON
+|ALRTICON
+|FREEICON
+|
+|/TYPETREE:
+|#1
+|#2
+|#3
+|#4
+|#5
+|OKITEM
+|CANCITEM
+|#8
+|
+|/TYPETREE/#8:
+|UNKNITEM
+|PANLITEM
+|MENUITEM
+|DIALITEM
+|ALRTITEM
+|FREEITEM
+|
+|/DIALPBX:
+|#1
+|#2
+|#3
+|#4
+|#5
+|#6
+|#7
+|#8
+|#9
+|#10
+|#11
+|
+|/ICNPBX:
+|ICONSTRG
+|DATASTRG
+|MASKSTRG
+|ICONWIND
+|DATAWIND
+|MASKWIND
+|
+|/NOBJTREE:
+|#1
+|NOOKITEM
+|NOCNITEM
+|#4
+|#7
+|#11
+|XTYPE
+|
+|/NOBJTREE/#4:
+|#5
+|#6
+|
+|/NOBJTREE/#7:
+|STRTYPES
+|#9
+|STRTYPE0
+|
+|/NOBJTREE/#11:
+|TXTTYPES
+|TXTTYPE0
+|BOXTYPES
+|BOXTYPE0
+|
+|/MENUPBX:
+|#1
+|#2
+|#3
+|#4
+|
+|/NEWMENU:
+|#1
+|#5
+|
+|/NEWMENU/#1:
+|#2
+|
+|/NEWMENU/#2:
+|#3
+|#4
+|
+|/NEWMENU/#5:
+|#6
+|#15
+|
+|/NEWMENU/#6:
+|#7
+|#8
+|#9
+|#10
+|#11
+|#12
+|#13
+|#14
+|
+|/NEWMENU/#15:
+|#16
+|
+|/ABOUTREE:
+|#1
+|#2
+|#3
+|#4
+|AOKITEM
+|#6
+|#7
+|#8
+|#9
+|#10
+|#11
+|#12
+|#13
+|
+|/SORTTREE:
+|#1
+|#2
+|#3
+|#4
+|#5
+|#6
+|#7
+|#8
+|#9
+|#10
+|#11
+|#12
+|STOKITEM
+|STCNITEM
+|#15
+|
+|/SORTTREE/#15:
+|SRTXITEM
+|SRTYITEM
+|STXYITEM
+|STYXITEM
+|
+|/NEWALRT:
+|ALRTIMG
+|ALRTSTR0
+|#3
+|#4
+|#5
+|#6
+|ALRTBTN0
+|#8
+|#9
+|
+|/ALRTPBX:
+|APBXBTN
+|APBXSTR
+|APBXIMG0
+|#4
+|#5
+|
+|/NEWDIAL:
+|
+|/NEWPANEL:
+|
+|/OUTPTREE:
+|#1
+|OUTPOK
+|OUTPCANC
+|#4
+|CITEM
+|PASCITEM
+|CBITEM
+|F77ITEM
+|#9
+|#10
+|#11
+|#12
+|#13
+|#14
+|#15
+|#16
+|#17
+|SRCITEM
+|#19
+|#20
+|FSRTITEM
+|#22
+|#23
+|
+|/STRDIAL:
+|OOKITEM
+|OCNITEM
+|#3
+|OSTRITEM
+|#5
+|STRNAME
+|#7
+|#8
+|
+|/BITDIAL:
+|#1
+|BITNAME
+|#3
+|#4
+|#5
+|
+|/ICONDIAL:
+|#1
+|IBTEXT
+|IBCHAR
+|#4
+|#8
+|#18
+|ICONNAME
+|#20
+|#21
+|#22
+|
+|/ICONDIAL/#4:
+|IBTPOS0
+|#6
+|#7
+|
+|/ICONDIAL/#8:
+|IBCPOS0
+|#10
+|#11
+|#12
+|#13
+|#14
+|#15
+|#16
+|#17
+|
+|/BOXDIAL:
+|#1
+|OCHRITEM
+|BOXNAME
+|#4
+|#5
+|
+|/TEXTDIAL:
+|#1
+|#2
+|#3
+|#10
+|TEXTNAME
+|
+|/TEXTDIAL/#3:
+|TMPLTTAG
+|OTMPITEM
+|VALIDTAG
+|OVALITEM
+|#8
+|OTEXITEM
+|
+|/LOADDIAL:
+|#1
+|LOADCANC
+|LOADOK
+|LOADDATA
+|LOADMASK
+|#6
+|#7
+|#8
+|
+|/SAFEDIAL:
+|#1
+|#2
+|#3
+|#4
+|#5
+|#6
+|#7
+|#8
+|#9
+|#10
+|#11
+|SAFEOK
+|#13
+|SAVECANC
+|SAFEXPRT
+|SAFENORM
+|SAFELOCK
+|
+|/INFODIAL:
+|#1
+|#2
+|#3
+|#4
+|INFOOBJ
+|INFOIB
+|INFOBB
+|#8
+|#9
+|INFONAME
+|#11
+|#12
+|#13
+|INFOTI
+|INFOIMG
+|INFOSTR
+|INFOTOT
+|INFOLEFT
+|INFOPANL
+|INFOOK
+|
+|/INFODIAL/INFOPANL:
+|#20
+|INFOTREE
+|
+|/ICONTOOL:
+|#1
+|#12
+|#16
+|#20
+|
+|/ICONTOOL/#1:
+|HRCTGBOX
+|SRCTGBOX
+|LINEBOX
+|HPLYGBOX
+|SPLYGBOX
+|HARCBOX
+|SARCBOX
+|DOTBOX
+|HOVALBOX
+|SOVALBOX
+|
+|/ICONTOOL/#12:
+|ERASEBOX
+|FCLORBOX
+|BCLORBOX
+|
+|/ICONTOOL/#16:
+|GRIDBOX
+|UNDOBOX
+|RUBERBOX
+|
+|/ICONTOOL/#20:
+|CLIPBOX
+|
+|/ICONTOOL/CLIPBOX:
+|CLIPSHOW
+|
+|/FREEPBX:
+|PBXSTR
+|PBXIMG
+|
+|/POPSWTCH:
+|SBLEPOP
+|EXITPOP
+|DFLTPOP
+|RDIOPOP
+|TCHXPOP
+|EDBLPOP
+|HDDNPOP
+|#8
+|SHADPOP
+|CHEKPOP
+|OUTLPOP
+|CROSPOP
+|DSBLPOP
+|SLCTPOP
+|ESCPOP
+|BITBPOP
+|SCCTRPOP
+|D3INDPOP
+|SYCOLPOP
+|SUBMPOP
+|WBAKPOP
+|EXT3DPOP
+|HIGHLPOP
+|UHIGLPOP
+|D3BAKPOP
+|
+|/POPRULE:
+|TRANSPOP
+|RPLACPOP
+|#3
+|LARGEPOP
+|SMALLPOP
+|#6
+|LEFTPOP
+|RIGHTPOP
+|CENTPOP
+|
+|/POPPOSN:
+|JLFTPOP
+|JCENPOP
+|JRGTPOP
+|#4
+|JTOPPOP
+|JMIDPOP
+|JBOTPOP
+|#8
+|HFILLPOP
+|VFILLPOP
+|#11
+|SNAPPOP
+|
+|/POPTHICK:
+|#1
+|#2
+|#3
+|#4
+|#5
+|#6
+|#7
+|OUT3POP
+|OUT2POP
+|OUT1POP
+|NONEPOP
+|IN1POP
+|IN2POP
+|IN3POP
+|
+|/POPPATRN:
+|PAT0POP
+|#2
+|#3
+|#4
+|#5
+|#6
+|#7
+|#8
+|
+|/POPCOLOR:
+|COL0POP
+|#2
+|#3
+|#4
+|#5
+|#6
+|#7
+|#8
+|#9
+|#10
+|#11
+|#12
+|#13
+|#14
+|#15
+|#16
+|
+|/NAMETREE:
+|#1
+|#2
+|NAMEITEM
+|#4
+|#5
+|
+|/PROGRESS:
+|#1
+|#2
+|WRITING
+|
+|/GRID:
+|GRIDWIND
+|
+|/NEWICNSZ:
+|#1
+|#2
+|#3
+|#8
+|#9
+|#26
+|#27
+|OKCHNGSZ
+|CNCLCHGS
+|
+|/NEWICNSZ/#3:
+|BEGWDSZ
+|#5
+|#6
+|LASTWDSZ
+|
+|/NEWICNSZ/#9:
+|BEGHTSZ
+|#11
+|#12
+|#13
+|#14
+|#15
+|#16
+|#17
+|#18
+|#19
+|#20
+|#21
+|#22
+|#23
+|#24
+|LASTHTSZ
+|
+|/NEWICNSZ/#27:
+|#28
+|SCALESZ
+|#30
+|KEEPSZ
+|#32
+|CLEARSZ
+|
+|/.strings:
+|STTITLE
+|HIDEPART
+|SHOWPART
+|HIDETOOL
+|SHOWTOOL
+|#5
+|STSTR
+|STIMG
+|STFRSTR
+|STBB
+|STFRIMG
+|STIB
+|STTI
+|STOBJ
+|STTRIND
+|STHDR
+|STNAME
+|STLDRES
+|STSASRES
+|STLDICN
+|STSASICN
+|STNODEF
+|STMOVED
+|STLOMEM
+|STNMDUP
+|STNONAM
+|STLOCKED
+|STSIZEP
+|STNFULL
+|STPANIC
+|STNROOM
+|STNWNDW
+|STNMEM
+|SNDSPACE
+|STOOLONG
+|NOFNAME
+|ABNDCHGS
+|NOOVLERR
+|NOEDMEM
+|
+|/.images:
+|CLIPMPTY
+|CLIPFULL
+
+=== rcs-ls-l
+cmd $ROOT/src/atari/rcs.rsc ls -l
+out
+|#0     MENUTREE     MENU  58
+|#1     TOOLBOX      DIAL  13
+|#2     FILEPBX      DIAL  7
+|#3     TYPETREE     DIAL  15
+|#4     DIALPBX      DIAL  12
+|#5     ICNPBX       DIAL  7
+|#6     NOBJTREE     DIAL  17
+|#7     MENUPBX      DIAL  5
+|#8     NEWMENU      MENU  17
+|#9     ABOUTREE     DIAL  14
+|#10    SORTTREE     DIAL  20
+|#11    NEWALRT      DIAL  10
+|#12    ALRTPBX      DIAL  6
+|#13    NEWDIAL      DIAL  1
+|#14    NEWPANEL     DIAL  1
+|#15    OUTPTREE     DIAL  24
+|#16    STRDIAL      DIAL  9
+|#17    BITDIAL      DIAL  6
+|#18    ICONDIAL     DIAL  23
+|#19    BOXDIAL      DIAL  6
+|#20    TEXTDIAL     DIAL  12
+|#21    LOADDIAL     DIAL  9
+|#22    SAFEDIAL     DIAL  18
+|#23    INFODIAL     DIAL  23
+|#24    ICONTOOL     DIAL  23
+|#25    FREEPBX      DIAL  3
+|#26    POPSWTCH     DIAL  26
+|#27    POPRULE      DIAL  10
+|#28    POPPOSN      DIAL  13
+|#29    POPTHICK     DIAL  15
+|#30    POPPATRN     DIAL  9
+|#31    POPCOLOR     DIAL  17
+|#32    NAMETREE     DIAL  6
+|#33    PROGRESS     DIAL  4
+|#34    GRID         DIAL  2
+|#35    NEWICNSZ     DIAL  36
+|-      .strings     DIR   39
+|-      .images      DIR   2
+
+=== rcs-ls-lR
+cmd $ROOT/src/atari/rcs.rsc ls -lR
+out
+|/:
+|#0     MENUTREE     MENU  58
+|#1     TOOLBOX      DIAL  13
+|#2     FILEPBX      DIAL  7
+|#3     TYPETREE     DIAL  15
+|#4     DIALPBX      DIAL  12
+|#5     ICNPBX       DIAL  7
+|#6     NOBJTREE     DIAL  17
+|#7     MENUPBX      DIAL  5
+|#8     NEWMENU      MENU  17
+|#9     ABOUTREE     DIAL  14
+|#10    SORTTREE     DIAL  20
+|#11    NEWALRT      DIAL  10
+|#12    ALRTPBX      DIAL  6
+|#13    NEWDIAL      DIAL  1
+|#14    NEWPANEL     DIAL  1
+|#15    OUTPTREE     DIAL  24
+|#16    STRDIAL      DIAL  9
+|#17    BITDIAL      DIAL  6
+|#18    ICONDIAL     DIAL  23
+|#19    BOXDIAL      DIAL  6
+|#20    TEXTDIAL     DIAL  12
+|#21    LOADDIAL     DIAL  9
+|#22    SAFEDIAL     DIAL  18
+|#23    INFODIAL     DIAL  23
+|#24    ICONTOOL     DIAL  23
+|#25    FREEPBX      DIAL  3
+|#26    POPSWTCH     DIAL  26
+|#27    POPRULE      DIAL  10
+|#28    POPPOSN      DIAL  13
+|#29    POPTHICK     DIAL  15
+|#30    POPPATRN     DIAL  9
+|#31    POPCOLOR     DIAL  17
+|#32    NAMETREE     DIAL  6
+|#33    PROGRESS     DIAL  4
+|#34    GRID         DIAL  2
+|#35    NEWICNSZ     DIAL  36
+|-      .strings     DIR   39
+|-      .images      DIR   2
+|
+|/MENUTREE:
+|#1     -            G_BOX      - - 0,0,90,1+2
+|#9     SCREEN       G_IBOX     - - 0,1+3,80,19
+|
+|/MENUTREE/#1:
+|#2     -            G_IBOX     - - 2,0,46,1+3
+|
+|/MENUTREE/#2:
+|#3     DESKMENU     G_TITLE    - - 0,0,6,1+3
+|#4     FILEMENU     G_TITLE    - - 6,0,6,1+3
+|#5     GLOBMENU     G_TITLE    - - 12,0,8,1+3
+|#6     EDITMENU     G_TITLE    - - 20,0,6,1+3
+|#7     OPTNMENU     G_TITLE    - - 26,0,9,1+3
+|#8     ARRMENU      G_TITLE    - - 35,0,11,1+3
+|
+|/MENUTREE/SCREEN:
+|#10    -            G_BOX      - - 2,0,20,8
+|#19    -            G_BOX      - - 8,0,17,10
+|#30    -            G_BOX      - - 14,0,25,6
+|#37    -            G_BOX      - - 22,0,16,9
+|#47    -            G_BOX      - - 28,0,21,5
+|#53    -            G_BOX      - - 37,0,25,4
+|
+|/MENUTREE/#10:
+|#11    ABOUITEM     G_STRING   - - 0,0,20,1
+|#12    ACCLINE      G_STRING   - DISABLED 0,1,20,1
+|#13    -            G_STRING   - - 0,2,20,1
+|#14    -            G_STRING   - - 0,3,20,1
+|#15    -            G_STRING   - - 0,4,20,1
+|#16    -            G_STRING   - - 0,5,20,1
+|#17    -            G_STRING   - - 0,6,20,1
+|#18    -            G_STRING   - - 0,7,20,1
+|
+|/MENUTREE/#19:
+|#20    NEWITEM      G_STRING   - - 0,0,17,1
+|#21    OPENITEM     G_STRING   - - 0,1,17,1
+|#22    MERGITEM     G_STRING   - - 0,2,17,1
+|#23    -            G_STRING   - DISABLED 0,3,17,1
+|#24    CLOSITEM     G_STRING   - - 0,4,17,1
+|#25    SAVEITEM     G_STRING   - - 0,5,17,1
+|#26    SVASITEM     G_STRING   - - 0,6,17,1
+|#27    RVRTITEM     G_STRING   - - 0,7,17,1
+|#28    -            G_STRING   - DISABLED 0,8,17,1
+|#29    QUITITEM     G_STRING   - - 0,9,17,1
+|
+|/MENUTREE/#30:
+|#31    OUTPITEM     G_STRING   - - 0,0,25,1
+|#32    SAFEITEM     G_STRING   - - 0,1,25,1
+|#33    SVOSITEM     G_STRING   - - 0,2,24,1
+|#34    -            G_STRING   - DISABLED 0,3,25,1
+|#35    PARTITEM     G_STRING   - - 0,4,24,1
+|#36    TOOLITEM     G_STRING   - - 0,5,24,1
+|
+|/MENUTREE/#37:
+|#38    CUTITEM      G_STRING   - - 0,0,16,1
+|#39    COPYITEM     G_STRING   - - 0,1,16,1
+|#40    PASTITEM     G_STRING   - - 0,2,16,1
+|#41    -            G_STRING   - DISABLED 0,3,16,1
+|#42    DELITEM      G_STRING   - - 0,4,16,1
+|#43    -            G_STRING   - DISABLED 0,5,16,1
+|#44    INVITEM      G_STRING   - - 0,6,16,1
+|#45    SOLIDIMG     G_STRING   - - 0,7,16,1
+|#46    SIZEITEM     G_STRING   - - 0,8,16,1
+|
+|/MENUTREE/#47:
+|#48    INFITEM      G_STRING   - - 0,0,21,1
+|#49    RNAMITEM     G_STRING   - - 0,1,21,1
+|#50    TYPEITEM     G_STRING   - - 0,2,21,1
+|#51    LOADITEM     G_STRING   - - 0,3,21,1
+|#52    ICNEDITM     G_STRING   - - 0,4,21,1
+|
+|/MENUTREE/#53:
+|#54    SRTITEM      G_STRING   - - 0,0,25,1
+|#55    UNHDITEM     G_STRING   - - 0,1,25,1
+|#56    -            G_STRING   - DISABLED 0,2,25,1
+|#57    FLTITEM      G_STRING   LASTOB - 0,3,25,1
+|
+|/TOOLBOX:
+|#1     HOTBGCOL     G_IMAGE    SELECTABLE - 0,0,6,3
+|#2     HOTPATRN     G_IMAGE    SELECTABLE - 6,0,6,3
+|#3     HOTFGCOL     G_IMAGE    SELECTABLE - 0,3,6,3
+|#4     HOTRULE      G_IMAGE    SELECTABLE - 6,3,6,3
+|#5     HOTPOSN      G_IMAGE    SELECTABLE - 0,6,6,3
+|#6     HOTSWTCH     G_IMAGE    SELECTABLE - 6,6,6,3
+|#7     HOTBDCOL     G_IMAGE    SELECTABLE - 0,9,6,3
+|#8     HOTTHICK     G_IMAGE    SELECTABLE - 6,9,6,3
+|#9     CLIPBORD     G_IMAGE    SELECTABLE - 0,14,6,2+12
+|#10    TRASHCAN     G_IMAGE    SELECTABLE - 6,14,6,4
+|#11    -            G_BOX      - - 0,18,12,3
+|#12    -            G_BOX      DEFAULT,EXIT,LASTOB - 0,12,12,2
+|
+|/FILEPBX:
+|#1     UNKNICON     G_ICON     HIDETREE - 3,1,6,2
+|#2     MENUICON     G_ICON     - - 12,1,6,1+8
+|#3     DIALICON     G_ICON     - - 21,1,6,1+8
+|#4     PANLICON     G_ICON     - - 30,1,6,1+8
+|#5     ALRTICON     G_ICON     - - 39,1,6,1+8
+|#6     FREEICON     G_ICON     LASTOB - 48+1,1,6,1+8
+|
+|/TYPETREE:
+|#1     -            G_STRING   - - 8,1,20,1
+|#2     -            G_STRING   - - 2,3,34,1
+|#3     -            G_STRING   - - 2,4,32,1
+|#4     -            G_STRING   - - 2,5,34,1
+|#5     -            G_STRING   - - 2,6,7,1
+|#6     OKITEM       G_BUTTON   SELECTABLE,DEFAULT,EXIT - 13,13,8,1
+|#7     CANCITEM     G_BUTTON   SELECTABLE,EXIT - 24,13,8,1
+|#8     -            G_IBOX     - - 5,8,27,3
+|
+|/TYPETREE/#8:
+|#9     UNKNITEM     G_BUTTON   SELECTABLE,RBUTTON - 0,0,7,1
+|#10    PANLITEM     G_BUTTON   SELECTABLE,RBUTTON - 10,0,7,1
+|#11    MENUITEM     G_BUTTON   SELECTABLE,RBUTTON - 20,0,7,1
+|#12    DIALITEM     G_BUTTON   SELECTABLE,RBUTTON - 0,2,7,1
+|#13    ALRTITEM     G_BUTTON   SELECTABLE,RBUTTON - 10,2,7,1
+|#14    FREEITEM     G_BUTTON   SELECTABLE,RBUTTON,LASTOB - 20,2,7,1
+|
+|/DIALPBX:
+|#1     -            G_BUTTON   SELECTABLE - 2,1,8,1
+|#2     -            G_STRING   - - 2,3,6,1
+|#3     -            G_FTEXT    EDITABLE - 13,1,11,1
+|#4     -            G_FBOXTEXT EDITABLE - 13,3,11,1
+|#5     -            G_IBOX     - OUTLINED 26,1,6,1
+|#6     -            G_BOX      - - 26,3,6,1
+|#7     -            G_TEXT     - - 35,1,4,1
+|#8     -            G_BOXCHAR  - - 41,1,4,1
+|#9     -            G_BOXTEXT  - - 35,3,8,1
+|#10    -            G_ICON     - - 46,0+5,6+1,3
+|#11    -            G_IMAGE    LASTOB - 55,0+5,6,3
+|
+|/ICNPBX:
+|#1     ICONSTRG     G_STRING   - - 0,0,14,1
+|#2     DATASTRG     G_STRING   - - 24+4,0,14,1
+|#3     MASKSTRG     G_STRING   - - 48+5,0,14,1
+|#4     ICONWIND     G_ICON     - - 0+4,2+12,6,2
+|#5     DATAWIND     G_IMAGE    - - 25+1,2+12,6,3
+|#6     MASKWIND     G_IMAGE    LASTOB - 50+1,2+12,6,3
+|
+|/NOBJTREE:
+|#1     -            G_STRING   - - 5,1,22,1
+|#2     NOOKITEM     G_BUTTON   SELECTABLE,DEFAULT,EXIT - 7,11,8,1
+|#3     NOCNITEM     G_BUTTON   SELECTABLE,EXIT - 19,11,8,1
+|#4     -            G_BOX      - - 6,3,19,1
+|#7     -            G_BOX      - - 6,3,19,3
+|#11    -            G_BOX      - - 6,3,19,3
+|#16    XTYPE        G_FTEXT    EDITABLE,LASTOB - 3,8,25,1
+|
+|/NOBJTREE/#4:
+|#5     -            G_BUTTON   SELECTABLE,RBUTTON - 0,0,8,1
+|#6     -            G_BUTTON   SELECTABLE,RBUTTON - 11,0,8,1
+|
+|/NOBJTREE/#7:
+|#8     STRTYPES     G_BUTTON   SELECTABLE,RBUTTON - 0,0,8,1
+|#9     -            G_BUTTON   SELECTABLE,RBUTTON - 5,2,8,1
+|#10    STRTYPE0     G_BUTTON   SELECTABLE,RBUTTON - 11,0,8,1
+|
+|/NOBJTREE/#11:
+|#12    TXTTYPES     G_BUTTON   SELECTABLE,RBUTTON - 0,0,8,1
+|#13    TXTTYPE0     G_BUTTON   SELECTABLE,RBUTTON - 11,0,8,1
+|#14    BOXTYPES     G_BUTTON   SELECTABLE,RBUTTON - 0,2,8,1
+|#15    BOXTYPE0     G_BUTTON   SELECTABLE,RBUTTON - 11,2,8,1
+|
+|/MENUPBX:
+|#1     -            G_TITLE    - - 4,2,8,1+1
+|#2     -            G_STRING   - - 16,2,8,1
+|#3     -            G_STRING   - DISABLED 28,2,8,1
+|#4     -            G_BOX      LASTOB - 40,2,4,1
+|
+|/NEWMENU:
+|#1     -            G_BOX      - - 0,0,90,1+2
+|#5     -            G_IBOX     - - 0,1+3,80,19
+|
+|/NEWMENU/#1:
+|#2     -            G_IBOX     - - 2,0,12,1+3
+|
+|/NEWMENU/#2:
+|#3     -            G_TITLE    - - 0,0,6,1+3
+|#4     -            G_TITLE    - - 6,0,6,1+3
+|
+|/NEWMENU/#5:
+|#6     -            G_BOX      - - 2,0,20,8
+|#15    -            G_BOX      - - 8,0,13,1
+|
+|/NEWMENU/#6:
+|#7     -            G_STRING   - - 0,0,20,1
+|#8     -            G_STRING   - DISABLED 0,1,20,1
+|#9     -            G_STRING   - - 0,2,20,1
+|#10    -            G_STRING   - - 0,3,20,1
+|#11    -            G_STRING   - - 0,4,20,1
+|#12    -            G_STRING   - - 0,5,20,1
+|#13    -            G_STRING   - - 0,6,20,1
+|#14    -            G_STRING   - - 0,7,20,1
+|
+|/NEWMENU/#15:
+|#16    -            G_STRING   LASTOB - 0,0,13,1
+|
+|/ABOUTREE:
+|#1     -            G_STRING   - - 8,1,29,1
+|#2     -            G_STRING   - - 10,2,24,1
+|#3     -            G_STRING   - - 18,5,7,1
+|#4     -            G_STRING   - - 18,6,8,1
+|#5     AOKITEM      G_BUTTON   SELECTABLE,DEFAULT,EXIT - 31,7,8,1
+|#6     -            G_STRING   - - 9,11,25,1
+|#7     -            G_STRING   - - 11,12,22,1
+|#8     -            G_STRING   - - 15,9,14,1
+|#9     -            G_ICON     - - 4,6,6,2+4
+|#10    -            G_STRING   - - 17,8,10,1
+|#11    -            G_STRING   - - 18,7,8,1
+|#12    -            G_STRING   - - 14,10,18,1
+|#13    -            G_STRING   LASTOB - 10,3,24,1
+|
+|/SORTTREE:
+|#1     -            G_STRING   - - 2,1,32,1
+|#2     -            G_STRING   - - 5,2,24,1
+|#3     -            G_STRING   - - 14,4,1,1
+|#4     -            G_STRING   - - 19,4,4,1
+|#5     -            G_STRING   - - 27,4,4,1
+|#6     -            G_STRING   - - 5,5,5,1
+|#7     -            G_STRING   - - 14,5,1,1
+|#8     -            G_STRING   - - 19,5,4,1
+|#9     -            G_STRING   - - 27,5,4,1
+|#10    -            G_STRING   - - 14,6,1,1
+|#11    -            G_STRING   - - 19,6,4,1
+|#12    -            G_STRING   - - 27,6,4,1
+|#13    STOKITEM     G_BUTTON   SELECTABLE,DEFAULT,EXIT - 7,9,8,1
+|#14    STCNITEM     G_BUTTON   SELECTABLE,EXIT - 21,9,8,1
+|#15    -            G_IBOX     - - 0,3,37,5
+|
+|/SORTTREE/#15:
+|#16    SRTXITEM     G_IBOX     SELECTABLE,RBUTTON - 4,1,7,3
+|#17    SRTYITEM     G_IBOX     SELECTABLE,RBUTTON - 13,1,3,3
+|#18    STXYITEM     G_IBOX     SELECTABLE,RBUTTON - 18,1,6,3
+|#19    STYXITEM     G_IBOX     SELECTABLE,RBUTTON,LASTOB - 26,1,6,3
+|
+|/NEWALRT:
+|#1     ALRTIMG      G_IMAGE    - - 4,1,4,2+4
+|#2     ALRTSTR0     G_STRING   - - 9,1,14,1
+|#3     -            G_STRING   - - 0,0,0,1
+|#4     -            G_STRING   - - 0,0,0,1
+|#5     -            G_STRING   - - 0,0,0,1
+|#6     -            G_STRING   - - 0,0,0,1
+|#7     ALRTBTN0     G_BUTTON   SELECTABLE,DEFAULT,EXIT - 27,1,8,1
+|#8     -            G_BUTTON   SELECTABLE,DEFAULT,EXIT - 0,0,0,1
+|#9     -            G_BUTTON   SELECTABLE,DEFAULT,EXIT,LASTOB - 0,0,0,1
+|
+|/ALRTPBX:
+|#1     APBXBTN      G_BUTTON   EXIT - 41,2,8,1
+|#2     APBXSTR      G_STRING   - - 23,2,14,1
+|#3     APBXIMG0     G_IMAGE    - - 2,0+5,4,2+4
+|#4     -            G_IMAGE    - - 9,0+5,4,2+4
+|#5     -            G_IMAGE    LASTOB - 16,0+5,4,2+4
+|
+|/NEWDIAL:
+|
+|/NEWPANEL:
+|
+|/OUTPTREE:
+|#1     -            G_STRING   - - 2,1,34,1
+|#2     OUTPOK       G_BUTTON   SELECTABLE,DEFAULT,EXIT - 42,10,8,1
+|#3     OUTPCANC     G_BUTTON   SELECTABLE,EXIT - 42,13,8,1
+|#4     -            G_STRING   - - 3,3,26,1
+|#5     CITEM        G_BOX      SELECTABLE - 6,7,2,1
+|#6     PASCITEM     G_BOX      SELECTABLE - 6,9,2,1
+|#7     CBITEM       G_BOX      SELECTABLE - 6,11,2,1
+|#8     F77ITEM      G_BOX      SELECTABLE - 6,13,2,1
+|#9     -            G_STRING   - - 10,7,3,1
+|#10    -            G_STRING   - - 9,9,6,1
+|#11    -            G_STRING   - - 9,11,5,1
+|#12    -            G_STRING   - - 9,13,6,1
+|#13    -            G_STRING   - - 19,7,5,1
+|#14    -            G_STRING   - - 19,9,5,1
+|#15    -            G_STRING   - - 19,11,5,1
+|#16    -            G_STRING   - - 19,13,5,1
+|#17    -            G_STRING   - - 34,3,12,1
+|#18    SRCITEM      G_BOX      SELECTABLE - 41,5,2,1
+|#19    -            G_STRING   - - 46,3,12,1
+|#20    -            G_STRING   - - 44,5,7,1
+|#21    FSRTITEM     G_BOX      SELECTABLE - 6,5,2,1
+|#22    -            G_STRING   - - 9,5,18,1
+|#23    -            G_STRING   LASTOB - 40,8,10,1
+|
+|/STRDIAL:
+|#1     OOKITEM      G_BUTTON   SELECTABLE,DEFAULT,EXIT - 47,7,8,1
+|#2     OCNITEM      G_BUTTON   SELECTABLE,EXIT - 60,7,8,1
+|#3     -            G_STRING   - - 2,3,5,1
+|#4     OSTRITEM     G_FTEXT    EDITABLE - 8,3,72,1
+|#5     -            G_STRING   - - 21,1,30,1
+|#6     STRNAME      G_FTEXT    EDITABLE - 2,7,32,1
+|#7     -            G_STRING   - - 27,4,21,1
+|#8     -            G_STRING   LASTOB - 27,5,33,1
+|
+|/BITDIAL:
+|#1     -            G_STRING   - - 8,1,21,1
+|#2     BITNAME      G_FTEXT    EDITABLE - 3,3,32,1
+|#3     -            G_STRING   - - 3,5,30,1
+|#4     -            G_BUTTON   SELECTABLE,DEFAULT,EXIT - 8,8,8,1
+|#5     -            G_BUTTON   SELECTABLE,EXIT,LASTOB - 21,8,8,1
+|
+|/ICONDIAL:
+|#1     -            G_STRING   - - 13,1,16,1
+|#2     IBTEXT       G_FBOXTEXT EDITABLE - 2,3,19,1
+|#3     IBCHAR       G_FBOXTEXT EDITABLE - 27,3,12,1
+|#4     -            G_IBOX     - - 7,5,9,6
+|#8     -            G_IBOX     - - 28,5,9,6
+|#18    -            G_STRING   - - 17,7,10,1
+|#19    ICONNAME     G_FTEXT    EDITABLE - 2,12,32,1
+|#20    -            G_STRING   - - 2,14,38,1
+|#21    -            G_BUTTON   SELECTABLE,DEFAULT,EXIT - 10,16,8,1
+|#22    -            G_BUTTON   SELECTABLE,EXIT,LASTOB - 24,16,8,1
+|
+|/ICONDIAL/#4:
+|#5     IBTPOS0      G_BOXCHAR  SELECTABLE,RBUTTON - 0,0,9,2
+|#6     -            G_BOXTEXT  SELECTABLE,RBUTTON - 0,2,9,2
+|#7     -            G_BOXCHAR  SELECTABLE,RBUTTON - 0,4,9,2
+|
+|/ICONDIAL/#8:
+|#9     IBCPOS0      G_BOXCHAR  SELECTABLE,RBUTTON - 0,0,3,2
+|#10    -            G_BOXCHAR  SELECTABLE,RBUTTON - 3,0,3,2
+|#11    -            G_BOXCHAR  SELECTABLE,RBUTTON - 6,0,3,2
+|#12    -            G_BOXCHAR  SELECTABLE,RBUTTON - 0,2,3,2
+|#13    -            G_BOXCHAR  SELECTABLE,RBUTTON - 3,2,3,2
+|#14    -            G_BOXCHAR  SELECTABLE,RBUTTON - 6,2,3,2
+|#15    -            G_BOXCHAR  SELECTABLE,RBUTTON - 0,4,3,2
+|#16    -            G_BOXCHAR  SELECTABLE,RBUTTON - 3,4,3,2
+|#17    -            G_BOXCHAR  SELECTABLE,RBUTTON - 6,4,3,2
+|
+|/BOXDIAL:
+|#1     -            G_STRING   - - 9,1,20,1
+|#2     OCHRITEM     G_FTEXT    EDITABLE - 3,3,23,1
+|#3     BOXNAME      G_FTEXT    EDITABLE - 3,5,32,1
+|#4     -            G_BUTTON   SELECTABLE,DEFAULT,EXIT - 8,8,8,1
+|#5     -            G_BUTTON   SELECTABLE,EXIT,LASTOB - 22,8,8,1
+|
+|/TEXTDIAL:
+|#1     -            G_BUTTON   SELECTABLE,DEFAULT,EXIT - 49,11,8,1
+|#2     -            G_BUTTON   SELECTABLE,EXIT - 62,11,8,1
+|#3     -            G_IBOX     - - 0,3,75,6
+|#10    -            G_STRING   - - 23,1,26,1
+|#11    TEXTNAME     G_FTEXT    EDITABLE,LASTOB - 2,11,33,1
+|
+|/TEXTDIAL/#3:
+|#4     TMPLTTAG     G_STRING   - - 1,0,7,1
+|#5     OTMPITEM     G_FTEXT    EDITABLE - 1,1,72,1
+|#6     VALIDTAG     G_STRING   - - 1,2,7,1
+|#7     OVALITEM     G_FTEXT    EDITABLE - 1,3,72,1
+|#8     -            G_STRING   - - 2,4,6,1
+|#9     OTEXITEM     G_FTEXT    EDITABLE - 1,5,72,1
+|
+|/LOADDIAL:
+|#1     -            G_STRING   - - 5,1,20,1
+|#2     LOADCANC     G_BUTTON   SELECTABLE,EXIT - 33,2,8,1
+|#3     LOADOK       G_BUTTON   SELECTABLE,DEFAULT,EXIT - 33,4,8,1
+|#4     LOADDATA     G_BUTTON   SELECTABLE - 9,7,8,1
+|#5     LOADMASK     G_BUTTON   SELECTABLE - 23,7,8,1
+|#6     -            G_STRING   - - 2,3,25,1
+|#7     -            G_STRING   - - 2,4,28,1
+|#8     -            G_STRING   LASTOB - 2,5,16,1
+|
+|/SAFEDIAL:
+|#1     -            G_BOX      HIDETREE - 2,3,8,9
+|#2     -            G_STRING   - - 2,1,35,1
+|#3     -            G_STRING   - - 13,3,29,1
+|#4     -            G_STRING   - - 13,4,29,1
+|#5     -            G_STRING   - - 13,5,29,1
+|#6     -            G_STRING   - - 13,7,29,1
+|#7     -            G_STRING   - - 13,8,29,1
+|#8     -            G_STRING   - - 13,9,15,1
+|#9     -            G_STRING   - - 13,11,26,1
+|#10    -            G_STRING   - - 13,12,24,1
+|#11    -            G_STRING   - - 13,13,21,1
+|#12    SAFEOK       G_BUTTON   SELECTABLE,DEFAULT,EXIT - 14,15,8,1
+|#13    -            G_STRING   - - 2,15,8,1
+|#14    SAVECANC     G_BUTTON   SELECTABLE,EXIT - 29,15,8,1
+|#15    SAFEXPRT     G_BUTTON   SELECTABLE,RBUTTON - 2,11,8,1
+|#16    SAFENORM     G_BUTTON   SELECTABLE,RBUTTON - 2,7,8,1
+|#17    SAFELOCK     G_BUTTON   SELECTABLE,RBUTTON,LASTOB - 2,3,8,1
+|
+|/INFODIAL:
+|#1     -            G_STRING   - - 2,6,9,1
+|#2     -            G_STRING   - - 3,4,8,1
+|#3     -            G_STRING   - - 3,8,8,1
+|#4     -            G_STRING   - - 5,12,29,1
+|#5     INFOOBJ      G_STRING   - - 12,4,5,1
+|#6     INFOIB       G_STRING   - - 12,6,5,1
+|#7     INFOBB       G_STRING   - - 12,8,5,1
+|#8     -            G_STRING   - - 12,10,22,1
+|#9     -            G_STRING   - - 17,1,16,1
+|#10    INFONAME     G_STRING   - - 20,2,9,1
+|#11    -            G_STRING   - - 20,4,9,1
+|#12    -            G_STRING   - - 21,8,8,1
+|#13    -            G_STRING   - - 22,6,7,1
+|#14    INFOTI       G_STRING   - - 30,4,5,1
+|#15    INFOIMG      G_STRING   - - 30,6,5,1
+|#16    INFOSTR      G_STRING   - - 30,8,5,1
+|#17    INFOTOT      G_STRING   - - 35,10,5,1
+|#18    INFOLEFT     G_STRING   - - 35,12,5,1
+|#19    INFOPANL     G_IBOX     - - 38,4,12,1
+|#22    INFOOK       G_BUTTON   SELECTABLE,DEFAULT,EXIT,LASTOB - 44,11,8,1
+|
+|/INFODIAL/INFOPANL:
+|#20    -            G_STRING   - - 0,0,6,1
+|#21    INFOTREE     G_STRING   - - 7,0,5,1
+|
+|/ICONTOOL:
+|#1     -            G_BOX      - - 0,1,12,4
+|#12    -            G_BOX      - - 0,6,12,2
+|#16    -            G_BOX      - - 0,9,12,2
+|#20    -            G_BOX      - - 0,12,12,7
+|
+|/ICONTOOL/#1:
+|#2     HRCTGBOX     G_IMAGE    SELECTABLE - 0,0,2,2
+|#3     SRCTGBOX     G_IMAGE    SELECTABLE - 2,0,2,2
+|#4     LINEBOX      G_IMAGE    SELECTABLE - 4,0,4,2
+|#5     HPLYGBOX     G_IMAGE    SELECTABLE - 8,0,2,2
+|#6     SPLYGBOX     G_IMAGE    SELECTABLE - 10,0,2,2
+|#7     HARCBOX      G_IMAGE    SELECTABLE - 0,2,2,2
+|#8     SARCBOX      G_IMAGE    SELECTABLE - 2,2,2,2
+|#9     DOTBOX       G_IMAGE    SELECTABLE - 4,2,4,2
+|#10    HOVALBOX     G_IMAGE    SELECTABLE - 8,2,2,2
+|#11    SOVALBOX     G_IMAGE    SELECTABLE - 10,2,2,2
+|
+|/ICONTOOL/#12:
+|#13    ERASEBOX     G_IMAGE    SELECTABLE - 0,0,4,2
+|#14    FCLORBOX     G_IMAGE    SELECTABLE - 4,0,4,2
+|#15    BCLORBOX     G_IMAGE    SELECTABLE - 8,0,4,2
+|
+|/ICONTOOL/#16:
+|#17    GRIDBOX      G_IMAGE    SELECTABLE - 0,0,4,2
+|#18    UNDOBOX      G_IMAGE    SELECTABLE - 4,0,4,2
+|#19    RUBERBOX     G_IMAGE    SELECTABLE - 8,0,4,2
+|
+|/ICONTOOL/#20:
+|#21    CLIPBOX      G_IMAGE    SELECTABLE - 2,1,8,5
+|
+|/ICONTOOL/CLIPBOX:
+|#22    CLIPSHOW     G_IBOX     LASTOB - 1,1,6,3
+|
+|/FREEPBX:
+|#1     PBXSTR       G_STRING   - - 11+7,1+7,11,1
+|#2     PBXIMG       G_IMAGE    LASTOB - 2+6,1,6,3
+|
+|/POPSWTCH:
+|#1     SBLEPOP      G_STRING   - - 0,0,16,1
+|#2     EXITPOP      G_STRING   - - 0,1,16,1
+|#3     DFLTPOP      G_STRING   - - 0,2,16,1
+|#4     RDIOPOP      G_STRING   - - 0,3,16,1
+|#5     TCHXPOP      G_STRING   - - 0,4,16,1
+|#6     EDBLPOP      G_STRING   - - 0,5,16,1
+|#7     HDDNPOP      G_STRING   - - 0,6,16,1
+|#8     -            G_STRING   - DISABLED 0,7,33,1
+|#9     SHADPOP      G_STRING   - - 0,8,16,1
+|#10    CHEKPOP      G_STRING   - - 0,9,16,1
+|#11    OUTLPOP      G_STRING   - - 0,10,16,1
+|#12    CROSPOP      G_STRING   - - 0,11,16,1
+|#13    DSBLPOP      G_STRING   - - 0,12,16,1
+|#14    SLCTPOP      G_STRING   - - 16,8,17,1
+|#15    ESCPOP       G_STRING   HIDETREE DISABLED 16,0,17,1
+|#16    BITBPOP      G_STRING   HIDETREE DISABLED 16,1,17,1
+|#17    SCCTRPOP     G_STRING   HIDETREE DISABLED 16,2,17,1
+|#18    D3INDPOP     G_STRING   - - 16,0,17,1
+|#19    SYCOLPOP     G_STRING   - - 16,1,17,1
+|#20    SUBMPOP      G_STRING   - DISABLED 16,4,17,1
+|#21    WBAKPOP      G_STRING   - - 16,9,17,1
+|#22    EXT3DPOP     G_STRING   - - 16,10,17,1
+|#23    HIGHLPOP     G_STRING   HIDETREE DISABLED 16,11,17,1
+|#24    UHIGLPOP     G_STRING   HIDETREE DISABLED 16,12,17,1
+|#25    D3BAKPOP     G_STRING   LASTOB - 16,2,17,1
+|
+|/POPRULE:
+|#1     TRANSPOP     G_BOXTEXT  - - 0,0,12,1
+|#2     RPLACPOP     G_BOXTEXT  - - 0,1,12,1
+|#3     -            G_STRING   - DISABLED 0,2,12,1
+|#4     LARGEPOP     G_BOXTEXT  - - 0,3,12,1
+|#5     SMALLPOP     G_BOXTEXT  - - 0,4,12,1
+|#6     -            G_STRING   - DISABLED 0,5,12,1
+|#7     LEFTPOP      G_BOXTEXT  - - 0,6,12,1
+|#8     RIGHTPOP     G_BOXTEXT  - - 0,8,12,1
+|#9     CENTPOP      G_BOXTEXT  LASTOB - 0,7,12,1
+|
+|/POPPOSN:
+|#1     JLFTPOP      G_STRING   - - 0,0,19,1
+|#2     JCENPOP      G_STRING   - - 0,1,19,1
+|#3     JRGTPOP      G_STRING   - - 0,2,19,1
+|#4     -            G_STRING   - DISABLED 0,3,19,1
+|#5     JTOPPOP      G_STRING   - - 0,4,19,1
+|#6     JMIDPOP      G_STRING   - - 0,5,19,1
+|#7     JBOTPOP      G_STRING   - - 0,6,19,1
+|#8     -            G_STRING   - DISABLED 0,7,19,1
+|#9     HFILLPOP     G_STRING   - - 0,8,19,1
+|#10    VFILLPOP     G_STRING   - - 0,9,19,1
+|#11    -            G_STRING   - DISABLED 0,10,19,1
+|#12    SNAPPOP      G_STRING   LASTOB - 0,11,19,1
+|
+|/POPTHICK:
+|#1     -            G_BOX      - - 2,1,3,1
+|#2     -            G_BOX      - - 9,1,3,1
+|#3     -            G_BOX      - - 2,4,3,1
+|#4     -            G_BOX      - - 9,4,3,1
+|#5     -            G_BOX      - - 2,7,3,1
+|#6     -            G_BOX      - - 9,7,3,1
+|#7     -            G_BOX      - - 5,10,3,1
+|#8     OUT3POP      G_IBOX     - - 0,0,7,3
+|#9     OUT2POP      G_IBOX     - - 0,3,7,3
+|#10    OUT1POP      G_IBOX     - - 0,6,7,3
+|#11    NONEPOP      G_IBOX     - - 0,9,14,3
+|#12    IN1POP       G_IBOX     - - 7,6,7,3
+|#13    IN2POP       G_IBOX     - - 7,3,7,3
+|#14    IN3POP       G_IBOX     LASTOB - 7,0,7,3
+|
+|/POPPATRN:
+|#1     PAT0POP      G_BOX      - - 0,0,6,2
+|#2     -            G_BOX      - - 6,0,6,2
+|#3     -            G_BOX      - - 0,2,6,2
+|#4     -            G_BOX      - - 6,2,6,2
+|#5     -            G_BOX      - - 0,4,6,2
+|#6     -            G_BOX      - - 6,4,6,2
+|#7     -            G_BOX      - - 0,6,6,2
+|#8     -            G_BOX      LASTOB - 6,6,6,2
+|
+|/POPCOLOR:
+|#1     COL0POP      G_BOXCHAR  - - 0,0,4,2
+|#2     -            G_BOXCHAR  - - 4,0,4,2
+|#3     -            G_BOXCHAR  - - 8,0,4,2
+|#4     -            G_BOXCHAR  - - 12,0,4,2
+|#5     -            G_BOXCHAR  - - 0,2,4,2
+|#6     -            G_BOXCHAR  - - 4,2,4,2
+|#7     -            G_BOXCHAR  - - 8,2,4,2
+|#8     -            G_BOXCHAR  - - 12,2,4,2
+|#9     -            G_BOXCHAR  - - 0,4,4,2
+|#10    -            G_BOXCHAR  - - 4,4,4,2
+|#11    -            G_BOXCHAR  - - 8,4,4,2
+|#12    -            G_BOXCHAR  - - 12,4,4,2
+|#13    -            G_BOXCHAR  - - 0,6,4,2
+|#14    -            G_BOXCHAR  - - 4,6,4,2
+|#15    -            G_BOXCHAR  - - 8,6,4,2
+|#16    -            G_BOXCHAR  LASTOB - 12,6,4,2
+|
+|/NAMETREE:
+|#1     -            G_STRING   - - 11,1,15,1
+|#2     -            G_STRING   - - 2,3,35,1
+|#3     NAMEITEM     G_FBOXTEXT EDITABLE - 11,5,14,1
+|#4     -            G_BUTTON   SELECTABLE,DEFAULT,EXIT - 15,8,8,1
+|#5     -            G_BUTTON   SELECTABLE,EXIT,LASTOB - 27,8,8,1
+|
+|/PROGRESS:
+|#1     -            G_STRING   - - 3,1,30,1
+|#2     -            G_STRING   - - 11,2,12,1
+|#3     WRITING      G_STRING   LASTOB - 14,3,6,1
+|
+|/GRID:
+|#1     GRIDWIND     G_IBOX     LASTOB - 0,0,45,14
+|
+|/NEWICNSZ:
+|#1     -            G_STRING   - - 2,1,12,1
+|#2     -            G_STRING   - - 2,2,6,1
+|#3     -            G_IBOX     - - 14,2,27,1
+|#8     -            G_STRING   - - 2,4,7,1
+|#9     -            G_BOX      - - 9,4,40,3
+|#26    -            G_STRING   - - 2,8,23,1
+|#27    -            G_BOX      - - 14,9,24,1
+|#34    OKCHNGSZ     G_BUTTON   SELECTABLE,DEFAULT,EXIT - 13,11,8,1
+|#35    CNCLCHGS     G_BUTTON   SELECTABLE,EXIT,LASTOB - 29,11,9,1
+|
+|/NEWICNSZ/#3:
+|#4     BEGWDSZ      G_BUTTON   SELECTABLE,RBUTTON - 0,0,6,1
+|#5     -            G_BUTTON   SELECTABLE,RBUTTON - 7,0,6,1
+|#6     -            G_BUTTON   SELECTABLE,RBUTTON - 14,0,6,1
+|#7     LASTWDSZ     G_BUTTON   SELECTABLE,RBUTTON - 21,0,6,1
+|
+|/NEWICNSZ/#9:
+|#10    BEGHTSZ      G_BUTTON   SELECTABLE,RBUTTON - 1,0,3,1
+|#11    -            G_BUTTON   SELECTABLE,RBUTTON - 6,0,3,1
+|#12    -            G_BUTTON   SELECTABLE,RBUTTON - 10,0,4,1
+|#13    -            G_BUTTON   SELECTABLE,RBUTTON - 15,0,4,1
+|#14    -            G_BUTTON   SELECTABLE,RBUTTON - 20,0,4,1
+|#15    -            G_BUTTON   SELECTABLE,RBUTTON - 25,0,4,1
+|#16    -            G_BUTTON   SELECTABLE,RBUTTON - 30,0,4,1
+|#17    -            G_BUTTON   SELECTABLE,RBUTTON - 35,0,4,1
+|#18    -            G_BUTTON   SELECTABLE,RBUTTON - 0,2,4,1
+|#19    -            G_BUTTON   SELECTABLE,RBUTTON - 5,2,4,1
+|#20    -            G_BUTTON   SELECTABLE,RBUTTON - 10,2,4,1
+|#21    -            G_BUTTON   SELECTABLE,RBUTTON - 15,2,4,1
+|#22    -            G_BUTTON   SELECTABLE,RBUTTON - 20,2,4,1
+|#23    -            G_BUTTON   SELECTABLE,RBUTTON - 25,2,4,1
+|#24    -            G_BUTTON   SELECTABLE,RBUTTON - 30,2,4,1
+|#25    LASTHTSZ     G_BUTTON   SELECTABLE,RBUTTON - 35,2,4,1
+|
+|/NEWICNSZ/#27:
+|#28    -            G_BUTTON   - - 0,0,8,1
+|#29    SCALESZ      G_IBOX     SELECTABLE,RBUTTON SELECTED 0,0,8,1
+|#30    -            G_BUTTON   - - 8,0,8,1
+|#31    KEEPSZ       G_IBOX     SELECTABLE,RBUTTON - 8,0,8,1
+|#32    -            G_BUTTON   - - 16,0,8,1
+|#33    CLEARSZ      G_IBOX     SELECTABLE,RBUTTON - 16,0,8,1
+|
+|/.strings:
+|#0     STTITLE         13 -     "UNTITLED.RSC "
+|#1     HIDEPART        24 -     "  Hide Parts          \x07P"
+|#2     SHOWPART        24 -     "  Show Parts          \x07P"
+|#3     HIDETOOL        24 -     "  Hide Tools          \x07H"
+|#4     SHOWTOOL        24 -     "  Show Tools          \x07H"
+|#5     -               14 -     " MENU PARTBOX "
+|#6     STSTR            7 -     "Strings"
+|#7     STIMG           10 -     "Image Data"
+|#8     STFRSTR         17 -     "Free String Index"
+|#9     STBB             7 -     "BITBLKs"
+|#10    STFRIMG         16 -     "Free Image Index"
+|#11    STIB             8 -     "ICONBLKs"
+|#12    STTI             8 -     "TEDINFOs"
+|#13    STOBJ            7 -     "OBJECTs"
+|#14    STTRIND         10 -     "Tree Index"
+|#15    STHDR            6 -     "Header"
+|#16    STNAME           5 -     "Names"
+|#17    STLDRES         13 -     "load resource"
+|#18    STSASRES        16 -     "save resource as"
+|#19    STLDICN          9 -     "load icon"
+|#20    STSASICN        12 -     "save icon as"
+|#21    STNODEF        160 ALERT "[2][Can't find definition (.DFN)|file for this resource.  If"...
+|#22    STMOVED        125 ALERT "[1][You are about to change the|object tree structure by|mov"...
+|#23    STLOMEM        135 ALERT "[2][You are almost out of memory.|Saving the resource should"...
+|#24    STNMDUP         86 ALERT "[2][The name you have chosen|is not unique.  Please|enter a "...
+|#25    STNONAM         80 ALERT "[2][Trees are required to have|names.  Please enter a|non-bl"...
+|#26    STLOCKED        71 ALERT "[3][This operation is not allowed|in LOCKED protection mode."...
+|#27    STSIZEP        138 ALERT "[1][This string is too long to fit|in its parent object.  If"...
+|#28    STNFULL        122 ALERT "[3][GEM RCS cannot assign a name|to this tree/object; the na"...
+|#29    STPANIC        111 ALERT "[3][MEMORY PANIC!  You are at the|END of the workspace.  Sav"...
+|#30    STNROOM         71 ALERT "[3][There is not enough room in|the workspace for this file."...
+|#31    STNWNDW         64 ALERT "[3][FATAL ERROR!|No windows are available|for GEM RCS.][ Abo"...
+|#32    STNMEM          73 ALERT "[3][FATAL ERROR!|Not enough memory for the|GEM RCS edit buff"...
+|#33    SNDSPACE       151 ALERT "[3][Not enough room on the disk to|save this file.  Insert a"...
+|#34    STOOLONG       135 ALERT "[1][This string is too long.|Message Line (ALERT tree)|has 4"...
+|#35    NOFNAME         98 ALERT "[3][No filename given.  A filename|is required before GEM RC"...
+|#36    ABNDCHGS        57 ALERT "[2][Abandon/Save edited resource?][Abandon|Save| Cancel ]"
+|#37    NOOVLERR       103 ALERT "[3][Cannot find RCS.APP program.|Please insert the correct d"...
+|#38    NOEDMEM         73 ALERT "[3][There is not enough memory|available to use the Icon|Edi"...
+|
+|/.images:
+|#0     CLIPMPTY     48x44
+|#1     CLIPFULL     48x44
+
+=== rcs-names-explicit
+cmd --names $ROOT/src/atari/rcslow.dfn $ROOT/src/atari/rcs.rsc ls
+out
+|MENUTREE
+|TOOLBOX
+|FILEPBX
+|TYPETREE
+|DIALPBX
+|ICNPBX
+|NOBJTREE
+|MENUPBX
+|NEWMENU
+|ABOUTREE
+|SORTTREE
+|NEWALRT
+|ALRTPBX
+|NEWDIAL
+|NEWPANEL
+|OUTPTREE
+|STRDIAL
+|BITDIAL
+|ICONDIAL
+|BOXDIAL
+|TEXTDIAL
+|LOADDIAL
+|SAFEDIAL
+|INFODIAL
+|ICONTOOL
+|FREEPBX
+|POPSWTCH
+|POPRULE
+|POPPOSN
+|POPTHICK
+|POPPATRN
+|POPCOLOR
+|NAMETREE
+|PROGRESS
+|GRID
+|NEWICNSZ
+|.strings
+|.images
+
+=== rcs-nonames
+cmd --no-names $ROOT/src/atari/rcs.rsc ls -l
+out
+|#0     MENU1        MENU~ 58
+|#1     DIALOG2      DIAL~ 13
+|#2     PANEL3       PANL~ 7
+|#3     DIALOG4      DIAL~ 15
+|#4     DIALOG5      DIAL~ 12
+|#5     PANEL6       PANL~ 7
+|#6     DIALOG7      DIAL~ 17
+|#7     PANEL8       PANL~ 5
+|#8     MENU9        MENU~ 17
+|#9     DIALOG10     DIAL~ 14
+|#10    DIALOG11     DIAL~ 20
+|#11    DIALOG12     DIAL~ 10
+|#12    DIALOG13     DIAL~ 6
+|#13    PANEL14      PANL~ 1
+|#14    PANEL15      PANL~ 1
+|#15    DIALOG16     DIAL~ 24
+|#16    DIALOG17     DIAL~ 9
+|#17    DIALOG18     DIAL~ 6
+|#18    DIALOG19     DIAL~ 23
+|#19    DIALOG20     DIAL~ 6
+|#20    DIALOG21     DIAL~ 12
+|#21    DIALOG22     DIAL~ 9
+|#22    DIALOG23     DIAL~ 18
+|#23    DIALOG24     DIAL~ 23
+|#24    PANEL25      PANL~ 23
+|#25    PANEL26      PANL~ 3
+|#26    PANEL27      PANL~ 26
+|#27    PANEL28      PANL~ 10
+|#28    PANEL29      PANL~ 13
+|#29    PANEL30      PANL~ 15
+|#30    PANEL31      PANL~ 9
+|#31    PANEL32      PANL~ 17
+|#32    DIALOG33     DIAL~ 6
+|#33    PANEL34      PANL~ 4
+|#34    PANEL35      PANL~ 2
+|#35    DIALOG36     DIAL~ 36
+|-      .strings     DIR   39
+|-      .images      DIR   2
+
+=== rcs-nonames-noguess
+cmd --no-names --no-guess $ROOT/src/atari/rcs.rsc ls -l
+out
+|#0     -            UNKN  58
+|#1     -            UNKN  13
+|#2     -            UNKN  7
+|#3     -            UNKN  15
+|#4     -            UNKN  12
+|#5     -            UNKN  7
+|#6     -            UNKN  17
+|#7     -            UNKN  5
+|#8     -            UNKN  17
+|#9     -            UNKN  14
+|#10    -            UNKN  20
+|#11    -            UNKN  10
+|#12    -            UNKN  6
+|#13    -            UNKN  1
+|#14    -            UNKN  1
+|#15    -            UNKN  24
+|#16    -            UNKN  9
+|#17    -            UNKN  6
+|#18    -            UNKN  23
+|#19    -            UNKN  6
+|#20    -            UNKN  12
+|#21    -            UNKN  9
+|#22    -            UNKN  18
+|#23    -            UNKN  23
+|#24    -            UNKN  23
+|#25    -            UNKN  3
+|#26    -            UNKN  26
+|#27    -            UNKN  10
+|#28    -            UNKN  13
+|#29    -            UNKN  15
+|#30    -            UNKN  9
+|#31    -            UNKN  17
+|#32    -            UNKN  6
+|#33    -            UNKN  4
+|#34    -            UNKN  2
+|#35    -            UNKN  36
+|-      .strings     DIR   39
+|-      .images      DIR   2
+
+=== rcs-nonames-noguess-stat
+cmd --no-names --no-guess $ROOT/src/atari/rcs.rsc stat /#0
+out
+|path: /#0
+|kind: UNKN
+|kind-source: none
+|name: -
+|index: 0
+|objects: 58
+|root-children: 2
+
+=== rcs-pixels
+cmd --pixels $ROOT/src/atari/rcs.rsc ls -l /ABOUTREE
+out
+|#1     -            G_STRING   - - 64,16,232,16
+|#2     -            G_STRING   - - 80,32,192,16
+|#3     -            G_STRING   - - 144,80,56,16
+|#4     -            G_STRING   - - 144,96,64,16
+|#5     AOKITEM      G_BUTTON   SELECTABLE,DEFAULT,EXIT - 248,112,64,16
+|#6     -            G_STRING   - - 72,176,200,16
+|#7     -            G_STRING   - - 88,192,176,16
+|#8     -            G_STRING   - - 120,144,112,16
+|#9     -            G_ICON     - - 32,96,48,36
+|#10    -            G_STRING   - - 136,128,80,16
+|#11    -            G_STRING   - - 144,112,64,16
+|#12    -            G_STRING   - - 112,160,144,16
+|#13    -            G_STRING   LASTOB - 80,48,192,16
+
+=== rcs-pixels88
+cmd --pixels=8x8 $ROOT/src/atari/rcs.rsc ls -l /ABOUTREE
+out
+|#1     -            G_STRING   - - 64,8,232,8
+|#2     -            G_STRING   - - 80,16,192,8
+|#3     -            G_STRING   - - 144,40,56,8
+|#4     -            G_STRING   - - 144,48,64,8
+|#5     AOKITEM      G_BUTTON   SELECTABLE,DEFAULT,EXIT - 248,56,64,8
+|#6     -            G_STRING   - - 72,88,200,8
+|#7     -            G_STRING   - - 88,96,176,8
+|#8     -            G_STRING   - - 120,72,112,8
+|#9     -            G_ICON     - - 32,48,48,20
+|#10    -            G_STRING   - - 136,64,80,8
+|#11    -            G_STRING   - - 144,56,64,8
+|#12    -            G_STRING   - - 112,80,144,8
+|#13    -            G_STRING   LASTOB - 80,24,192,8
+
+=== rcs-stat-bitblk
+cmd $ROOT/src/atari/rcs.rsc stat /TOOLBOX/HOTBGCOL
+out
+|path: /TOOLBOX/HOTBGCOL
+|tree: 1
+|index: 1
+|name: HOTBGCOL
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 2
+|head: -1
+|tail: -1
+|type: 0x0017 G_IMAGE
+|flags: 0x0001 SELECTABLE
+|state: 0x0000 -
+|x: 0
+|y: 0
+|w: 6
+|h: 3
+|wb: 6
+|hl: 44
+|bi-x: 0
+|bi-y: 0
+|color: 1
+|data-bytes: 264
+
+=== rcs-stat-button
+cmd $ROOT/src/atari/rcs.rsc stat /ABOUTREE/AOKITEM
+out
+|path: /ABOUTREE/AOKITEM
+|tree: 9
+|index: 5
+|name: AOKITEM
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 6
+|head: -1
+|tail: -1
+|type: 0x001A G_BUTTON
+|flags: 0x0007 SELECTABLE,DEFAULT,EXIT
+|state: 0x0000 -
+|x: 31
+|y: 7
+|w: 8
+|h: 1
+|text: "   OK   "
+
+=== rcs-stat-icon
+cmd $ROOT/src/atari/rcs.rsc stat /ABOUTREE/#9
+out
+|path: /ABOUTREE/#9
+|tree: 9
+|index: 9
+|name: -
+|reachable: yes
+|parent: 0
+|children: 0
+|next: 10
+|head: -1
+|tail: -1
+|type: 0x001F G_ICON
+|flags: 0x0000 -
+|state: 0x0000 -
+|x: 4
+|y: 6
+|w: 6
+|h: 2+4
+|text: ""
+|char: '\x00'
+|fg-color: 1
+|bg-color: 0
+|char-pos: 0,0
+|icon: 0,0,48,32
+|text-box: 24,24,0,8
+|data-bytes: 192
+|mask-bytes: 192
+
+=== rcs-stat-image
+cmd $ROOT/src/atari/rcs.rsc stat /.images/CLIPMPTY
+out
+|path: /.images/CLIPMPTY
+|index: 0
+|name: CLIPMPTY
+|wb: 6
+|hl: 44
+|bi-x: 0
+|bi-y: 0
+|color: 1
+|data-bytes: 264
+
+=== rcs-stat-string
+cmd $ROOT/src/atari/rcs.rsc stat /.strings/HIDEPART
+out
+|path: /.strings/HIDEPART
+|index: 1
+|name: HIDEPART
+|length: 24
+|text: "  Hide Parts          \x07P"
+|alert: no
+
+=== rcs-stat-tree
+cmd $ROOT/src/atari/rcs.rsc stat /ABOUTREE
+out
+|path: /ABOUTREE
+|kind: DIAL
+|kind-source: file
+|name: ABOUTREE
+|index: 9
+|objects: 14
+|root-children: 13
+
+=== rcs-strings
+cmd $ROOT/src/atari/rcs.rsc ls -l /.strings
+out
+|#0     STTITLE         13 -     "UNTITLED.RSC "
+|#1     HIDEPART        24 -     "  Hide Parts          \x07P"
+|#2     SHOWPART        24 -     "  Show Parts          \x07P"
+|#3     HIDETOOL        24 -     "  Hide Tools          \x07H"
+|#4     SHOWTOOL        24 -     "  Show Tools          \x07H"
+|#5     -               14 -     " MENU PARTBOX "
+|#6     STSTR            7 -     "Strings"
+|#7     STIMG           10 -     "Image Data"
+|#8     STFRSTR         17 -     "Free String Index"
+|#9     STBB             7 -     "BITBLKs"
+|#10    STFRIMG         16 -     "Free Image Index"
+|#11    STIB             8 -     "ICONBLKs"
+|#12    STTI             8 -     "TEDINFOs"
+|#13    STOBJ            7 -     "OBJECTs"
+|#14    STTRIND         10 -     "Tree Index"
+|#15    STHDR            6 -     "Header"
+|#16    STNAME           5 -     "Names"
+|#17    STLDRES         13 -     "load resource"
+|#18    STSASRES        16 -     "save resource as"
+|#19    STLDICN          9 -     "load icon"
+|#20    STSASICN        12 -     "save icon as"
+|#21    STNODEF        160 ALERT "[2][Can't find definition (.DFN)|file for this resource.  If"...
+|#22    STMOVED        125 ALERT "[1][You are about to change the|object tree structure by|mov"...
+|#23    STLOMEM        135 ALERT "[2][You are almost out of memory.|Saving the resource should"...
+|#24    STNMDUP         86 ALERT "[2][The name you have chosen|is not unique.  Please|enter a "...
+|#25    STNONAM         80 ALERT "[2][Trees are required to have|names.  Please enter a|non-bl"...
+|#26    STLOCKED        71 ALERT "[3][This operation is not allowed|in LOCKED protection mode."...
+|#27    STSIZEP        138 ALERT "[1][This string is too long to fit|in its parent object.  If"...
+|#28    STNFULL        122 ALERT "[3][GEM RCS cannot assign a name|to this tree/object; the na"...
+|#29    STPANIC        111 ALERT "[3][MEMORY PANIC!  You are at the|END of the workspace.  Sav"...
+|#30    STNROOM         71 ALERT "[3][There is not enough room in|the workspace for this file."...
+|#31    STNWNDW         64 ALERT "[3][FATAL ERROR!|No windows are available|for GEM RCS.][ Abo"...
+|#32    STNMEM          73 ALERT "[3][FATAL ERROR!|Not enough memory for the|GEM RCS edit buff"...
+|#33    SNDSPACE       151 ALERT "[3][Not enough room on the disk to|save this file.  Insert a"...
+|#34    STOOLONG       135 ALERT "[1][This string is too long.|Message Line (ALERT tree)|has 4"...
+|#35    NOFNAME         98 ALERT "[3][No filename given.  A filename|is required before GEM RC"...
+|#36    ABNDCHGS        57 ALERT "[2][Abandon/Save edited resource?][Abandon|Save| Cancel ]"
+|#37    NOOVLERR       103 ALERT "[3][Cannot find RCS.APP program.|Please insert the correct d"...
+|#38    NOEDMEM         73 ALERT "[3][There is not enough memory|available to use the Icon|Edi"...
+
+=== rcs-tree
+cmd $ROOT/src/atari/rcs.rsc tree
+out
+|/
+||-- #0 MENUTREE MENU 58
+||   |-- #1 - G_BOX - -
+||   |   `-- #2 - G_IBOX - -
+||   |       |-- #3 DESKMENU G_TITLE - -
+||   |       |-- #4 FILEMENU G_TITLE - -
+||   |       |-- #5 GLOBMENU G_TITLE - -
+||   |       |-- #6 EDITMENU G_TITLE - -
+||   |       |-- #7 OPTNMENU G_TITLE - -
+||   |       `-- #8 ARRMENU G_TITLE - -
+||   `-- #9 SCREEN G_IBOX - -
+||       |-- #10 - G_BOX - -
+||       |   |-- #11 ABOUITEM G_STRING - -
+||       |   |-- #12 ACCLINE G_STRING - DISABLED
+||       |   |-- #13 - G_STRING - -
+||       |   |-- #14 - G_STRING - -
+||       |   |-- #15 - G_STRING - -
+||       |   |-- #16 - G_STRING - -
+||       |   |-- #17 - G_STRING - -
+||       |   `-- #18 - G_STRING - -
+||       |-- #19 - G_BOX - -
+||       |   |-- #20 NEWITEM G_STRING - -
+||       |   |-- #21 OPENITEM G_STRING - -
+||       |   |-- #22 MERGITEM G_STRING - -
+||       |   |-- #23 - G_STRING - DISABLED
+||       |   |-- #24 CLOSITEM G_STRING - -
+||       |   |-- #25 SAVEITEM G_STRING - -
+||       |   |-- #26 SVASITEM G_STRING - -
+||       |   |-- #27 RVRTITEM G_STRING - -
+||       |   |-- #28 - G_STRING - DISABLED
+||       |   `-- #29 QUITITEM G_STRING - -
+||       |-- #30 - G_BOX - -
+||       |   |-- #31 OUTPITEM G_STRING - -
+||       |   |-- #32 SAFEITEM G_STRING - -
+||       |   |-- #33 SVOSITEM G_STRING - -
+||       |   |-- #34 - G_STRING - DISABLED
+||       |   |-- #35 PARTITEM G_STRING - -
+||       |   `-- #36 TOOLITEM G_STRING - -
+||       |-- #37 - G_BOX - -
+||       |   |-- #38 CUTITEM G_STRING - -
+||       |   |-- #39 COPYITEM G_STRING - -
+||       |   |-- #40 PASTITEM G_STRING - -
+||       |   |-- #41 - G_STRING - DISABLED
+||       |   |-- #42 DELITEM G_STRING - -
+||       |   |-- #43 - G_STRING - DISABLED
+||       |   |-- #44 INVITEM G_STRING - -
+||       |   |-- #45 SOLIDIMG G_STRING - -
+||       |   `-- #46 SIZEITEM G_STRING - -
+||       |-- #47 - G_BOX - -
+||       |   |-- #48 INFITEM G_STRING - -
+||       |   |-- #49 RNAMITEM G_STRING - -
+||       |   |-- #50 TYPEITEM G_STRING - -
+||       |   |-- #51 LOADITEM G_STRING - -
+||       |   `-- #52 ICNEDITM G_STRING - -
+||       `-- #53 - G_BOX - -
+||           |-- #54 SRTITEM G_STRING - -
+||           |-- #55 UNHDITEM G_STRING - -
+||           |-- #56 - G_STRING - DISABLED
+||           `-- #57 FLTITEM G_STRING LASTOB -
+||-- #1 TOOLBOX DIAL 13
+||   |-- #1 HOTBGCOL G_IMAGE SELECTABLE -
+||   |-- #2 HOTPATRN G_IMAGE SELECTABLE -
+||   |-- #3 HOTFGCOL G_IMAGE SELECTABLE -
+||   |-- #4 HOTRULE G_IMAGE SELECTABLE -
+||   |-- #5 HOTPOSN G_IMAGE SELECTABLE -
+||   |-- #6 HOTSWTCH G_IMAGE SELECTABLE -
+||   |-- #7 HOTBDCOL G_IMAGE SELECTABLE -
+||   |-- #8 HOTTHICK G_IMAGE SELECTABLE -
+||   |-- #9 CLIPBORD G_IMAGE SELECTABLE -
+||   |-- #10 TRASHCAN G_IMAGE SELECTABLE -
+||   |-- #11 - G_BOX - -
+||   `-- #12 - G_BOX DEFAULT,EXIT,LASTOB -
+||-- #2 FILEPBX DIAL 7
+||   |-- #1 UNKNICON G_ICON HIDETREE -
+||   |-- #2 MENUICON G_ICON - -
+||   |-- #3 DIALICON G_ICON - -
+||   |-- #4 PANLICON G_ICON - -
+||   |-- #5 ALRTICON G_ICON - -
+||   `-- #6 FREEICON G_ICON LASTOB -
+||-- #3 TYPETREE DIAL 15
+||   |-- #1 - G_STRING - -
+||   |-- #2 - G_STRING - -
+||   |-- #3 - G_STRING - -
+||   |-- #4 - G_STRING - -
+||   |-- #5 - G_STRING - -
+||   |-- #6 OKITEM G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   |-- #7 CANCITEM G_BUTTON SELECTABLE,EXIT -
+||   `-- #8 - G_IBOX - -
+||       |-- #9 UNKNITEM G_BUTTON SELECTABLE,RBUTTON -
+||       |-- #10 PANLITEM G_BUTTON SELECTABLE,RBUTTON -
+||       |-- #11 MENUITEM G_BUTTON SELECTABLE,RBUTTON -
+||       |-- #12 DIALITEM G_BUTTON SELECTABLE,RBUTTON -
+||       |-- #13 ALRTITEM G_BUTTON SELECTABLE,RBUTTON -
+||       `-- #14 FREEITEM G_BUTTON SELECTABLE,RBUTTON,LASTOB -
+||-- #4 DIALPBX DIAL 12
+||   |-- #1 - G_BUTTON SELECTABLE -
+||   |-- #2 - G_STRING - -
+||   |-- #3 - G_FTEXT EDITABLE -
+||   |-- #4 - G_FBOXTEXT EDITABLE -
+||   |-- #5 - G_IBOX - OUTLINED
+||   |-- #6 - G_BOX - -
+||   |-- #7 - G_TEXT - -
+||   |-- #8 - G_BOXCHAR - -
+||   |-- #9 - G_BOXTEXT - -
+||   |-- #10 - G_ICON - -
+||   `-- #11 - G_IMAGE LASTOB -
+||-- #5 ICNPBX DIAL 7
+||   |-- #1 ICONSTRG G_STRING - -
+||   |-- #2 DATASTRG G_STRING - -
+||   |-- #3 MASKSTRG G_STRING - -
+||   |-- #4 ICONWIND G_ICON - -
+||   |-- #5 DATAWIND G_IMAGE - -
+||   `-- #6 MASKWIND G_IMAGE LASTOB -
+||-- #6 NOBJTREE DIAL 17
+||   |-- #1 - G_STRING - -
+||   |-- #2 NOOKITEM G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   |-- #3 NOCNITEM G_BUTTON SELECTABLE,EXIT -
+||   |-- #4 - G_BOX - -
+||   |   |-- #5 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   `-- #6 - G_BUTTON SELECTABLE,RBUTTON -
+||   |-- #7 - G_BOX - -
+||   |   |-- #8 STRTYPES G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #9 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   `-- #10 STRTYPE0 G_BUTTON SELECTABLE,RBUTTON -
+||   |-- #11 - G_BOX - -
+||   |   |-- #12 TXTTYPES G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #13 TXTTYPE0 G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #14 BOXTYPES G_BUTTON SELECTABLE,RBUTTON -
+||   |   `-- #15 BOXTYPE0 G_BUTTON SELECTABLE,RBUTTON -
+||   `-- #16 XTYPE G_FTEXT EDITABLE,LASTOB -
+||-- #7 MENUPBX DIAL 5
+||   |-- #1 - G_TITLE - -
+||   |-- #2 - G_STRING - -
+||   |-- #3 - G_STRING - DISABLED
+||   `-- #4 - G_BOX LASTOB -
+||-- #8 NEWMENU MENU 17
+||   |-- #1 - G_BOX - -
+||   |   `-- #2 - G_IBOX - -
+||   |       |-- #3 - G_TITLE - -
+||   |       `-- #4 - G_TITLE - -
+||   `-- #5 - G_IBOX - -
+||       |-- #6 - G_BOX - -
+||       |   |-- #7 - G_STRING - -
+||       |   |-- #8 - G_STRING - DISABLED
+||       |   |-- #9 - G_STRING - -
+||       |   |-- #10 - G_STRING - -
+||       |   |-- #11 - G_STRING - -
+||       |   |-- #12 - G_STRING - -
+||       |   |-- #13 - G_STRING - -
+||       |   `-- #14 - G_STRING - -
+||       `-- #15 - G_BOX - -
+||           `-- #16 - G_STRING LASTOB -
+||-- #9 ABOUTREE DIAL 14
+||   |-- #1 - G_STRING - -
+||   |-- #2 - G_STRING - -
+||   |-- #3 - G_STRING - -
+||   |-- #4 - G_STRING - -
+||   |-- #5 AOKITEM G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   |-- #6 - G_STRING - -
+||   |-- #7 - G_STRING - -
+||   |-- #8 - G_STRING - -
+||   |-- #9 - G_ICON - -
+||   |-- #10 - G_STRING - -
+||   |-- #11 - G_STRING - -
+||   |-- #12 - G_STRING - -
+||   `-- #13 - G_STRING LASTOB -
+||-- #10 SORTTREE DIAL 20
+||   |-- #1 - G_STRING - -
+||   |-- #2 - G_STRING - -
+||   |-- #3 - G_STRING - -
+||   |-- #4 - G_STRING - -
+||   |-- #5 - G_STRING - -
+||   |-- #6 - G_STRING - -
+||   |-- #7 - G_STRING - -
+||   |-- #8 - G_STRING - -
+||   |-- #9 - G_STRING - -
+||   |-- #10 - G_STRING - -
+||   |-- #11 - G_STRING - -
+||   |-- #12 - G_STRING - -
+||   |-- #13 STOKITEM G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   |-- #14 STCNITEM G_BUTTON SELECTABLE,EXIT -
+||   `-- #15 - G_IBOX - -
+||       |-- #16 SRTXITEM G_IBOX SELECTABLE,RBUTTON -
+||       |-- #17 SRTYITEM G_IBOX SELECTABLE,RBUTTON -
+||       |-- #18 STXYITEM G_IBOX SELECTABLE,RBUTTON -
+||       `-- #19 STYXITEM G_IBOX SELECTABLE,RBUTTON,LASTOB -
+||-- #11 NEWALRT DIAL 10
+||   |-- #1 ALRTIMG G_IMAGE - -
+||   |-- #2 ALRTSTR0 G_STRING - -
+||   |-- #3 - G_STRING - -
+||   |-- #4 - G_STRING - -
+||   |-- #5 - G_STRING - -
+||   |-- #6 - G_STRING - -
+||   |-- #7 ALRTBTN0 G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   |-- #8 - G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   `-- #9 - G_BUTTON SELECTABLE,DEFAULT,EXIT,LASTOB -
+||-- #12 ALRTPBX DIAL 6
+||   |-- #1 APBXBTN G_BUTTON EXIT -
+||   |-- #2 APBXSTR G_STRING - -
+||   |-- #3 APBXIMG0 G_IMAGE - -
+||   |-- #4 - G_IMAGE - -
+||   `-- #5 - G_IMAGE LASTOB -
+||-- #13 NEWDIAL DIAL 1
+||-- #14 NEWPANEL DIAL 1
+||-- #15 OUTPTREE DIAL 24
+||   |-- #1 - G_STRING - -
+||   |-- #2 OUTPOK G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   |-- #3 OUTPCANC G_BUTTON SELECTABLE,EXIT -
+||   |-- #4 - G_STRING - -
+||   |-- #5 CITEM G_BOX SELECTABLE -
+||   |-- #6 PASCITEM G_BOX SELECTABLE -
+||   |-- #7 CBITEM G_BOX SELECTABLE -
+||   |-- #8 F77ITEM G_BOX SELECTABLE -
+||   |-- #9 - G_STRING - -
+||   |-- #10 - G_STRING - -
+||   |-- #11 - G_STRING - -
+||   |-- #12 - G_STRING - -
+||   |-- #13 - G_STRING - -
+||   |-- #14 - G_STRING - -
+||   |-- #15 - G_STRING - -
+||   |-- #16 - G_STRING - -
+||   |-- #17 - G_STRING - -
+||   |-- #18 SRCITEM G_BOX SELECTABLE -
+||   |-- #19 - G_STRING - -
+||   |-- #20 - G_STRING - -
+||   |-- #21 FSRTITEM G_BOX SELECTABLE -
+||   |-- #22 - G_STRING - -
+||   `-- #23 - G_STRING LASTOB -
+||-- #16 STRDIAL DIAL 9
+||   |-- #1 OOKITEM G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   |-- #2 OCNITEM G_BUTTON SELECTABLE,EXIT -
+||   |-- #3 - G_STRING - -
+||   |-- #4 OSTRITEM G_FTEXT EDITABLE -
+||   |-- #5 - G_STRING - -
+||   |-- #6 STRNAME G_FTEXT EDITABLE -
+||   |-- #7 - G_STRING - -
+||   `-- #8 - G_STRING LASTOB -
+||-- #17 BITDIAL DIAL 6
+||   |-- #1 - G_STRING - -
+||   |-- #2 BITNAME G_FTEXT EDITABLE -
+||   |-- #3 - G_STRING - -
+||   |-- #4 - G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   `-- #5 - G_BUTTON SELECTABLE,EXIT,LASTOB -
+||-- #18 ICONDIAL DIAL 23
+||   |-- #1 - G_STRING - -
+||   |-- #2 IBTEXT G_FBOXTEXT EDITABLE -
+||   |-- #3 IBCHAR G_FBOXTEXT EDITABLE -
+||   |-- #4 - G_IBOX - -
+||   |   |-- #5 IBTPOS0 G_BOXCHAR SELECTABLE,RBUTTON -
+||   |   |-- #6 - G_BOXTEXT SELECTABLE,RBUTTON -
+||   |   `-- #7 - G_BOXCHAR SELECTABLE,RBUTTON -
+||   |-- #8 - G_IBOX - -
+||   |   |-- #9 IBCPOS0 G_BOXCHAR SELECTABLE,RBUTTON -
+||   |   |-- #10 - G_BOXCHAR SELECTABLE,RBUTTON -
+||   |   |-- #11 - G_BOXCHAR SELECTABLE,RBUTTON -
+||   |   |-- #12 - G_BOXCHAR SELECTABLE,RBUTTON -
+||   |   |-- #13 - G_BOXCHAR SELECTABLE,RBUTTON -
+||   |   |-- #14 - G_BOXCHAR SELECTABLE,RBUTTON -
+||   |   |-- #15 - G_BOXCHAR SELECTABLE,RBUTTON -
+||   |   |-- #16 - G_BOXCHAR SELECTABLE,RBUTTON -
+||   |   `-- #17 - G_BOXCHAR SELECTABLE,RBUTTON -
+||   |-- #18 - G_STRING - -
+||   |-- #19 ICONNAME G_FTEXT EDITABLE -
+||   |-- #20 - G_STRING - -
+||   |-- #21 - G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   `-- #22 - G_BUTTON SELECTABLE,EXIT,LASTOB -
+||-- #19 BOXDIAL DIAL 6
+||   |-- #1 - G_STRING - -
+||   |-- #2 OCHRITEM G_FTEXT EDITABLE -
+||   |-- #3 BOXNAME G_FTEXT EDITABLE -
+||   |-- #4 - G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   `-- #5 - G_BUTTON SELECTABLE,EXIT,LASTOB -
+||-- #20 TEXTDIAL DIAL 12
+||   |-- #1 - G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   |-- #2 - G_BUTTON SELECTABLE,EXIT -
+||   |-- #3 - G_IBOX - -
+||   |   |-- #4 TMPLTTAG G_STRING - -
+||   |   |-- #5 OTMPITEM G_FTEXT EDITABLE -
+||   |   |-- #6 VALIDTAG G_STRING - -
+||   |   |-- #7 OVALITEM G_FTEXT EDITABLE -
+||   |   |-- #8 - G_STRING - -
+||   |   `-- #9 OTEXITEM G_FTEXT EDITABLE -
+||   |-- #10 - G_STRING - -
+||   `-- #11 TEXTNAME G_FTEXT EDITABLE,LASTOB -
+||-- #21 LOADDIAL DIAL 9
+||   |-- #1 - G_STRING - -
+||   |-- #2 LOADCANC G_BUTTON SELECTABLE,EXIT -
+||   |-- #3 LOADOK G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   |-- #4 LOADDATA G_BUTTON SELECTABLE -
+||   |-- #5 LOADMASK G_BUTTON SELECTABLE -
+||   |-- #6 - G_STRING - -
+||   |-- #7 - G_STRING - -
+||   `-- #8 - G_STRING LASTOB -
+||-- #22 SAFEDIAL DIAL 18
+||   |-- #1 - G_BOX HIDETREE -
+||   |-- #2 - G_STRING - -
+||   |-- #3 - G_STRING - -
+||   |-- #4 - G_STRING - -
+||   |-- #5 - G_STRING - -
+||   |-- #6 - G_STRING - -
+||   |-- #7 - G_STRING - -
+||   |-- #8 - G_STRING - -
+||   |-- #9 - G_STRING - -
+||   |-- #10 - G_STRING - -
+||   |-- #11 - G_STRING - -
+||   |-- #12 SAFEOK G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   |-- #13 - G_STRING - -
+||   |-- #14 SAVECANC G_BUTTON SELECTABLE,EXIT -
+||   |-- #15 SAFEXPRT G_BUTTON SELECTABLE,RBUTTON -
+||   |-- #16 SAFENORM G_BUTTON SELECTABLE,RBUTTON -
+||   `-- #17 SAFELOCK G_BUTTON SELECTABLE,RBUTTON,LASTOB -
+||-- #23 INFODIAL DIAL 23
+||   |-- #1 - G_STRING - -
+||   |-- #2 - G_STRING - -
+||   |-- #3 - G_STRING - -
+||   |-- #4 - G_STRING - -
+||   |-- #5 INFOOBJ G_STRING - -
+||   |-- #6 INFOIB G_STRING - -
+||   |-- #7 INFOBB G_STRING - -
+||   |-- #8 - G_STRING - -
+||   |-- #9 - G_STRING - -
+||   |-- #10 INFONAME G_STRING - -
+||   |-- #11 - G_STRING - -
+||   |-- #12 - G_STRING - -
+||   |-- #13 - G_STRING - -
+||   |-- #14 INFOTI G_STRING - -
+||   |-- #15 INFOIMG G_STRING - -
+||   |-- #16 INFOSTR G_STRING - -
+||   |-- #17 INFOTOT G_STRING - -
+||   |-- #18 INFOLEFT G_STRING - -
+||   |-- #19 INFOPANL G_IBOX - -
+||   |   |-- #20 - G_STRING - -
+||   |   `-- #21 INFOTREE G_STRING - -
+||   `-- #22 INFOOK G_BUTTON SELECTABLE,DEFAULT,EXIT,LASTOB -
+||-- #24 ICONTOOL DIAL 23
+||   |-- #1 - G_BOX - -
+||   |   |-- #2 HRCTGBOX G_IMAGE SELECTABLE -
+||   |   |-- #3 SRCTGBOX G_IMAGE SELECTABLE -
+||   |   |-- #4 LINEBOX G_IMAGE SELECTABLE -
+||   |   |-- #5 HPLYGBOX G_IMAGE SELECTABLE -
+||   |   |-- #6 SPLYGBOX G_IMAGE SELECTABLE -
+||   |   |-- #7 HARCBOX G_IMAGE SELECTABLE -
+||   |   |-- #8 SARCBOX G_IMAGE SELECTABLE -
+||   |   |-- #9 DOTBOX G_IMAGE SELECTABLE -
+||   |   |-- #10 HOVALBOX G_IMAGE SELECTABLE -
+||   |   `-- #11 SOVALBOX G_IMAGE SELECTABLE -
+||   |-- #12 - G_BOX - -
+||   |   |-- #13 ERASEBOX G_IMAGE SELECTABLE -
+||   |   |-- #14 FCLORBOX G_IMAGE SELECTABLE -
+||   |   `-- #15 BCLORBOX G_IMAGE SELECTABLE -
+||   |-- #16 - G_BOX - -
+||   |   |-- #17 GRIDBOX G_IMAGE SELECTABLE -
+||   |   |-- #18 UNDOBOX G_IMAGE SELECTABLE -
+||   |   `-- #19 RUBERBOX G_IMAGE SELECTABLE -
+||   `-- #20 - G_BOX - -
+||       `-- #21 CLIPBOX G_IMAGE SELECTABLE -
+||           `-- #22 CLIPSHOW G_IBOX LASTOB -
+||-- #25 FREEPBX DIAL 3
+||   |-- #1 PBXSTR G_STRING - -
+||   `-- #2 PBXIMG G_IMAGE LASTOB -
+||-- #26 POPSWTCH DIAL 26
+||   |-- #1 SBLEPOP G_STRING - -
+||   |-- #2 EXITPOP G_STRING - -
+||   |-- #3 DFLTPOP G_STRING - -
+||   |-- #4 RDIOPOP G_STRING - -
+||   |-- #5 TCHXPOP G_STRING - -
+||   |-- #6 EDBLPOP G_STRING - -
+||   |-- #7 HDDNPOP G_STRING - -
+||   |-- #8 - G_STRING - DISABLED
+||   |-- #9 SHADPOP G_STRING - -
+||   |-- #10 CHEKPOP G_STRING - -
+||   |-- #11 OUTLPOP G_STRING - -
+||   |-- #12 CROSPOP G_STRING - -
+||   |-- #13 DSBLPOP G_STRING - -
+||   |-- #14 SLCTPOP G_STRING - -
+||   |-- #15 ESCPOP G_STRING HIDETREE DISABLED
+||   |-- #16 BITBPOP G_STRING HIDETREE DISABLED
+||   |-- #17 SCCTRPOP G_STRING HIDETREE DISABLED
+||   |-- #18 D3INDPOP G_STRING - -
+||   |-- #19 SYCOLPOP G_STRING - -
+||   |-- #20 SUBMPOP G_STRING - DISABLED
+||   |-- #21 WBAKPOP G_STRING - -
+||   |-- #22 EXT3DPOP G_STRING - -
+||   |-- #23 HIGHLPOP G_STRING HIDETREE DISABLED
+||   |-- #24 UHIGLPOP G_STRING HIDETREE DISABLED
+||   `-- #25 D3BAKPOP G_STRING LASTOB -
+||-- #27 POPRULE DIAL 10
+||   |-- #1 TRANSPOP G_BOXTEXT - -
+||   |-- #2 RPLACPOP G_BOXTEXT - -
+||   |-- #3 - G_STRING - DISABLED
+||   |-- #4 LARGEPOP G_BOXTEXT - -
+||   |-- #5 SMALLPOP G_BOXTEXT - -
+||   |-- #6 - G_STRING - DISABLED
+||   |-- #7 LEFTPOP G_BOXTEXT - -
+||   |-- #8 RIGHTPOP G_BOXTEXT - -
+||   `-- #9 CENTPOP G_BOXTEXT LASTOB -
+||-- #28 POPPOSN DIAL 13
+||   |-- #1 JLFTPOP G_STRING - -
+||   |-- #2 JCENPOP G_STRING - -
+||   |-- #3 JRGTPOP G_STRING - -
+||   |-- #4 - G_STRING - DISABLED
+||   |-- #5 JTOPPOP G_STRING - -
+||   |-- #6 JMIDPOP G_STRING - -
+||   |-- #7 JBOTPOP G_STRING - -
+||   |-- #8 - G_STRING - DISABLED
+||   |-- #9 HFILLPOP G_STRING - -
+||   |-- #10 VFILLPOP G_STRING - -
+||   |-- #11 - G_STRING - DISABLED
+||   `-- #12 SNAPPOP G_STRING LASTOB -
+||-- #29 POPTHICK DIAL 15
+||   |-- #1 - G_BOX - -
+||   |-- #2 - G_BOX - -
+||   |-- #3 - G_BOX - -
+||   |-- #4 - G_BOX - -
+||   |-- #5 - G_BOX - -
+||   |-- #6 - G_BOX - -
+||   |-- #7 - G_BOX - -
+||   |-- #8 OUT3POP G_IBOX - -
+||   |-- #9 OUT2POP G_IBOX - -
+||   |-- #10 OUT1POP G_IBOX - -
+||   |-- #11 NONEPOP G_IBOX - -
+||   |-- #12 IN1POP G_IBOX - -
+||   |-- #13 IN2POP G_IBOX - -
+||   `-- #14 IN3POP G_IBOX LASTOB -
+||-- #30 POPPATRN DIAL 9
+||   |-- #1 PAT0POP G_BOX - -
+||   |-- #2 - G_BOX - -
+||   |-- #3 - G_BOX - -
+||   |-- #4 - G_BOX - -
+||   |-- #5 - G_BOX - -
+||   |-- #6 - G_BOX - -
+||   |-- #7 - G_BOX - -
+||   `-- #8 - G_BOX LASTOB -
+||-- #31 POPCOLOR DIAL 17
+||   |-- #1 COL0POP G_BOXCHAR - -
+||   |-- #2 - G_BOXCHAR - -
+||   |-- #3 - G_BOXCHAR - -
+||   |-- #4 - G_BOXCHAR - -
+||   |-- #5 - G_BOXCHAR - -
+||   |-- #6 - G_BOXCHAR - -
+||   |-- #7 - G_BOXCHAR - -
+||   |-- #8 - G_BOXCHAR - -
+||   |-- #9 - G_BOXCHAR - -
+||   |-- #10 - G_BOXCHAR - -
+||   |-- #11 - G_BOXCHAR - -
+||   |-- #12 - G_BOXCHAR - -
+||   |-- #13 - G_BOXCHAR - -
+||   |-- #14 - G_BOXCHAR - -
+||   |-- #15 - G_BOXCHAR - -
+||   `-- #16 - G_BOXCHAR LASTOB -
+||-- #32 NAMETREE DIAL 6
+||   |-- #1 - G_STRING - -
+||   |-- #2 - G_STRING - -
+||   |-- #3 NAMEITEM G_FBOXTEXT EDITABLE -
+||   |-- #4 - G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   `-- #5 - G_BUTTON SELECTABLE,EXIT,LASTOB -
+||-- #33 PROGRESS DIAL 4
+||   |-- #1 - G_STRING - -
+||   |-- #2 - G_STRING - -
+||   `-- #3 WRITING G_STRING LASTOB -
+||-- #34 GRID DIAL 2
+||   `-- #1 GRIDWIND G_IBOX LASTOB -
+||-- #35 NEWICNSZ DIAL 36
+||   |-- #1 - G_STRING - -
+||   |-- #2 - G_STRING - -
+||   |-- #3 - G_IBOX - -
+||   |   |-- #4 BEGWDSZ G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #5 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #6 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   `-- #7 LASTWDSZ G_BUTTON SELECTABLE,RBUTTON -
+||   |-- #8 - G_STRING - -
+||   |-- #9 - G_BOX - -
+||   |   |-- #10 BEGHTSZ G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #11 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #12 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #13 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #14 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #15 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #16 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #17 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #18 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #19 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #20 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #21 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #22 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #23 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   |-- #24 - G_BUTTON SELECTABLE,RBUTTON -
+||   |   `-- #25 LASTHTSZ G_BUTTON SELECTABLE,RBUTTON -
+||   |-- #26 - G_STRING - -
+||   |-- #27 - G_BOX - -
+||   |   |-- #28 - G_BUTTON - -
+||   |   |-- #29 SCALESZ G_IBOX SELECTABLE,RBUTTON SELECTED
+||   |   |-- #30 - G_BUTTON - -
+||   |   |-- #31 KEEPSZ G_IBOX SELECTABLE,RBUTTON -
+||   |   |-- #32 - G_BUTTON - -
+||   |   `-- #33 CLEARSZ G_IBOX SELECTABLE,RBUTTON -
+||   |-- #34 OKCHNGSZ G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||   `-- #35 CNCLCHGS G_BUTTON SELECTABLE,EXIT,LASTOB -
+||-- - .strings DIR 39
+||   |-- #0 STTITLE 13 - "UNTITLED.RSC "
+||   |-- #1 HIDEPART 24 - "  Hide Parts          \x07P"
+||   |-- #2 SHOWPART 24 - "  Show Parts          \x07P"
+||   |-- #3 HIDETOOL 24 - "  Hide Tools          \x07H"
+||   |-- #4 SHOWTOOL 24 - "  Show Tools          \x07H"
+||   |-- #5 - 14 - " MENU PARTBOX "
+||   |-- #6 STSTR 7 - "Strings"
+||   |-- #7 STIMG 10 - "Image Data"
+||   |-- #8 STFRSTR 17 - "Free String Index"
+||   |-- #9 STBB 7 - "BITBLKs"
+||   |-- #10 STFRIMG 16 - "Free Image Index"
+||   |-- #11 STIB 8 - "ICONBLKs"
+||   |-- #12 STTI 8 - "TEDINFOs"
+||   |-- #13 STOBJ 7 - "OBJECTs"
+||   |-- #14 STTRIND 10 - "Tree Index"
+||   |-- #15 STHDR 6 - "Header"
+||   |-- #16 STNAME 5 - "Names"
+||   |-- #17 STLDRES 13 - "load resource"
+||   |-- #18 STSASRES 16 - "save resource as"
+||   |-- #19 STLDICN 9 - "load icon"
+||   |-- #20 STSASICN 12 - "save icon as"
+||   |-- #21 STNODEF 160 ALERT "[2][Can't find definition (.DFN)|file for this resource.  If"...
+||   |-- #22 STMOVED 125 ALERT "[1][You are about to change the|object tree structure by|mov"...
+||   |-- #23 STLOMEM 135 ALERT "[2][You are almost out of memory.|Saving the resource should"...
+||   |-- #24 STNMDUP 86 ALERT "[2][The name you have chosen|is not unique.  Please|enter a "...
+||   |-- #25 STNONAM 80 ALERT "[2][Trees are required to have|names.  Please enter a|non-bl"...
+||   |-- #26 STLOCKED 71 ALERT "[3][This operation is not allowed|in LOCKED protection mode."...
+||   |-- #27 STSIZEP 138 ALERT "[1][This string is too long to fit|in its parent object.  If"...
+||   |-- #28 STNFULL 122 ALERT "[3][GEM RCS cannot assign a name|to this tree/object; the na"...
+||   |-- #29 STPANIC 111 ALERT "[3][MEMORY PANIC!  You are at the|END of the workspace.  Sav"...
+||   |-- #30 STNROOM 71 ALERT "[3][There is not enough room in|the workspace for this file."...
+||   |-- #31 STNWNDW 64 ALERT "[3][FATAL ERROR!|No windows are available|for GEM RCS.][ Abo"...
+||   |-- #32 STNMEM 73 ALERT "[3][FATAL ERROR!|Not enough memory for the|GEM RCS edit buff"...
+||   |-- #33 SNDSPACE 151 ALERT "[3][Not enough room on the disk to|save this file.  Insert a"...
+||   |-- #34 STOOLONG 135 ALERT "[1][This string is too long.|Message Line (ALERT tree)|has 4"...
+||   |-- #35 NOFNAME 98 ALERT "[3][No filename given.  A filename|is required before GEM RC"...
+||   |-- #36 ABNDCHGS 57 ALERT "[2][Abandon/Save edited resource?][Abandon|Save| Cancel ]"
+||   |-- #37 NOOVLERR 103 ALERT "[3][Cannot find RCS.APP program.|Please insert the correct d"...
+||   `-- #38 NOEDMEM 73 ALERT "[3][There is not enough memory|available to use the Icon|Edi"...
+|`-- - .images DIR 2
+|    |-- #0 CLIPMPTY 48x44
+|    `-- #1 CLIPFULL 48x44
+
+=== rcs-tree-menu
+cmd $ROOT/src/atari/rcs.rsc tree /MENUTREE
+out
+|/MENUTREE
+||-- #1 - G_BOX - -
+||   `-- #2 - G_IBOX - -
+||       |-- #3 DESKMENU G_TITLE - -
+||       |-- #4 FILEMENU G_TITLE - -
+||       |-- #5 GLOBMENU G_TITLE - -
+||       |-- #6 EDITMENU G_TITLE - -
+||       |-- #7 OPTNMENU G_TITLE - -
+||       `-- #8 ARRMENU G_TITLE - -
+|`-- #9 SCREEN G_IBOX - -
+|    |-- #10 - G_BOX - -
+|    |   |-- #11 ABOUITEM G_STRING - -
+|    |   |-- #12 ACCLINE G_STRING - DISABLED
+|    |   |-- #13 - G_STRING - -
+|    |   |-- #14 - G_STRING - -
+|    |   |-- #15 - G_STRING - -
+|    |   |-- #16 - G_STRING - -
+|    |   |-- #17 - G_STRING - -
+|    |   `-- #18 - G_STRING - -
+|    |-- #19 - G_BOX - -
+|    |   |-- #20 NEWITEM G_STRING - -
+|    |   |-- #21 OPENITEM G_STRING - -
+|    |   |-- #22 MERGITEM G_STRING - -
+|    |   |-- #23 - G_STRING - DISABLED
+|    |   |-- #24 CLOSITEM G_STRING - -
+|    |   |-- #25 SAVEITEM G_STRING - -
+|    |   |-- #26 SVASITEM G_STRING - -
+|    |   |-- #27 RVRTITEM G_STRING - -
+|    |   |-- #28 - G_STRING - DISABLED
+|    |   `-- #29 QUITITEM G_STRING - -
+|    |-- #30 - G_BOX - -
+|    |   |-- #31 OUTPITEM G_STRING - -
+|    |   |-- #32 SAFEITEM G_STRING - -
+|    |   |-- #33 SVOSITEM G_STRING - -
+|    |   |-- #34 - G_STRING - DISABLED
+|    |   |-- #35 PARTITEM G_STRING - -
+|    |   `-- #36 TOOLITEM G_STRING - -
+|    |-- #37 - G_BOX - -
+|    |   |-- #38 CUTITEM G_STRING - -
+|    |   |-- #39 COPYITEM G_STRING - -
+|    |   |-- #40 PASTITEM G_STRING - -
+|    |   |-- #41 - G_STRING - DISABLED
+|    |   |-- #42 DELITEM G_STRING - -
+|    |   |-- #43 - G_STRING - DISABLED
+|    |   |-- #44 INVITEM G_STRING - -
+|    |   |-- #45 SOLIDIMG G_STRING - -
+|    |   `-- #46 SIZEITEM G_STRING - -
+|    |-- #47 - G_BOX - -
+|    |   |-- #48 INFITEM G_STRING - -
+|    |   |-- #49 RNAMITEM G_STRING - -
+|    |   |-- #50 TYPEITEM G_STRING - -
+|    |   |-- #51 LOADITEM G_STRING - -
+|    |   `-- #52 ICNEDITM G_STRING - -
+|    `-- #53 - G_BOX - -
+|        |-- #54 SRTITEM G_STRING - -
+|        |-- #55 UNHDITEM G_STRING - -
+|        |-- #56 - G_STRING - DISABLED
+|        `-- #57 FLTITEM G_STRING LASTOB -
+
+=== rcslow-ls-l
+cmd $ROOT/src/atari/rcslow.rsc ls -l
+out
+|#0     MENUTREE     MENU  58
+|#1     TOOLBOX      DIAL  13
+|#2     FILEPBX      DIAL  7
+|#3     TYPETREE     DIAL  15
+|#4     DIALPBX      DIAL  12
+|#5     ICNPBX       DIAL  7
+|#6     NOBJTREE     DIAL  17
+|#7     MENUPBX      DIAL  5
+|#8     NEWMENU      MENU  17
+|#9     ABOUTREE     DIAL  14
+|#10    SORTTREE     DIAL  20
+|#11    NEWALRT      DIAL  10
+|#12    ALRTPBX      DIAL  6
+|#13    NEWDIAL      DIAL  1
+|#14    NEWPANEL     DIAL  1
+|#15    OUTPTREE     DIAL  24
+|#16    STRDIAL      DIAL  9
+|#17    BITDIAL      DIAL  6
+|#18    ICONDIAL     DIAL  23
+|#19    BOXDIAL      DIAL  6
+|#20    TEXTDIAL     DIAL  12
+|#21    LOADDIAL     DIAL  9
+|#22    SAFEDIAL     DIAL  18
+|#23    INFODIAL     DIAL  23
+|#24    ICONTOOL     DIAL  23
+|#25    FREEPBX      DIAL  3
+|#26    POPSWTCH     DIAL  26
+|#27    POPRULE      DIAL  10
+|#28    POPPOSN      DIAL  13
+|#29    POPTHICK     DIAL  15
+|#30    POPPATRN     DIAL  9
+|#31    POPCOLOR     DIAL  17
+|#32    NAMETREE     DIAL  6
+|#33    PROGRESS     DIAL  4
+|#34    GRID         DIAL  2
+|#35    NEWICNSZ     DIAL  36
+|-      .strings     DIR   39
+|-      .images      DIR   2
+
+=== rcslow-stat-text
+cmd $ROOT/src/atari/rcslow.rsc stat /TEXTDIAL
+out
+|path: /TEXTDIAL
+|kind: DIAL
+|kind-source: file
+|name: TEXTDIAL
+|index: 20
+|objects: 12
+|root-children: 5
+
+=== rcslow-tree
+cmd $ROOT/src/atari/rcslow.rsc tree /ABOUTREE
+out
+|/ABOUTREE
+||-- #1 - G_STRING - -
+||-- #2 - G_STRING - -
+||-- #3 - G_STRING - -
+||-- #4 - G_STRING - -
+||-- #5 AOKITEM G_BUTTON SELECTABLE,DEFAULT,EXIT -
+||-- #6 - G_STRING - -
+||-- #7 - G_STRING - -
+||-- #8 - G_STRING - -
+||-- #9 - G_ICON - -
+||-- #10 - G_STRING - -
+||-- #11 - G_STRING - -
+||-- #12 - G_STRING - -
+|`-- #13 - G_STRING LASTOB -
