@@ -180,6 +180,8 @@ libs: $(GEMLIB_A) $(LIBCMINI_A) $(ARM_LIBGEM) $(ARM_LIBCMINI)
 clean:
 	rm -rf build
 
+include mk/x32.mk
+
 # ---- host -----------------------------------------------------------------
 #
 #   make host-test   the load/save round trip on this machine: the sources
