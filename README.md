@@ -77,7 +77,7 @@ arena for the resource data, and stubs for the GEM and GEMDOS calls (alerts
 print to stderr and answer the alert's default button). The files of the
 GUI are not part of it. On a 64-bit host addresses of resource data are 32-bit
 offsets into the arena; `docs/addresses.md` explains the rules for editing the
-sources. `rcs-cli`, a command line tool on top of this, is the next stage.
+sources.
 
 On m68k and ARM the code is meant to behave as before.
 `tests/roundtrip/cmp-objs.sh BASE_DIR NEW_DIR [OBJDUMP]` compares the objects
@@ -114,6 +114,19 @@ issue #29).
 `RSC_SAN=1` adds AddressSanitizer and UBSan; CI runs both, and `make host-test`,
 on every pull request. `docs/resource-model.md` describes
 the model, the ownership rules and the limits.
+
+## The command line tool
+
+`rcs-cli` prints the structure of a resource file (`ls`, `tree`, `stat`,
+`cat`) and rewrites it with `convert`, using the resource library and the
+`.DFN`/`.DEF`/`.RSD`/`.HRD` name files. It is a host program and not part of
+`RCS.PRG`.
+
+    gmake host                       # build/host/rcs-cli
+    build/host/rcs-cli FILE.rsc ls -l -R
+    gmake cli-test                   # tests/cli; RSC_SAN=1 for the sanitizers
+
+`docs/rcs-cli.md` has the exact output formats, the path rules and the limits.
 
 ## State of the port
 
