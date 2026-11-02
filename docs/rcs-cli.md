@@ -54,6 +54,12 @@ the exit status:
 Unless `--no-guess` is given, `rsc_names_guess` then names the unnamed
 trees (`MENU<n>`, `DIALOG<n>`, `PANEL<n>`, `TREE<n>`, with a guessed kind) and
 the unnamed alert-shaped free strings (`ALERT<k>`), also without a name file.
+A name list holds at most 65535 entries; when the guesses do not fit (a name
+file that is already full, and a tree or alert string that is still unnamed)
+the run fails with `rcs-cli: FILE: cannot guess the names: the name list has no
+room for them (at most 65535 entries) or memory ran out; use --no-guess`
+(exit status 1). Use `--no-guess`, or name the remaining trees in the name
+file.
 
 With `-c`, every following argument pair must be `-c STRING`. The commands
 run in order and stop at the first failure. A string is split into words:

@@ -399,7 +399,10 @@ the name `MENU<n>`, `DIALOG<n>`, `PANEL<n>` or `TREE<n>`, n = tree index + 1.
 Both count up while the name is already in the list; unlike the old RCS the
 comparison ignores the case, because the lookups do. Other free strings and
 free images stay unnamed. The new entries carry the guessed flag. A tree with
-an entry keeps that entry's kind.
+an entry keeps that entry's kind. The list never exceeds `RSC_NAMES_MAX`
+(65535) entries: when the guesses do not fit, `rsc_names_guess` adds none and
+returns -1 (as it does when out of memory), so a caller that read a full list
+must not guess; the CLI reports this as an error and suggests `--no-guess`.
 
 `rsc_names_find_tree`, `_find_obj` (in one tree), `_find_str` and
 `_find_img` resolve a path component among `count` nodes: `#` followed by

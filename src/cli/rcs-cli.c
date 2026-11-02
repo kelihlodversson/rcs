@@ -370,7 +370,9 @@ int main(int argc, char **argv)
 			ctx.n = rsc_names_new();
 		if (!ctx.n || rsc_names_guess(ctx.n, ctx.r) < 0)
 		{
-			rcs_error("%s: cannot guess the names", esc(eb, sizeof eb, file));
+			rcs_error("%s: cannot guess the names: the name list has no room for them "
+				  "(at most 65535 entries) or memory ran out; use --no-guess",
+				  esc(eb, sizeof eb, file));
 			goto out;
 		}
 	}
