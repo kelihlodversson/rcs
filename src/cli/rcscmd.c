@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "rscfile.h"
+#include "rscimage.h"
 #include "rcscmd.h"
 
 /* Room for an escaped name (RSC_NAME_MAX bytes, 4 characters each). */
@@ -83,6 +84,257 @@ static const char *arg_path(char *buf, size_t size, const char *path)
 {
 	rcs_escape(buf, size, path, 128, 1);
 	return buf;
+}
+
+static int parse_num(const char *s, int hex, long lo, long hi, long *out);
+
+/* ---- images: options, selectors, messages ------------------------------------- */
+
+/* The options of the image commands (cat, cp), as bits of imgopts.flags. */
+#define IO_MASK		0x001	/* --mask */
+#define IO_ASCII	0x002	/* --ascii */
+#define IO_IMAGE	0x004	/* --image */
+#define IO_EXACT	0x008	/* --exact */
+#define IO_RESIZE	0x010	/* --resize */
+#define IO_THRESH	0x020	/* --threshold N */
+#define IO_FORCE	0x040	/* -f */
+#define IO_R		0x080	/* -r */
+#define IO_V		0x100	/* -v */
+
+struct imgopts
+{
+	unsigned	flags;
+	int		threshold;	/* 1..100, with IO_THRESH */
+};
+
+static const struct
+{
+	const char	*name;
+	unsigned	bit;
+} io_long[] =
+{
+	{ "--mask", IO_MASK }, { "--ascii", IO_ASCII }, { "--image", IO_IMAGE },
+	{ "--exact", IO_EXACT }, { "--resize", IO_RESIZE }
+};
+
+static const char *io_name(unsigned bit)
+{
+	unsigned	i;
+
+	for (i = 0; i < sizeof io_long / sizeof io_long[0]; i++)
+		if (io_long[i].bit == bit)
+			return io_long[i].name;
+	return bit == IO_THRESH ? "--threshold" : bit == IO_FORCE ? "-f" : bit == IO_R ? "-r" : "-v";
+}
+
+/* Parses the leading options of cmd in argv[1..]: -r -v -f (letters, may be
+ * combined) and the long options of io_long and --threshold N (or
+ * --threshold=N), those whose bits are in allowed.  Returns the index of the
+ * first operand, or -1 after an error line. */
+static int parse_img_opts(const char *cmd, int argc, char **argv, unsigned allowed, struct imgopts *o)
+{
+	int		i, k;
+	const char	*a, *p, *val;
+	char		eb[300];
+	long		v;
+
+	memset(o, 0, sizeof *o);
+	for (i = 1; i < argc && argv[i][0] == '-' && argv[i][1]; i++)
+	{
+		a = argv[i];
+		if (strcmp(a, "--") == 0)
+			return i + 1;
+		if (a[1] != '-')
+		{
+			for (p = a + 1; *p; p++)
+			{
+				unsigned	bit = *p == 'r' ? IO_R : *p == 'v' ? IO_V : *p == 'f' ? IO_FORCE : 0;
+
+				if (!(bit & allowed))
+				{
+					rcs_error("%s: unknown option '%s'", cmd, arg_path(eb, sizeof eb, a));
+					return -1;
+				}
+				o->flags |= bit;
+			}
+			continue;
+		}
+		if ((allowed & IO_THRESH) && (strcmp(a, "--threshold") == 0 || strncmp(a, "--threshold=", 12) == 0))
+		{
+			if (a[11] == '=')
+				val = a + 12;
+			else if (i + 1 < argc)
+				val = argv[++i];
+			else
+			{
+				rcs_error("%s: --threshold needs a number", cmd);
+				return -1;
+			}
+			if (parse_num(val, 0, 1, 100, &v) != 0)
+			{
+				rcs_error("%s: bad threshold '%s' (1 to 100)", cmd, arg_path(eb, sizeof eb, val));
+				return -1;
+			}
+			o->flags |= IO_THRESH;
+			o->threshold = (int)v;
+			continue;
+		}
+		for (k = 0; k < (int)(sizeof io_long / sizeof io_long[0]); k++)
+			if (strcmp(a, io_long[k].name) == 0 && (io_long[k].bit & allowed))
+				break;
+		if (k == (int)(sizeof io_long / sizeof io_long[0]))
+		{
+			rcs_error("%s: unknown option '%s'", cmd, arg_path(eb, sizeof eb, a));
+			return -1;
+		}
+		o->flags |= io_long[k].bit;
+	}
+	return i;
+}
+
+/* Refuses the options of o that are in bad ("applies to WHERE only").
+ * Returns 0 or -1 after an error line. */
+static int io_only(const char *cmd, const struct imgopts *o, unsigned bad, const char *where)
+{
+	unsigned	bit;
+
+	for (bit = 1; bit <= IO_V; bit <<= 1)
+		if ((o->flags & bad & bit) != 0)
+		{
+			rcs_error("%s: %s applies to %s only", cmd, io_name(bit), where);
+			return -1;
+		}
+	return 0;
+}
+
+/* The image selector of node nd (mask: its mask) of resource r: the object
+ * of a G_ICON or G_IMAGE, a free image, an entry of a colour icon.  -1 for
+ * any other node, a colour icon object included: it has no image of its own. */
+static int node_imgsel(const struct rsc *r, const struct rcs_node *nd, int mask, struct rsc_imgsel *sel)
+{
+	const OBJECT	*objs;
+	enum rsc_spec_kind	sk;
+	int		n;
+
+	memset(sel, 0, sizeof *sel);
+	sel->mask = mask;
+	sel->version = RSC_VER_MONO;
+	switch (nd->kind)
+	{
+	case RCS_NODE_FRIMG:
+		sel->tree = RSC_IMG_FREE;
+		sel->obj = nd->index;
+		return 0;
+	case RCS_NODE_ICON:
+		sel->tree = nd->tree;
+		sel->obj = nd->obj;
+		sel->version = nd->index;
+		sel->sel = nd->sel;
+		return 0;
+	case RCS_NODE_OBJ:
+		objs = rsc_tree_objects(r, nd->tree, &n);
+		if (!objs || nd->obj < 0 || nd->obj >= n)
+			return -1;
+		sk = rsc_obj_spec_kind(&objs[nd->obj]);
+		if (sk != RSC_SPEC_ICONBLK && sk != RSC_SPEC_BITBLK)
+			return -1;
+		sel->tree = nd->tree;
+		sel->obj = nd->obj;
+		return 0;
+	default:
+		return -1;
+	}
+}
+
+/* The message of a failed image call on `what` (an escaped path or file name). */
+static void img_fail(const char *cmd, const char *what, int err, int planes)
+{
+	switch (err)
+	{
+	case RSC_IMG_ENOIMAGE:
+		rcs_error("%s: %s: no image", cmd, what);
+		break;
+	case RSC_IMG_ENOMASK:
+		rcs_error("%s: %s: no mask", cmd, what);
+		break;
+	case RSC_IMG_ENODEPTH:
+		rcs_error("%s: %s: depth %d is not supported", cmd, what, planes);
+		break;
+	case RSC_IMG_ENOMEM:
+		rcs_error("%s: out of memory", cmd);
+		break;
+	case RSC_IMG_EEXIST:
+		rcs_error("%s: %s: that version exists already", cmd, what);
+		break;
+	case RSC_IMG_ELIMIT:
+		rcs_error("%s: %s: a colour icon has at most %d versions", cmd, what, RSC_MAX_VERSIONS);
+		break;
+	case RSC_IMG_ESIZE:
+		rcs_error("%s: %s: the sizes differ", cmd, what);
+		break;
+	default:
+		rcs_error("%s: %s: cannot use this image (error %d)", cmd, what, err);
+		break;
+	}
+}
+
+/* The selector and the facts of the image of nd, with an error line when it
+ * has none.  pix: the data will be read or written as pixels, so a colour
+ * depth without a palette is an error. */
+static int img_info(const char *cmd, const struct rsc *r, const struct rcs_node *nd, int mask,
+		    const char *what, int pix, struct rsc_imgsel *sel, struct rsc_imginfo *info)
+{
+	int	err;
+
+	if (node_imgsel(r, nd, mask, sel) != 0)
+	{
+		img_fail(cmd, what, RSC_IMG_ENOIMAGE, 0);
+		return -1;
+	}
+	err = rsc_image_info(r, sel, info);
+	if (err == 0 && pix && !mask && info->planes > 1 && !rsc_depth_supported(info->planes))
+		err = RSC_IMG_ENODEPTH;
+	if (err != 0)
+	{
+		img_fail(cmd, what, err, info->planes);
+		return -1;
+	}
+	return 0;
+}
+
+/* The colour icon of the object node nd (NULL: it is none). */
+static struct rsc_cicon *cicon_of(const struct rcs_ctx *c, const struct rcs_node *nd)
+{
+	const OBJECT	*objs;
+	int		n;
+
+	if (nd->kind != RCS_NODE_OBJ && nd->kind != RCS_NODE_ICON)
+		return NULL;
+	objs = rsc_tree_objects(c->r, nd->tree, &n);
+	if (!objs || nd->obj < 0 || nd->obj >= n || rsc_obj_spec_kind(&objs[nd->obj]) != RSC_SPEC_CICON)
+		return NULL;
+	return rsc_obj_cicon(c->r, nd->tree, nd->obj);
+}
+
+/* A version name for a new entry: N or N.sel, N 1 to 999 without a leading
+ * zero.  0 and *planes, *sel; -1 for any other name. */
+static int parse_version_name(const char *name, int *planes, int *sel)
+{
+	int	n = 0, nd = 0;
+
+	if (name[0] < '1' || name[0] > '9')
+		return -1;
+	for (; name[nd] >= '0' && name[nd] <= '9'; nd++)
+		n = n * 10 + (name[nd] - '0');
+	if (nd > 3)
+		return -1;
+	*sel = 0;
+	if (name[nd] == '.' && strcmp(name + nd, ".sel") == 0)
+		*sel = 1;
+	else if (name[nd])
+		return -1;
+	*planes = n;
+	return 0;
 }
 
 /* A coordinate: in file form the cells, then the pixel remainder of the
@@ -667,6 +919,23 @@ static void stat_spec(const struct rcs_desc *d)
 	}
 }
 
+/* The image lines of stat: the size and planes of the data, whether the
+ * image has a mask with data, and for a colour version whether the version
+ * has selected images.  Nothing for a node without an image. */
+static void stat_image(struct rcs_ctx *c, const struct rcs_node *nd, const struct rcs_desc *d)
+{
+	struct rsc_imgsel	sel;
+	struct rsc_imginfo	info, mi;
+
+	if (node_imgsel(c->r, nd, 0, &sel) != 0 || rsc_image_info(c->r, &sel, &info) != 0)
+		return;
+	kv("image", "%dx%d planes=%d", info.w, info.h, info.planes);
+	sel.mask = 1;
+	kv("mask", "%s", rsc_image_info(c->r, &sel, &mi) == 0 && !mi.blank ? "yes" : "no");
+	if (nd->kind == RCS_NODE_ICON && d->version >= 0)
+		kv("sel", "%s", d->has_sel ? "yes" : "no");
+}
+
 static int do_stat(struct rcs_ctx *c, const struct rcs_node *nd)
 {
 	struct rcs_desc	d;
@@ -759,6 +1028,7 @@ static int do_stat(struct rcs_ctx *c, const struct rcs_node *nd)
 		kv("mask-bytes", "%lu", (unsigned long)d.mask_bytes);
 		break;
 	}
+	stat_image(c, nd, &d);
 	return 0;
 }
 
@@ -771,20 +1041,74 @@ static void text_line(const char *s)
 	putchar('\n');
 }
 
-static int do_cat(struct rcs_ctx *c, const struct rcs_node *nd, int verbose, const char *path)
+/* cat of an image: PBM or PPM (binary, or text with ascii), not to a terminal
+ * unless forced. */
+static int cat_image(struct rcs_ctx *c, const struct rcs_node *nd, const struct imgopts *o, const char *path)
+{
+	struct rsc_imgsel	sel;
+	struct rsc_imginfo	info;
+	struct rsc_pixmap	pm;
+	unsigned char		*out = NULL;
+	size_t			len = 0;
+	char			pb[600];
+	int			err;
+
+	arg_path(pb, sizeof pb, path);
+	if (img_info("cat", c->r, nd, (o->flags & IO_MASK) != 0, pb, 1, &sel, &info) != 0)
+		return 1;
+	if (!(o->flags & (IO_ASCII | IO_FORCE)) && isatty(fileno(stdout)))
+	{
+		rcs_error("cat: %s: not writing a binary image to a terminal (use --ascii, or -f to force it)", pb);
+		return 1;
+	}
+	err = rsc_image_get(c->r, &sel, &pm);
+	if (err == 0)
+	{
+		err = pm.planes == 1 ? rsc_image_to_pbm(&pm, (o->flags & IO_ASCII) != 0, &out, &len)
+		      : rsc_image_to_ppm(&pm, (o->flags & IO_ASCII) != 0, &out, &len);
+		rsc_pixmap_free(&pm);
+	}
+	if (err == RSC_IMG_EARG)
+	{
+		rcs_error("cat: %s: the image has no pixels", pb);
+		return 1;
+	}
+	if (err != 0)
+	{
+		img_fail("cat", pb, err, info.planes);
+		return 1;
+	}
+	if (fwrite(out, 1, len, stdout) != len)
+	{
+		rsc_mfree(out);
+		rcs_error("cat: cannot write the output: %s", strerror(errno));
+		return 1;
+	}
+	rsc_mfree(out);
+	return 0;
+}
+
+static int do_cat(struct rcs_ctx *c, const struct rcs_node *nd, const struct imgopts *o, const char *path)
 {
 	struct rcs_desc	d;
 	char		pb[600];
+	int		verbose = (o->flags & IO_V) != 0;
 
 	if (rcs_describe(c->v, nd, &d) != 0)
 	{
 		rcs_error("cat: no such node");
 		return 1;
 	}
-	if (d.kind == RCS_NODE_ICON)
+	/* an image: asked for, or all there is to show (free images, G_IMAGE, entries of a colour icon) */
+	if ((o->flags & (IO_MASK | IO_ASCII | IO_IMAGE)) || d.kind == RCS_NODE_ICON || d.kind == RCS_NODE_FRIMG
+	    || (d.kind == RCS_NODE_OBJ && d.spec_kind == RSC_SPEC_BITBLK))
 	{
-		rcs_error("cat: %s: not supported yet", arg_path(pb, sizeof pb, path));
-		return 1;
+		if (verbose)
+		{
+			rcs_error("cat: -v applies to text, not to an image");
+			return 1;
+		}
+		return cat_image(c, nd, o, path);
 	}
 	if (d.kind == RCS_NODE_FRSTR)
 	{
@@ -1636,17 +1960,438 @@ static int cp_free(struct rcs_ctx *c, struct rcs_src *S, const struct rcs_node *
 	return 0;
 }
 
+/* ---- cp of images: import, export, conversion --------------------------------- */
+
+/* The most bytes of a host image file read. */
+#define HOST_MAX	(64UL * 1024 * 1024)
+
+/* The destination of an image copy: an existing image, or a colour version
+ * to create (N or N.sel below a colour icon object). */
+struct imgdst
+{
+	struct target		t;
+	struct rsc_imgsel	sel;		/* version RSC_VER_NEW for a version to create */
+	struct rsc_imginfo	info;		/* an existing image */
+	struct rsc_cicon	*ci;		/* the colour icon of a version to create */
+	int			create;		/* a new colour version */
+	int			add_sel;	/* ... with selected images (N.sel) */
+	int			planes;		/* of the data: the new version's */
+	int			existing;	/* the image exists: info is valid */
+};
+
+/* Resolves the destination arg of an image copy; mask: the mask is the
+ * destination.  0, or -1 after an error line. */
+static int dest_image(struct rcs_ctx *c, const char *cmd, const char *arg, int mask, struct imgdst *d)
+{
+	int	planes, vsel, v;
+
+	memset(&d->sel, 0, sizeof d->sel);
+	memset(&d->info, 0, sizeof d->info);
+	d->ci = NULL;
+	d->create = d->add_sel = d->existing = 0;
+	if (dst_target(c, cmd, arg, &d->t) != 0)
+		return -1;
+	if (d->t.exists)
+	{
+		if (img_info(cmd, c->r, &d->t.node, mask, d->t.arg, 1, &d->sel, &d->info) != 0)
+			return -1;
+		d->existing = 1;
+		d->planes = d->info.planes;
+		return 0;
+	}
+	d->ci = cicon_of(c, &d->t.node);
+	if (!d->ci || d->t.node.kind != RCS_NODE_OBJ || parse_version_name(d->t.name, &planes, &vsel) != 0)
+	{
+		rcs_error("%s: %s: no image there (a new colour version is named N or N.sel below a colour icon)",
+			  cmd, d->t.arg);
+		return -1;
+	}
+	if (!rsc_depth_supported(planes))
+	{
+		img_fail(cmd, d->t.arg, RSC_IMG_ENODEPTH, planes);
+		return -1;
+	}
+	d->sel.tree = d->t.node.tree;
+	d->sel.obj = d->t.node.obj;
+	d->sel.mask = mask;
+	d->planes = planes;
+	v = rsc_cicon_find_version(d->ci, planes);
+	if (v >= 0)
+	{
+		/* N.sel of a version that has no selected images */
+		d->sel.version = v;
+		d->sel.sel = 1;
+	}
+	else
+	{
+		d->sel.version = RSC_VER_NEW;
+		d->sel.planes = planes;
+		d->create = 1;
+		d->add_sel = vsel;
+	}
+	return 0;
+}
+
+/* Gives the version just created for d its selected images (N.sel); undoes
+ * the creation when that fails.  0, or -1 after an error line. */
+static int dest_finish(const char *cmd, struct imgdst *d)
+{
+	int	v;
+
+	if (!d->create || !d->add_sel)
+		return 0;
+	v = rsc_cicon_find_version(d->ci, d->planes);
+	if (v < 0 || rsc_cicon_add_selected(d->ci, v) != 0)
+	{
+		if (v >= 0)
+			rsc_cicon_remove_version(d->ci, v);
+		rcs_error("%s: out of memory", cmd);
+		return -1;
+	}
+	return 0;
+}
+
+/* The size of the icon a version is created in. */
+static void dest_size(const struct imgdst *d, int *w, int *h)
+{
+	if (d->existing)
+	{
+		*w = d->info.w;
+		*h = d->info.h;
+	}
+	else
+	{
+		*w = d->ci->blk.monoblk.ib_wicon;
+		*h = d->ci->blk.monoblk.ib_hicon;
+	}
+}
+
+/* Reads the host file name into *buf (malloc'd, *len bytes).  0, or -1 after
+ * an error line. */
+static int read_host(const char *cmd, const char *name, unsigned char **buf, size_t *len)
+{
+	struct stat	st;
+	FILE		*f;
+	unsigned char	*p;
+	char		eb[300];
+	size_t		n;
+
+	arg_path(eb, sizeof eb, name);
+	if (stat(name, &st) == 0 && !S_ISREG(st.st_mode))
+	{
+		rcs_error("%s: host:%s: not a regular file", cmd, eb);
+		return -1;
+	}
+	f = fopen(name, "rb");
+	if (!f)
+	{
+		rcs_error("%s: host:%s: cannot open: %s", cmd, eb, strerror(errno));
+		return -1;
+	}
+	if (fstat(fileno(f), &st) != 0 || !S_ISREG(st.st_mode))
+	{
+		fclose(f);
+		rcs_error("%s: host:%s: not a regular file", cmd, eb);
+		return -1;
+	}
+	if ((unsigned long long)st.st_size > HOST_MAX)
+	{
+		fclose(f);
+		rcs_error("%s: host:%s: file too large", cmd, eb);
+		return -1;
+	}
+	n = (size_t)st.st_size;
+	p = malloc(n ? n : 1);
+	if (!p)
+	{
+		fclose(f);
+		rcs_error("%s: out of memory", cmd);
+		return -1;
+	}
+	if (fread(p, 1, n, f) != n || ferror(f))
+	{
+		fclose(f);
+		free(p);
+		rcs_error("%s: host:%s: cannot read: %s", cmd, eb, strerror(errno));
+		return -1;
+	}
+	fclose(f);
+	*buf = p;
+	*len = n;
+	return 0;
+}
+
+/* cp host:FILE PATH */
+static int cp_import(struct rcs_ctx *c, const struct imgopts *o, const char *file, const char *dst)
+{
+	struct imgdst		d;
+	struct rsc_pnm		pnm;
+	struct rsc_pixmap	pm, old, sc;
+	unsigned char		*buf = NULL;
+	size_t			len = 0;
+	char			fb[300];
+	long			bad = 0;
+	int			mask = (o->flags & IO_MASK) != 0, w, h, err, rc = 1;
+
+	if (io_only("cp", o, IO_ASCII | IO_FORCE, "an export (cp PATH host:FILE)") != 0)
+		return 1;
+	if (dest_image(c, "cp", dst, mask, &d) != 0)
+		return 1;
+	dest_size(&d, &w, &h);
+	if (mask ? 0 : d.planes > 1)
+	{
+		if ((o->flags & IO_THRESH) != 0)
+		{
+			rcs_error("cp: --threshold applies to a monochrome image or a mask only");
+			return 1;
+		}
+	}
+	else if ((o->flags & IO_EXACT) != 0)
+	{
+		rcs_error("cp: --exact applies to a colour image only");
+		return 1;
+	}
+	if (read_host("cp", file, &buf, &len) != 0)
+		return 1;
+	arg_path(fb, sizeof fb, file);
+	memset(&pm, 0, sizeof pm);
+	memset(&old, 0, sizeof old);
+	memset(&sc, 0, sizeof sc);
+	err = rsc_image_from_pnm(buf, len, 0, &pnm);
+	free(buf);
+	if (err != 0)
+	{
+		switch (err)
+		{
+		case RSC_IMG_ETRUNC:
+			rcs_error("cp: host:%s: the file ends before the image does", fb);
+			break;
+		case RSC_IMG_ETOOBIG:
+			rcs_error("cp: host:%s: the image is too big (at most %d x %d pixels and %lu in all)", fb,
+				  RSC_PNM_MAX_DIM, RSC_PNM_MAX_DIM, (unsigned long)RSC_PNM_DEFAULT_MAX_PIXELS);
+			break;
+		case RSC_IMG_EMAXVAL:
+			rcs_error("cp: host:%s: maxval above 255 is not supported", fb);
+			break;
+		case RSC_IMG_ENOMEM:
+			rcs_error("cp: out of memory");
+			break;
+		default:
+			rcs_error("cp: host:%s: not a PNM file (P1 to P6) or a damaged one", fb);
+			break;
+		}
+		return 1;
+	}
+	if (w <= 0 || h <= 0)
+	{
+		rcs_error("cp: %s: the image has no pixels", d.t.arg);
+		goto done;
+	}
+	if ((pnm.w != w || pnm.h != h) && !(o->flags & IO_RESIZE))
+	{
+		rcs_error("cp: host:%s: the image is %dx%d but %s is %dx%d (use --resize to scale it)", fb, pnm.w, pnm.h,
+			  d.t.arg, w, h);
+		goto done;
+	}
+	err = rsc_pnm_to_pixmap(&pnm, mask ? 1 : d.planes, (o->flags & IO_THRESH) ? o->threshold : 0,
+				(o->flags & IO_EXACT) != 0, &pm, &bad);
+	if (err == RSC_IMG_ENOTPAL)
+	{
+		int	r, g, b;
+
+		rsc_pnm_rgb(&pnm, (int)(bad % pnm.w), (int)(bad / pnm.w), &r, &g, &b);
+		rcs_error("cp: host:%s: the colour #%02x%02x%02x of the pixel at %d,%d is not in the %d-plane palette",
+			  fb, r, g, b, (int)(bad % pnm.w), (int)(bad / pnm.w), d.planes);
+		goto done;
+	}
+	if (err != 0)
+	{
+		img_fail("cp", d.t.arg, err, d.planes);
+		goto done;
+	}
+	if (pm.w != w || pm.h != h)
+	{
+		err = rsc_pixmap_scale(&pm, w, h, &sc);
+		if (err != 0)
+		{
+			img_fail("cp", d.t.arg, err, d.planes);
+			goto done;
+		}
+		rsc_pixmap_free(&pm);
+		pm = sc;
+		memset(&sc, 0, sizeof sc);
+	}
+	if (d.existing && rsc_image_get(c->r, &d.sel, &old) == 0 && old.w == pm.w && old.h == pm.h
+	    && old.planes == pm.planes && memcmp(old.pix, pm.pix, (size_t)pm.w * (size_t)pm.h) == 0)
+	{
+		c->unchanged = 1;	/* the same picture: no edit */
+		rc = 0;
+		goto done;
+	}
+	err = rsc_image_set(c->r, &d.sel, &pm);
+	if (err != 0)
+	{
+		img_fail("cp", d.t.arg, err, d.planes);
+		goto done;
+	}
+	rc = dest_finish("cp", &d) != 0;
+done:
+	rsc_pixmap_free(&pm);
+	rsc_pixmap_free(&old);
+	rsc_pixmap_free(&sc);
+	rsc_pnm_free(&pnm);
+	return rc;
+}
+
+/* cp PATH host:FILE */
+static int cp_export(struct rcs_ctx *c, const struct imgopts *o, const char *src, const char *file)
+{
+	struct rcs_src		S;
+	struct rcs_node		sn;
+	struct rsc_imgsel	sel;
+	struct rsc_imginfo	info;
+	struct rsc_pixmap	pm;
+	struct stat		st;
+	unsigned char		*out = NULL;
+	size_t			len = 0;
+	const char		*path;
+	char			sb[200], fb[300], why[200];
+	int			err, ascii = (o->flags & IO_ASCII) != 0;
+
+	if (io_only("cp", o, IO_EXACT | IO_RESIZE | IO_THRESH, "an import (cp host:FILE PATH)") != 0)
+		return 1;
+	arg_path(sb, sizeof sb, src);
+	arg_path(fb, sizeof fb, file);
+	if (arg_side(c, "cp", src, &S, &path) != 0 || side_resolve("cp", &S, path, &sn) != 0)
+		return 1;
+	if (img_info("cp", S.r, &sn, (o->flags & IO_MASK) != 0, sb, 1, &sel, &info) != 0)
+		return 1;
+	if (stat(file, &st) == 0 && !(o->flags & IO_FORCE))
+	{
+		rcs_error("cp: host:%s: exists already (use -f to replace it)", fb);
+		return 1;
+	}
+	err = rsc_image_get(S.r, &sel, &pm);
+	if (err == 0)
+	{
+		err = pm.planes == 1 ? rsc_image_to_pbm(&pm, ascii, &out, &len) : rsc_image_to_ppm(&pm, ascii, &out, &len);
+		rsc_pixmap_free(&pm);
+	}
+	if (err == RSC_IMG_EARG)
+	{
+		rcs_error("cp: %s: the image has no pixels", sb);
+		return 1;
+	}
+	if (err != 0)
+	{
+		img_fail("cp", sb, err, info.planes);
+		return 1;
+	}
+	if (rcs_write_file(file, out, len, 1, why, sizeof why) != 0)
+	{
+		rsc_mfree(out);
+		rcs_error("cp: host:%s: cannot write: %s", fb, why);
+		return 1;
+	}
+	rsc_mfree(out);
+	c->unchanged = 1;	/* the resource did not change */
+	return 0;
+}
+
+/* cp SRC DST between images (src: S, node sn) */
+static int cp_images(struct rcs_ctx *c, const struct imgopts *o, struct rcs_src *S, const struct rcs_node *sn,
+		     const char *sb, const char *dstarg)
+{
+	struct imgdst		d;
+	struct rsc_imgsel	from;
+	struct rsc_imginfo	si;
+	struct rsc_pixmap	pm, cv;
+	long			inexact = 0;
+	int			mask = (o->flags & IO_MASK) != 0, w, h, err, flags = mask ? 0 : RSC_COPY_MASK;
+
+	if (io_only("cp", o, IO_EXACT | IO_RESIZE | IO_THRESH | IO_ASCII | IO_FORCE,
+		    "an import or an export (with host:FILE)") != 0)
+		return 1;
+	if (img_info("cp", S->r, sn, mask, sb, 1, &from, &si) != 0)
+		return 1;
+	if (dest_image(c, "cp", dstarg, mask, &d) != 0)
+		return 1;
+	dest_size(&d, &w, &h);
+	if (si.w != w || si.h != h)
+	{
+		rcs_error("cp: %s is %dx%d but %s is %dx%d (the sizes must be equal)", sb, si.w, si.h, d.t.arg, w, h);
+		return 1;
+	}
+	if (S->r == c->r)
+	{
+		if (!d.create && from.tree == d.sel.tree && from.obj == d.sel.obj && from.version == d.sel.version
+		    && from.sel == d.sel.sel && from.mask == d.sel.mask)
+		{
+			rcs_error("cp: %s and %s are the same image", sb, d.t.arg);
+			return 1;
+		}
+		err = rsc_image_copy(c->r, &from, &d.sel, flags, &inexact);
+	}
+	else
+	{
+		/* between two files: the pixels through a pixmap, then the mask */
+		memset(&cv, 0, sizeof cv);
+		err = rsc_image_get(S->r, &from, &pm);
+		if (err == 0)
+		{
+			err = rsc_pixmap_convert(&pm, mask ? 1 : d.planes, &cv, &inexact);
+			rsc_pixmap_free(&pm);
+		}
+		if (err == 0)
+		{
+			err = rsc_image_set(c->r, &d.sel, &cv);
+			rsc_pixmap_free(&cv);
+		}
+		if (err == 0 && flags)
+		{
+			struct rsc_imgsel	fm = from, tm = d.sel;
+			struct rsc_imginfo	mi;
+
+			fm.mask = 1;
+			if (d.create)
+			{
+				tm.version = rsc_cicon_find_version(d.ci, d.planes);
+				tm.planes = 0;
+			}
+			tm.mask = 1;
+			if (rsc_image_info(S->r, &fm, &mi) == 0 && !mi.blank && rsc_image_info(c->r, &tm, &mi) == 0
+			    && rsc_image_get(S->r, &fm, &pm) == 0)
+			{
+				err = rsc_image_set(c->r, &tm, &pm);
+				rsc_pixmap_free(&pm);
+			}
+		}
+	}
+	if (err != 0)
+	{
+		img_fail("cp", d.t.arg, err, d.planes);
+		return 1;
+	}
+	if (dest_finish("cp", &d) != 0)
+		return 1;
+	if (inexact > 0)
+		rcs_note("cp: %ld %s changed colour in the conversion to %d %s", inexact, plural((int)inexact, "pixel", "pixels"),
+			 mask ? 1 : d.planes, plural(mask ? 1 : d.planes, "plane", "planes"));
+	return 0;
+}
+
 static int do_cp(struct rcs_ctx *c, int argc, char **argv)
 {
 	struct rcs_src	S;
 	struct rcs_node	sn;
 	struct target	t;
+	struct imgopts	io;
 	const char	*spath;
 	char		sb[200];
-	unsigned	set;
-	int		i, rc;
+	int		i, rc, hs, hd, img, vp, vs;
 
-	i = options("cp", argc, argv, "r", &set);
+	i = parse_img_opts("cp", argc, argv, IO_R | IO_MASK | IO_ASCII | IO_IMAGE | IO_EXACT | IO_RESIZE | IO_THRESH
+			   | IO_FORCE, &io);
 	if (i < 0)
 		return 1;
 	if (argc - i != 2)
@@ -1654,26 +2399,51 @@ static int do_cp(struct rcs_ctx *c, int argc, char **argv)
 		rcs_error("cp: usage: cp [-r] SRC DST");
 		return 1;
 	}
+	hs = strncmp(argv[i], "host:", 5) == 0;
+	hd = strncmp(argv[i + 1], "host:", 5) == 0;
+	if (hs && hd)
+	{
+		rcs_error("cp: one of SRC and DST must be in the resource file");
+		return 1;
+	}
+	if ((hs && !argv[i][5]) || (hd && !argv[i + 1][5]))
+	{
+		rcs_error("cp: host: needs a file name");
+		return 1;
+	}
+	if (hs)
+		return cp_import(c, &io, argv[i] + 5, argv[i + 1]);
+	if (hd)
+		return cp_export(c, &io, argv[i], argv[i + 1] + 5);
 	if (arg_side(c, "cp", argv[i], &S, &spath) != 0 || side_resolve("cp", &S, spath, &sn) != 0)
 		return 1;
 	arg_path(sb, sizeof sb, argv[i]);
 	if (dst_target(c, "cp", argv[i + 1], &t) != 0)
 		return 1;
+	/* an image copy: asked for, or an entry of a colour icon on either side */
+	img = (io.flags & (IO_MASK | IO_IMAGE)) != 0 || sn.kind == RCS_NODE_ICON;
+	if (!img && t.exists)
+		img = t.node.kind == RCS_NODE_ICON;
+	else if (!img)
+		img = t.node.kind == RCS_NODE_OBJ && cicon_of(c, &t.node) != NULL
+		      && parse_version_name(t.name, &vp, &vs) == 0;
+	if (img)
+		return cp_images(c, &io, &S, &sn, sb, argv[argc - 1]);
+	if (io_only("cp", &io, IO_ASCII | IO_EXACT | IO_RESIZE | IO_THRESH | IO_FORCE,
+		    "an image (cp host:FILE PATH, cp PATH host:FILE, cp PATH PATH of images)") != 0)
+		return 1;
 	switch (sn.kind)
 	{
 	case RCS_NODE_OBJ:
-		rc = cp_obj(c, &S, &sn, sb, &t, (set & 1) != 0);
+		rc = cp_obj(c, &S, &sn, sb, &t, (io.flags & IO_R) != 0);
 		break;
 	case RCS_NODE_TREE:
-		rc = cp_tree(c, &S, &sn, sb, &t, (set & 1) != 0);
+		rc = cp_tree(c, &S, &sn, sb, &t, (io.flags & IO_R) != 0);
 		break;
 	case RCS_NODE_FRSTR:
 	case RCS_NODE_FRIMG:
 		rc = cp_free(c, &S, &sn, &t);
 		break;
-	case RCS_NODE_ICON:
-		rcs_error("cp: %s: colour icon entries cannot be copied yet (copy the object)", sb);
-		return 1;
 	default:
 		rcs_error("cp: %s: cannot be copied", sb);
 		return 1;
@@ -1893,6 +2663,7 @@ static int do_rm(struct rcs_ctx *c, int argc, char **argv)
 	char		sb[200], tb[200];
 	unsigned	set;
 	int		i, first, moved, n;
+	struct rsc_cicon	*ci;
 
 	i = options("rm", argc, argv, "r", &set);
 	if (i < 0)
@@ -1977,8 +2748,18 @@ static int do_rm(struct rcs_ctx *c, int argc, char **argv)
 				 : plural(n - 1 - sn.index, "image was", "images were"), sn.index);
 		return 0;
 	case RCS_NODE_ICON:
-		rcs_error("rm: %s: colour icon entries cannot be removed yet", sb);
-		return 1;
+		if (sn.index < 0)
+		{
+			rcs_error("rm: %s: the mono image cannot be removed", sb);
+			return 1;
+		}
+		if ((ci = cicon_of(c, &sn)) == NULL
+		    || (sn.sel ? rsc_cicon_drop_selected(ci, sn.index) : rsc_cicon_remove_version(ci, sn.index)) != 0)
+		{
+			rcs_error("rm: cannot remove %s", sb);
+			return 1;
+		}
+		return 0;
 	case RCS_NODE_ROOT:
 		rcs_error("rm: %s: the root cannot be removed", sb);
 		return 1;
@@ -2256,6 +3037,49 @@ static int do_mkdir(struct rcs_ctx *c, int argc, char **argv)
 
 /* ---- touch ----------------------------------------------------------------------- */
 
+/* touch of a colour version that does not exist: a blank one (data colour 0,
+ * the mask a copy of the mono mask), or with sel its selected images too (copies
+ * of the normal ones); a version that exists only gets the selected images. */
+static int touch_version(struct rcs_ctx *c, struct rsc_cicon *ci, int planes, int sel, int typed, const char *arg)
+{
+	int	v, made = 0, err;
+
+	(void)c;
+	if (typed)
+	{
+		rcs_error("touch: --type does not apply to a colour version");
+		return 1;
+	}
+	if (!rsc_depth_supported(planes))
+	{
+		img_fail("touch", arg, RSC_IMG_ENODEPTH, planes);
+		return 1;
+	}
+	v = rsc_cicon_find_version(ci, planes);
+	if (v < 0)
+	{
+		v = rsc_cicon_new_version(ci, planes);
+		if (v < 0)
+		{
+			img_fail("touch", arg, v, planes);
+			return 1;
+		}
+		made = 1;
+	}
+	if (sel)
+	{
+		err = rsc_cicon_add_selected(ci, v);
+		if (err != 0)
+		{
+			if (made)
+				rsc_cicon_remove_version(ci, v);
+			img_fail("touch", arg, err, planes);
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static int do_touch(struct rcs_ctx *c, int argc, char **argv)
 {
 	struct target	t;
@@ -2263,7 +3087,8 @@ static int do_touch(struct rcs_ctx *c, int argc, char **argv)
 	const char	*path = NULL, *typename = NULL;
 	char		eb[300];
 	unsigned	type = G_BOX;
-	int		i, parent, idx, tree, first, moved;
+	int		i, parent, idx, tree, first, moved, vplanes, vsel;
+	struct rsc_cicon	*ci;
 	BITBLK		bb;
 
 	for (i = 1; i < argc; i++)
@@ -2305,6 +3130,9 @@ static int do_touch(struct rcs_ctx *c, int argc, char **argv)
 		return 1;
 	if (t.exists)
 		return 0;
+	if (t.node.kind == RCS_NODE_OBJ && (ci = cicon_of(c, &t.node)) != NULL
+	    && parse_version_name(t.name, &vplanes, &vsel) == 0)
+		return touch_version(c, ci, vplanes, vsel, typename != NULL, t.arg);
 	if (new_name_ok("touch", t.name, 0) != 0)
 		return 1;
 	switch (t.node.kind)
@@ -2529,12 +3357,12 @@ static int do_chmod(struct rcs_ctx *c, int argc, char **argv)
 
 enum set_key
 {
-	K_TEXT, K_TEMPLATE, K_VALID, K_X, K_Y, K_W, K_H, K_COLOR, K_THICK, K_FONT, K_JUST, K_TYPE, K_NAME
+	K_TEXT, K_TEMPLATE, K_VALID, K_X, K_Y, K_W, K_H, K_COLOR, K_THICK, K_FONT, K_JUST, K_TYPE, K_NAME, K_IW, K_IH
 };
 
 static const char *const set_keys[] =
 {
-	"text", "template", "valid", "x", "y", "w", "h", "color", "thickness", "font", "just", "type", "name"
+	"text", "template", "valid", "x", "y", "w", "h", "color", "thickness", "font", "just", "type", "name", "iw", "ih"
 };
 
 struct setop
@@ -2651,6 +3479,53 @@ static int retkind_str(struct rcs_ctx *c, int k)
 	return ok ? 0 : -1;
 }
 
+/* The size of the image of the object or free image nd: 0 and *w, *h, or
+ * -1 when it has none (no record, other kind). */
+static int image_size(struct rcs_ctx *c, const struct rcs_node *nd, int *w, int *h)
+{
+	struct rsc_imgsel	sel;
+	struct rsc_imginfo	info;
+	struct rsc_cicon	*ci;
+
+	if (nd->kind == RCS_NODE_OBJ && (ci = cicon_of(c, nd)) != NULL)
+	{
+		*w = ci->blk.monoblk.ib_wicon;
+		*h = ci->blk.monoblk.ib_hicon;
+		return 0;
+	}
+	if (node_imgsel(c->r, nd, 0, &sel) != 0 || rsc_image_info(c->r, &sel, &info) != 0)
+		return -1;
+	*w = info.w;
+	*h = info.h;
+	return 0;
+}
+
+/* set iw= ih=: resizes the image of nd to w x h (iw, ih; -1: as it is). */
+static int resize_image(struct rcs_ctx *c, const struct rcs_node *nd, int iw, int ih)
+{
+	struct rsc_cicon	*ci;
+	const OBJECT		*objs;
+	int			w, h, n, rc;
+
+	if (image_size(c, nd, &w, &h) != 0)
+		return -1;
+	if (iw < 0)
+		iw = w;
+	if (ih < 0)
+		ih = h;
+	if (nd->kind == RCS_NODE_FRIMG)
+		return rsc_frimg_resize(c->r, nd->index, (iw + 7) / 8, ih);
+	ci = cicon_of(c, nd);
+	if (ci)
+		return rsc_cicon_resize(ci, iw, ih);
+	objs = rsc_tree_objects(c->r, nd->tree, &n);
+	if (rsc_obj_spec_kind(&objs[nd->obj]) == RSC_SPEC_BITBLK)
+		rc = rsc_obj_resize_bitblk(c->r, nd->tree, nd->obj, (iw + 7) / 8, ih);
+	else
+		rc = rsc_obj_resize_icon(c->r, nd->tree, nd->obj, iw, ih);
+	return rc;
+}
+
 static int do_set(struct rcs_ctx *c, int argc, char **argv)
 {
 	struct rcs_src	S;
@@ -2659,7 +3534,7 @@ static int do_set(struct rcs_ctx *c, int argc, char **argv)
 	const char	*path, *eq;
 	char		sb[200], kb[40], eb[300];
 	unsigned	simtype = 0, simflags = 0, lo;
-	int		i, k, n, nops, cw, ch, isobj, kind, t, o;
+	int		i, k, n, nops, cw, ch, isobj, kind, t, o, iw = -1, ih = -1, lo_w, lo_h, resized = 0, has_type = 0, bitmap = 0;
 	enum rsc_spec_kind	sk;
 	OBJECT		*obj;
 	long		num;
@@ -2738,10 +3613,31 @@ static int do_set(struct rcs_ctx *c, int argc, char **argv)
 		}
 		if (nd.kind == RCS_NODE_FRSTR && k == K_TEXT)
 			continue;
+		if (k == K_IW || k == K_IH)
+		{
+			if (nd.kind != RCS_NODE_FRIMG && !isobj)
+				goto notimage;
+			if (parse_num(op->val, 0, 1, 32767, &op->num) != 0)
+				goto badvalue;
+			if (image_size(c, &nd, &lo_w, &lo_h) != 0)
+			{
+				if (isobj)
+					goto notapply;
+				goto notimage;
+			}
+			bitmap = nd.kind == RCS_NODE_FRIMG || rsc_obj_spec_kind(&obj[o]) == RSC_SPEC_BITBLK;
+			if (k == K_IW)
+				iw = (int)op->num;
+			else
+				ih = (int)op->num;
+			continue;
+		}
 		if (!isobj)
 		{
+notimage:
 			rcs_error("set: %s: only name= applies to %s", sb, nd.kind == RCS_NODE_TREE ? "a tree"
-				  : "a free string (and text=) or image");
+				  : nd.kind == RCS_NODE_FRIMG ? "a free image (and iw= and ih=)"
+				  : "a free string (and text=)");
 			return 1;
 		}
 		lo = simtype & 0xff;
@@ -2813,6 +3709,7 @@ static int do_set(struct rcs_ctx *c, int argc, char **argv)
 				break;
 			goto notapply;
 		default:	/* K_TYPE */
+			has_type = 1;
 			if (parse_type(op->val, &simtype) != 0)
 			{
 				rcs_error("set: bad type '%s' (an AES type name such as G_BUTTON, or a number)", op->bad);
@@ -2835,6 +3732,21 @@ toolong:
 			  sk == RSC_SPEC_CICON ? 12 : 32766);
 		return 1;
 	}
+	if (iw >= 0 || ih >= 0)
+	{
+		int	nw = iw >= 0 ? iw : lo_w, nh = ih >= 0 ? ih : lo_h;
+
+		if (has_type)
+		{
+			rcs_error("set: %s: iw and ih cannot be set together with type", sb);
+			return 1;
+		}
+		if ((bitmap ? (size_t)((nw + 7) / 8) * (size_t)nh : rsc_plane_bytes(nw, nh)) > RSC_RESIZE_MAX_BYTES)
+		{
+			rcs_error("set: %s: the image would be too big", sb);
+			return 1;
+		}
+	}
 	/* pass 2: nothing can be refused any more but for memory */
 	for (i = 0; i < nops; i++)
 	{
@@ -2845,6 +3757,21 @@ toolong:
 		{
 			if (rename_node(c, "set", &nd, op->val) != 0)
 				return 1;
+			continue;
+		}
+		if (op->key == K_IW || op->key == K_IH)
+		{
+			if (resized)
+				continue;
+			resized = 1;
+			if (bitmap && iw > 0 && iw % 8 != 0)
+				rcs_note("set: iw=%d was rounded up to %d (a bitmap is a whole number of bytes wide)", iw,
+					 (iw + 7) / 8 * 8);
+			if (resize_image(c, &nd, iw, ih) != 0)
+			{
+				rcs_error("set: %s: cannot resize the image (memory ran out or it would be too big)", sb);
+				return 1;
+			}
 			continue;
 		}
 		if (nd.kind == RCS_NODE_FRSTR)
@@ -2949,12 +3876,17 @@ static int run_read(struct rcs_ctx *c, int argc, char **argv)
 	if (strcmp(cmd, "ls") == 0 || strcmp(cmd, "tree") == 0 || strcmp(cmd, "stat") == 0
 	    || strcmp(cmd, "cat") == 0)
 	{
-		const char	*allowed = strcmp(cmd, "ls") == 0 ? "lR" : strcmp(cmd, "cat") == 0 ? "v" : "";
+		const char	*allowed = strcmp(cmd, "ls") == 0 ? "lR" : "";
 		const char	*path, *spath;
 		struct rcs_src	side;
 		struct rcs_ctx	sub;
+		struct imgopts	io;
 
-		i = options(cmd, argc, argv, allowed, &set);
+		memset(&io, 0, sizeof io);
+		if (strcmp(cmd, "cat") == 0)
+			i = parse_img_opts(cmd, argc, argv, IO_V | IO_FORCE | IO_MASK | IO_ASCII | IO_IMAGE, &io);
+		else
+			i = options(cmd, argc, argv, allowed, &set);
 		if (i < 0)
 			return 1;
 		if (argc - i > 1)
@@ -2982,7 +3914,7 @@ static int run_read(struct rcs_ctx *c, int argc, char **argv)
 			return do_tree(&sub, &nd);
 		if (strcmp(cmd, "stat") == 0)
 			return do_stat(&sub, &nd);
-		return do_cat(&sub, &nd, (set & 1) != 0, path);
+		return do_cat(&sub, &nd, &io, path);
 	}
 	if (strcmp(cmd, "convert") == 0)
 		return do_convert(c, argc, argv);
@@ -3097,10 +4029,12 @@ int rcs_run(struct rcs_ctx *c, int argc, char **argv)
 
 	if (!rcs_is_edit(argv[0]))
 		return run_read(c, argc, argv);
+	memset(&after, 0, sizeof after);
 	/* touch, chmod and set may change nothing: that is no edit */
 	quiet = strcmp(argv[0], "touch") == 0 || strcmp(argv[0], "chmod") == 0 || strcmp(argv[0], "set") == 0;
 	if (c->selfcheck || quiet)
 		have = snapshot(c, &before) == 0;
+	c->unchanged = 0;
 	rc = run_edit(c, argc, argv);
 	if (rcs_view_reset(c->v) != 0 && rc == 0)
 	{
@@ -3109,7 +4043,9 @@ int rcs_run(struct rcs_ctx *c, int argc, char **argv)
 	}
 	if (rc == 0)
 	{
-		if (!quiet || !have)
+		if (c->unchanged)
+			;
+		else if (!quiet || !have)
 			c->edited = 1;
 		else if (snapshot(c, &after) != 0 || !after.enc || !before.enc || after.len != before.len
 			 || memcmp(after.p, before.p, before.len) != 0)

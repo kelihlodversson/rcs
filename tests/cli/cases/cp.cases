@@ -53,6 +53,8 @@ out
 |bi-y: 0
 |color: 1
 |data-bytes: 16
+|image: 16x8 planes=1
+|mask: no
 err
 |rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13304 bytes, and the names to $FIX/kinds.dfn)
 
@@ -101,7 +103,7 @@ cmd --selfcheck -n $FIX/kinds.rsc cp /DIALOG/CICON/mono /x
 rc 1
 out
 err
-|rcs-cli: cp: /DIALOG/CICON/mono: colour icon entries cannot be copied yet (copy the object)
+|rcs-cli: cp: /x: no image there (a new colour version is named N or N.sel below a colour icon)
 
 === cp-many-icons-ok
 cmd --selfcheck -n $FIX/manyicons.rsc touch /#0/Q
@@ -333,6 +335,9 @@ out
 |h: 32
 |data-bytes: 512
 |mask-bytes: 128
+|image: 32x32 planes=4
+|mask: yes
+|sel: no
 err
 |rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 14266 bytes, and the names to $FIX/kinds.dfn)
 

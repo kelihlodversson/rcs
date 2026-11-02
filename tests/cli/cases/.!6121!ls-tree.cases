@@ -1,0 +1,20 @@
+=== kinds-cicon-4-1
+cmd $FIX/kinds.rsc stat /DIALOG/CICON/4#1
+rc 1
+out
+err
+|rcs-cli: stat: not found: '4#1' in /DIALOG/CICON
+
+=== kinds-cicon-8sel
+cmd $FIX/kinds.rsc stat /DIALOG/CICON/8.sel
+rc 1
+out
+err
+|rcs-cli: stat: not found: '8.sel' in /DIALOG/CICON
+
+=== kinds-cicon-cat
+cmd $FIX/kinds.rsc cat --ascii /DIALOG/CICON/8
+out
+|P6
+|16 16
+|255

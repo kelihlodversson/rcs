@@ -24,6 +24,7 @@
 #include "rscmodel.h"
 #include "rscfile.h"
 #include "rscnames.h"
+#include "rscimage.h"
 
 static const char *dir;
 
@@ -553,6 +554,130 @@ static void kinds_names_files(void)
 	put_file("names.txt", "DIALOG\n", 7);
 }
 
+/* ---- images.rsc: icons and bitmaps with pixels that can be checked by hand --------- */
+
+/* tree 0 "ICONS": ROOT 0, IC16 1 (a 16 x 8 icon), IC20 2 (20 x 3), BM 3 (a
+ * 16 x 4 bitmap), CIC 4 (a 16 x 8 colour icon with 2, 4 and 8 plane versions;
+ * 2 and 4 have selected images, 8 has a full mask), CIC0 5 (a colour icon without
+ * versions), CIC3 6 (one 3 plane version), BOX 7; free images LOGO 0 (16 x
+ * 4) and SMALL 1 (8 x 4).  The pixels of the versions are in img_pix. */
+static const short icon_data[8] = { (short)0x8001, 0x4002, 0x2004, 0x1008, 0x0810, 0x0420, 0x0240, 0x0180 };
+static const short icon_mask[8] = { 0x0000, 0x3FFC, 0x3FFC, 0x3FFC, 0x3FFC, 0x3FFC, 0x3FFC, 0x0000 };
+static const short icon20[6] = { (short)0xF0F0, (short)0xF000, 0x0F0F, 0x0000, (short)0xAAAA, (short)0xA000 };
+static const short mask20[6] = { (short)0xFFFF, (short)0xF000, (short)0xFFFF, (short)0xF000, (short)0xFFFF, (short)0xF000 };
+static const short bitmap16[4] = { (short)0xFF00, 0x0FF0, 0x55AA, (short)0x8001 };
+static const short bitmap8[2] = { (short)0xAA55, (short)0xF00F };
+
+/* the pixel (x, y) of the version of planes planes; sel: of its selected image */
+static unsigned img_pix(int planes, int sel, int x, int y)
+{
+	unsigned	v = planes == 8 ? (unsigned)(x + 16 * y) : (unsigned)(x + y) & ((1u << planes) - 1);
+
+	return sel ? ((1u << planes) - 1) - v : v;
+}
+
+static void img_planes(short *d, int planes, int sel)
+{
+	int	x, y;
+
+	memset(d, 0, sizeof(short) * 8 * (size_t)planes);
+	for (y = 0; y < 8; y++)
+		for (x = 0; x < 16; x++)
+			check(rsc_plane_put(d, planes, 16, 8, x, y, img_pix(planes, sel, x, y)) == 0, "rsc_plane_put");
+}
+
+static void images(void)
+{
+	static const short	selmask[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+	static const struct ent	names[] =
+	{
+		{ RSC_NAME_TREE, RSC_TKIND_DIAL, 0, 0, "ICONS" },
+		{ RSC_NAME_OBJ, 0, 0, 0, "ROOT" },
+		{ RSC_NAME_OBJ, 0, 0, 1, "IC16" },
+		{ RSC_NAME_OBJ, 0, 0, 2, "IC20" },
+		{ RSC_NAME_OBJ, 0, 0, 3, "BM" },
+		{ RSC_NAME_OBJ, 0, 0, 4, "CIC" },
+		{ RSC_NAME_OBJ, 0, 0, 5, "CIC0" },
+		{ RSC_NAME_OBJ, 0, 0, 6, "CIC3" },
+		{ RSC_NAME_OBJ, 0, 0, 7, "BOX" },
+		{ RSC_NAME_FRIMG, RSC_TKIND_UNKN, 0, 0, "LOGO" },
+		{ RSC_NAME_FRIMG, RSC_TKIND_UNKN, 0, 1, "SMALL" },
+		{ 0, 0, 0, 0, NULL }
+	};
+	struct rsc	*r = rsc_new();
+	struct rsc_cicon	*c;
+	ICONBLK		ib;
+	BITBLK		bb;
+	short		d2[16], d4[32], s2[16], s4[32], d8[64], d3[24];
+	int		t, k;
+
+	check(r != NULL, "rsc_new");
+	t = rsc_tree_add(r, 1);
+	check(t == 0, "tree 0");
+	T(rsc_obj_set_type(r, t, 0, G_BOX));
+	memset(&ib, 0, sizeof ib);
+	ib.ib_pmask = (short *)icon_mask;
+	ib.ib_pdata = (short *)icon_data;
+	ib.ib_ptext = "IC16";
+	ib.ib_wicon = 16;
+	ib.ib_hicon = 8;
+	k = add(r, t, 0, G_ICON);
+	T(rsc_obj_set_iconblk(r, t, k, &ib));
+	ib.ib_pmask = (short *)mask20;
+	ib.ib_pdata = (short *)icon20;
+	ib.ib_ptext = "IC20";
+	ib.ib_wicon = 20;
+	ib.ib_hicon = 3;
+	k = add(r, t, 0, G_ICON);
+	T(rsc_obj_set_iconblk(r, t, k, &ib));
+	memset(&bb, 0, sizeof bb);
+	bb.bi_pdata = (short *)bitmap16;
+	bb.bi_wb = 2;
+	bb.bi_hl = 4;
+	bb.bi_color = 1;
+	k = add(r, t, 0, G_IMAGE);
+	T(rsc_obj_set_bitblk(r, t, k, &bb));
+	memset(&ib, 0, sizeof ib);
+	ib.ib_pmask = (short *)icon_mask;
+	ib.ib_pdata = (short *)icon_data;
+	ib.ib_wicon = 16;
+	ib.ib_hicon = 8;
+	img_planes(d2, 2, 0);
+	img_planes(s2, 2, 1);
+	img_planes(d4, 4, 0);
+	img_planes(s4, 4, 1);
+	img_planes(d8, 8, 0);
+	k = add(r, t, 0, G_CICON);
+	T(rsc_obj_set_cicon(r, t, k, &ib, "CIC"));
+	c = rsc_obj_cicon(r, t, k);
+	check(c != NULL, "cicon");
+	check(rsc_cicon_add_version(c, 2, d2, icon_mask, s2, selmask) == 0, "version 2");
+	check(rsc_cicon_add_version(c, 4, d4, icon_mask, s4, icon_data) == 1, "version 4");
+	check(rsc_cicon_add_version(c, 8, d8, selmask, NULL, NULL) == 2, "version 8");
+	k = add(r, t, 0, G_CICON);
+	T(rsc_obj_set_cicon(r, t, k, &ib, "CIC0"));
+	k = add(r, t, 0, G_CICON);
+	T(rsc_obj_set_cicon(r, t, k, &ib, "CIC3"));
+	c = rsc_obj_cicon(r, t, k);
+	check(c != NULL, "cicon 3");
+	memset(d3, 0, sizeof d3);
+	d3[0] = 0x00FF;
+	check(rsc_cicon_add_version(c, 3, d3, icon_mask, NULL, NULL) == 0, "version 3");
+	k = add(r, t, 0, G_BOX);
+	T(rsc_obj_set_value(r, t, k, 0x00001100));
+	memset(&bb, 0, sizeof bb);
+	bb.bi_pdata = (short *)bitmap16;
+	bb.bi_wb = 2;
+	bb.bi_hl = 4;
+	bb.bi_color = 1;
+	check(rsc_frimg_add(r, &bb) == 0, "frimg 0");
+	bb.bi_pdata = (short *)bitmap8;
+	bb.bi_wb = 1;
+	check(rsc_frimg_add(r, &bb) == 1, "frimg 1");
+	write_rsc(r, "images.rsc", NULL);
+	write_dfn("images.dfn", names);
+}
+
 /* ---- manyicons.rsc: 64 colour icons of 1 x 1 pixels with 32 versions each: it reads
  * back (the reader's budget), but twice as many do not (the CLI checks that) */
 static void manyicons(void)
@@ -866,6 +991,7 @@ int main(int argc, char **argv)
 	kinds();
 	kinds_lost();
 	kinds_names_files();
+	images();
 	discovery();
 	manyicons();
 	big("deep.rsc", RSC_MAX_OBJECTS, 1);

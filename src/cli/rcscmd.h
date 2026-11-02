@@ -31,6 +31,7 @@ struct rcs_ctx
 	struct rcs_view		*v;
 	const char		*file;		/* the name of the main file (NULL: unknown) */
 	int			edited;		/* an edit command ran and succeeded */
+	int			unchanged;	/* set by a command that succeeded but changed nothing (rcs_run clears it) */
 	int			no_guess;	/* --no-guess: new trees and alert strings stay unnamed */
 	int			selfcheck;	/* --selfcheck: a failed edit command must not change the model */
 	/* Opens a second file with the options of the run: fills *out (r, n, v)
