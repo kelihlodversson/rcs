@@ -1,1 +1,0 @@
---no-names --no-guess $ROOT/src/atari/rcs.rsc stat /#0

@@ -1,0 +1,85 @@
+=== kinds-cat-box
+cmd $FIX/kinds.rsc cat /DIALOG/#0
+rc 1
+out
+err
+|rcs-cli: cat: /DIALOG/#0: no text
+
+=== kinds-cat-button
+cmd $FIX/kinds.rsc cat /DIALOG/OK
+out
+|OK
+
+=== kinds-cat-frstr
+cmd $FIX/kinds.rsc cat /.strings/#3
+out
+|Say "hi"\\ \x1b[0m \xe4 \x9b\x7f
+
+=== kinds-cat-ftext-v
+cmd $FIX/kinds.rsc cat -v /DIALOG/#10
+out
+|12
+|Age: __
+|99
+
+=== kinds-cat-icon
+cmd $FIX/kinds.rsc cat /DIALOG/ICON
+out
+|ICON
+
+=== kinds-cat-image
+cmd $FIX/kinds.rsc cat /.images/#0
+rc 1
+out
+err
+|rcs-cli: cat: /.images/#0: no text
+
+=== kinds-cat-indirect
+cmd $FIX/kinds.rsc cat /DIALOG/#17
+rc 1
+out
+err
+|rcs-cli: cat: /DIALOG/#17: no text
+
+=== kinds-cat-missing
+cmd $FIX/kinds.rsc cat
+rc 1
+out
+err
+|rcs-cli: cat: missing PATH
+
+=== kinds-cat-root
+cmd $FIX/kinds.rsc cat /
+rc 1
+out
+err
+|rcs-cli: cat: /: no text
+
+=== kinds-cat-string
+cmd $FIX/kinds.rsc cat /DIALOG/#9
+out
+|Tab\there\x01\x7f \xe9 end
+
+=== kinds-cat-text
+cmd $FIX/kinds.rsc cat /DIALOG/Title
+out
+|Name: "x"\\
+
+=== kinds-cat-text-v
+cmd $FIX/kinds.rsc cat -v /DIALOG/Title
+out
+|Name: "x"\\
+|____
+|XXXX
+
+=== kinds-cat-title
+cmd $FIX/kinds.rsc cat /DIALOG/dup
+out
+| File 
+
+=== kinds-cat-tree
+cmd $FIX/kinds.rsc cat /DIALOG
+rc 1
+out
+err
+|rcs-cli: cat: /DIALOG: no text

@@ -119,12 +119,14 @@ the model, the ownership rules and the limits.
 ## The command line tool
 
 `rcs-cli` prints the structure of a resource file (`ls`, `tree`, `stat`,
-`cat`) and rewrites it with `convert`, using the resource library and the
-`.DFN`/`.DEF`/`.RSD`/`.HRD` name files. It is a host program and not part of
-`RCS.PRG`.
+`cat`), rewrites it with `convert`, and edits it (`cp`, `mv`, `rm`, `mkdir`,
+`touch`, `chmod`, `set`, with `-o OUT.rsc` or in place, `-n` for a dry run),
+using the resource library and the `.DFN`/`.DEF`/`.RSD`/`.HRD` name files. It is
+a host program and not part of `RCS.PRG`.
 
     gmake host                       # build/host/rcs-cli
     build/host/rcs-cli FILE.rsc ls -l -R
+    build/host/rcs-cli -o NEW.rsc FILE.rsc -c 'cp -r OTHER.rsc:/DIALOG /' -c 'set /DIALOG/OK text=Done'
     gmake cli-test                   # tests/cli; RSC_SAN=1 for the sanitizers
 
 `docs/rcs-cli.md` has the exact output formats, the path rules and the limits.

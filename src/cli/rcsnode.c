@@ -837,6 +837,136 @@ int rcs_resolve(struct rcs_view *v, const char *path, struct rcs_node *out,
 	return 0;
 }
 
+/* ---- helpers of the editing commands -------------------------------------- */
+
+int rcs_node_entry(struct rcs_view *v, const struct rcs_node *nd, struct rsc_name *out)
+{
+	int	i, n, kind, a, b;
+
+	switch (nd->kind)
+	{
+	case RCS_NODE_TREE:
+		kind = RSC_NAME_TREE;
+		a = nd->tree;
+		b = 0;
+		break;
+	case RCS_NODE_OBJ:
+		kind = RSC_NAME_OBJ;
+		a = nd->tree;
+		b = nd->obj;
+		break;
+	case RCS_NODE_FRSTR:
+		kind = RSC_NAME_FRSTR;
+		a = 0;
+		b = nd->index;
+		break;
+	case RCS_NODE_FRIMG:
+		kind = RSC_NAME_FRIMG;
+		a = 0;
+		b = nd->index;
+		break;
+	default:
+		return -1;
+	}
+	n = rsc_names_count(v->n);
+	for (i = 0; i < n; i++)
+	{
+		if (rsc_names_get(v->n, i, out) != 0)
+			return -1;
+		if (out->kind == kind && out->tree == a && out->obj == b)
+			return 0;
+	}
+	return -1;
+}
+
+int rcs_obj_parent(struct rcs_view *v, int tree, int obj)
+{
+	struct tcache	*c = tree_cache(v, tree);
+
+	if (!c || obj < 0 || obj >= c->nobj)
+		return -3;
+	return c->parent[obj];
+}
+
+int rcs_child_by_name(struct rcs_view *v, const struct rcs_node *dir, const char *comp,
+		      struct rcs_node *out)
+{
+	const struct rsc_cicon	*c;
+	struct rcs_node		cur = *dir;
+	char			msg[RCS_MSG_MAX];
+	int			k, nobj;
+
+	if (dir->kind != RCS_NODE_OBJ)
+	{
+		/* the root and the directories: the lookup of rcs_resolve */
+		if (step(v, &cur, comp, comp, 0, msg, sizeof msg) != 0)
+			return strncmp(msg, "ambiguous", 9) == 0 ? -2 : -1;
+		*out = cur;
+		return 0;
+	}
+	if (!reachable(v, dir->tree, dir->obj))
+		return -1;
+	c = obj_cicon(v, dir->tree, dir->obj);
+	if (c && icon_entry_find(c, comp, &k, &nobj))
+	{
+		node_set(out, RCS_NODE_ICON, dir->tree, dir->obj, k, nobj);
+		return 0;
+	}
+	if (!rsc_tree_objects(v->r, dir->tree, &nobj))
+		return -1;
+	k = rsc_names_find_obj(v->n, dir->tree, comp, nobj);
+	if (k == RSC_NAMES_AMBIGUOUS)
+		return -2;
+	if (k < 0 || !reachable(v, dir->tree, k) || v->tc[dir->tree].parent[k] != dir->obj)
+		return -1;
+	node_set(out, RCS_NODE_OBJ, dir->tree, k, 0, 0);
+	return 0;
+}
+
+int rcs_name_taken(const struct rsc_names *n, int kind, int tree, const char *name, int skip)
+{
+	struct rsc_name	e;
+	int		i, cnt = rsc_names_count(n), idx;
+
+	for (i = 0; i < cnt; i++)
+	{
+		if (rsc_names_get(n, i, &e) != 0 || e.kind != kind || !eq_nocase(e.name, name))
+			continue;
+		if (kind == RSC_NAME_OBJ && e.tree != tree)
+			continue;
+		idx = kind == RSC_NAME_TREE ? e.tree : e.obj;
+		if (idx != skip)
+			return idx;
+	}
+	return -1;
+}
+
+int rcs_check_new_name(const char *name, int at_root, char *why, size_t size)
+{
+	const char	*p;
+
+	if (!name[0])
+		snprintf(why, size, "a name cannot be empty");
+	else if (strlen(name) > RSC_NAME_MAX)
+		snprintf(why, size, "a name has at most %d bytes", RSC_NAME_MAX);
+	else if (strchr(name, '/'))
+		snprintf(why, size, "a name cannot contain /");
+	else if (!name_usable(name, at_root))
+		snprintf(why, size, at_root && name[0] != '#' ? "that name is reserved"
+			 : "a name that is # and digits is an index, not a name");
+	else
+	{
+		for (p = name; *p; p++)
+			if ((unsigned char)*p < 0x20 || *p == 0x7f)
+			{
+				snprintf(why, size, "a name cannot contain a control character");
+				return -1;
+			}
+		return 0;
+	}
+	return -1;
+}
+
 /* ---- describing ----------------------------------------------------------- */
 
 int rcs_describe(struct rcs_view *v, const struct rcs_node *nd, struct rcs_desc *d)

@@ -1,1 +1,0 @@
-$FIX/nosuch.rsc ls

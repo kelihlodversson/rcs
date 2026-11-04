@@ -553,6 +553,123 @@ int rsc_frimg_add(struct rsc *r, const BITBLK *bb);
 /* Removes free image k; the later ones move down.  Returns 0 or -1. */
 int rsc_frimg_delete(struct rsc *r, int k);
 
+/* ---- structure edits: move, copy, walk ----------------------------------------- */
+
+/* The parent of object i of tree t, found as the AES does (follow ob_next
+ * to the parent, whose ob_tail is the last child): -1 when i has none (the
+ * root, or an unlinked object: ob_next -1), -2 for a bad index or links
+ * that lead to no parent.  It looks only at the chain of i (at most n
+ * steps), not at the rest of the tree. */
+int rsc_obj_parent(const struct rsc *r, int t, int i);
+
+/* Moves object i with its subtree to be child number pos of object parent
+ * of the same tree: pos counts the children of parent without i (0 first,
+ * -1 or the count last); within one parent that reorders the siblings.
+ * The indices of i and of every object stay, only links change (and OF_LASTOB
+ * stays where it is).  Fails (-1, nothing changed) for a bad index or
+ * pos, the root as i, i or parent not reachable from the root, a parent
+ * that is i or inside the subtree of i (a cycle), links that do not make
+ * a tree, or no memory (2n ints of scratch).  Returns 0. */
+int rsc_obj_move(struct rsc *r, int t, int i, int parent, int pos);
+
+/* Copies object si of tree st of src, with every object below it, as new
+ * objects at the end of tree dt of dst (the same resource and tree are
+ * allowed), and links the copy of si as child number pos of dparent (as
+ * for rsc_obj_move; -1 last).  The new objects are deep copies: strings,
+ * TEDINFOs, ICONBLKs, BITBLKs, and colour icons with all their versions
+ * (opaque file_head and file_ptr values included); a plain value, and the
+ * spec of an object with OF_INDIRECT, is copied as it is.  The copies
+ * keep the order of the source array, flags except OF_LASTOB (which moves
+ * to the new last object), state and coordinates; the copy of si has no
+ * name, of course: names are the names list's.  si may be 0 (the whole
+ * tree becomes an object).  Only the objects below si are looked at, but si
+ * must be linked into its tree (not a slot left by rsc_obj_delete).  dparent
+ * must be reachable from the root of dt.  When map
+ * is not NULL (room for the object count of tree st of src) map[old] is
+ * the index of the copy of old, or -1 for an object that was not copied.
+ * Returns the index of the copy of si, or -1 and then dst, src and map
+ * are unchanged: bad indices or pos, broken links, src and dst with
+ * another cell size (rsc_cell: coordinates would mean something else),
+ * more than RSC_MAX_OBJECTS objects, or no memory. */
+int rsc_obj_copy_subtree(struct rsc *dst, int dt, int dparent, int pos,
+			 const struct rsc *src, int st, int si, int *map);
+
+/* Copies tree st of src (the objects reachable from its root, which keep
+ * their order: the copy is the compacted tree) into dst as tree number pos
+ * (-1 or rsc_ntrees(dst): the last; the later trees move up).  The same
+ * resource is allowed.  map as for rsc_obj_copy_subtree.  Returns the
+ * index of the new tree, or -1 and nothing has changed (the same reasons). */
+int rsc_tree_copy(struct rsc *dst, int pos, const struct rsc *src, int st, int *map);
+
+/* Moves tree t to index pos (0..rsc_ntrees - 1, -1 last): the trees
+ * between shift by one.  The names list follows with rsc_names_tree_moved.
+ * Returns 0 or -1 (a bad index; nothing changes).  It allocates nothing. */
+int rsc_tree_move(struct rsc *r, int t, int pos);
+
+/* Likewise for free string k and free image k (rsc_names_str_moved and
+ * rsc_names_img_moved).  Free strings and images are named by their index,
+ * so these renumber. */
+int rsc_frstr_move(struct rsc *r, int k, int pos);
+int rsc_frimg_move(struct rsc *r, int k, int pos);
+
+/* Replaces free image k with a copy of *bb, its data (rsc_bitblk_bytes
+ * bytes, may be NULL) included; the index does not change.  Returns 0 or
+ * -1 (nothing changes). */
+int rsc_frimg_set(struct rsc *r, int k, const BITBLK *bb);
+
+/* Colour versions by index.  Both take the planes as rsc_cicon_add_version
+ * does (copied; the sizes follow the mono icon of c; sel_data and
+ * sel_mask both or neither) and give the version file_ptr values 0.
+ * rsc_cicon_insert_version makes the new version number v (0..number of
+ * versions; -1 last), the later ones move up, and returns v;
+ * rsc_cicon_set_version replaces version v.  Both return -1 and change
+ * nothing for a bad v or arguments (planes outside 1..RSC_MAX_PLANES, say), more
+ * than RSC_MAX_VERSIONS versions (insert), or no memory. */
+int rsc_cicon_insert_version(struct rsc_cicon *c, int v, int planes,
+			     const short *col_data, const short *col_mask,
+			     const short *sel_data, const short *sel_mask);
+int rsc_cicon_set_version(struct rsc_cicon *c, int v, int planes,
+			  const short *col_data, const short *col_mask,
+			  const short *sel_data, const short *sel_mask);
+
+/* The most bytes of image data a resized colour icon may hold (the mono
+ * icon and every version), for rsc_cicon_resize. */
+#define RSC_RESIZE_MAX_BYTES	(32UL * 1024 * 1024)
+
+/* Resizes colour icon c to w x h pixels (0..32767), keeping its versions:
+ * every plane (the mono data and mask, each colour plane and mask, the
+ * selected ones) keeps its top left part and is cropped on the right and at
+ * the bottom or padded with zero words, the way rsc_obj_resize_icon does
+ * for an ICONBLK; a NULL data pointer stays NULL.  The positions of the icon
+ * text and of the character inside the mono ICONBLK (ib_xicon, ib_xtext,
+ * ...) are not touched: they are the caller's.  Fails (-1, nothing changed)
+ * for a bad size, a colour icon whose recorded sizes do not match its
+ * blocks (written directly, against the contract above), a result of more
+ * than RSC_RESIZE_MAX_BYTES, or no memory. */
+int rsc_cicon_resize(struct rsc_cicon *c, int w, int h);
+
+/* What a rsc_walk callback returns. */
+enum rsc_walk_action
+{
+	RSC_WALK_CONTINUE = 0,
+	RSC_WALK_SKIP = 1,	/* do not visit the children of this object */
+	RSC_WALK_STOP = 2	/* end the walk */
+};
+
+/* Called for each object: obj is its index, depth 0 for the object the walk
+ * starts at, 1 for its children, ..., parent the index of its parent (-1
+ * for the first object).  The callback must not change the resource. */
+typedef int (*rsc_walk_fn)(void *ctx, int obj, int depth, int parent);
+
+/* Calls cb for the objects of tree t reachable from the root (rsc_walk) or
+ * from object start (rsc_walk_from), in preorder, with depth and parent.
+ * The links are checked first (as rsc_tree_preorder does), so cb sees only
+ * a sound tree.  It is iterative and takes 3n ints of scratch.  Returns the
+ * number of times cb was called, or an enum rsc_walk_error (cb was not
+ * called).  The ob_next of the first object is not looked at. */
+int rsc_walk(const struct rsc *r, int t, rsc_walk_fn cb, void *ctx);
+int rsc_walk_from(const struct rsc *r, int t, int start, rsc_walk_fn cb, void *ctx);
+
 /* ---- allocation, shared with the reader and the writer ------------------- */
 
 /* malloc, realloc, free and a string copy (NULL for NULL) that the test

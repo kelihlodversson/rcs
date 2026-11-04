@@ -1,1 +1,0 @@
---no-guess $ROOT/tests/golden/rcslow.rsc ls -l
