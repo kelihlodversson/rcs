@@ -59,6 +59,65 @@ jobs:
             build/arm/RCS.DFN
             build/arm/RCSLOW.DFN
 
+  x32:
+    name: Build for x32 with shared libaes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/checkout@v4
+        with:
+          repository: kelihlodversson/pTOS
+          # Resident external desktop, merged as pTOS#856.
+          ref: 7a17e6328d7f37b75592ee14cb29a0804480342c
+          path: build/ptos
+          submodules: recursive
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y gcc binutils rsync qemu-system-x86 ovmf mtools dosfstools
+          pip3 install kconfiglib
+      - name: Build the pTOS shared runtime
+        working-directory: build/ptos
+        run: |
+          make pc-x86_64-desktop-tests-builtin-cli_defconfig
+          CONFIG_= python3 - <<'PY'
+          import kconfiglib
+          config = kconfiglib.Kconfig()
+          config.load_config()
+          config.syms['CONF_WITH_ELF_SHARED'].set_value(2)
+          config.syms['CONF_WITH_LIBAES'].set_value(2)
+          config.write_config()
+          PY
+          make CROSS_COMPILE= -j4
+          make CROSS_COMPILE= -j4 x32-desktop-test x32-desktop-window-test
+      - name: Build RCS
+        run: make -j4 x32 PTOS=build/ptos
+      - name: Check shared library dependencies
+        run: |
+          readelf -h build/x32/RCS.PRG | grep 'ELF32'
+          readelf -l build/x32/RCS.PRG | grep '/GEMSYS/LIB/X32/LD.SO'
+          readelf -d build/x32/RCS.PRG | grep 'Shared library: \[libaes.so\]'
+          readelf -d build/x32/RCS.PRG | grep 'Shared library: \[libptos.so\]'
+      - name: Open, edit, save and reload on EmultiDesk
+        run: |
+          python3 tests/emulator/x32.py --ptos build/ptos \
+            --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd \
+            --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rcs-x32
+          path: |
+            build/x32/RCS.PRG
+            build/x32/*.RSC
+            build/x32/*.DFN
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rcs-x32-gui-test
+          path: build/emulator/x32/
+
   host-tests:
     name: Host tests (resource library, round trip, command line tool)
     # the system C compiler only: these tests use neither gemlib nor
