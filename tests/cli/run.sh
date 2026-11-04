@@ -457,7 +457,7 @@ edit() {
         for f in "$d"/*.dfn; do
             if [ -f "$f" ]; then echo "file $(basename "$f") $(wc -c < "$f" | tr -d ' ') bytes"; fi
         done
-    } | sed -e "s|$d|\$D|g" -e "s|$FIX|\$FIX|g" -e "s|$ROOT|\$ROOT|g" > "$d/result"
+    } | sed -e "s|$d|\$D|g" -e "s|$FIX|\$FIX|g" -e "s|$TMP|\$TMP|g" -e "s|$ROOT|\$ROOT|g" > "$d/result"
     if [ -n "$UPDATE" ]; then cp "$d/result" "$SPLIT/edit:$name.out"; fi
     if cmp -s "$d/result" "$SPLIT/edit:$name.out"; then
         ok "edit $name"

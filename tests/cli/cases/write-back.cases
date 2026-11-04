@@ -7613,7 +7613,7 @@ out
 === edit:wb-img-import
 out
 |exit status 1
-|rcs-cli: cp: host:/tmp/rcscli.3tnsVg/t/pnm/a16.pbm: the image is 16x8 but /ICONS/BM is 16x4 (use --resize to scale it)
+|rcs-cli: cp: host:$TMP/pnm/a16.pbm: the image is 16x8 but /ICONS/BM is 16x4 (use --resize to scale it)
 |/:
 |#0     ICONS        DIAL  8
 |-      .strings     DIR   0
