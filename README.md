@@ -122,7 +122,9 @@ the model, the ownership rules and the limits.
 `cat`), rewrites it with `convert`, and edits it (`cp`, `mv`, `rm`, `mkdir`,
 `touch`, `chmod`, `set`, with `-o OUT.rsc` or in place, `-n` for a dry run),
 using the resource library and the `.DFN`/`.DEF`/`.RSD`/`.HRD` name files. It is
-a host program and not part of `RCS.PRG`.
+a host program and not part of `RCS.PRG`. Icon and bitmap images are files too:
+`cat --ascii PATH` prints one as PBM/PPM and `cp host:FILE PATH` / `cp PATH host:FILE`
+import and export them.
 
     gmake host                       # build/host/rcs-cli
     build/host/rcs-cli FILE.rsc ls -l -R

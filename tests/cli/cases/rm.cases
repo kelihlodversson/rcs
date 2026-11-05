@@ -18,7 +18,7 @@ cmd --selfcheck -n $FIX/kinds.rsc rm /DIALOG/CICON/mono
 rc 1
 out
 err
-|rcs-cli: rm: /DIALOG/CICON/mono: colour icon entries cannot be removed yet
+|rcs-cli: rm: /DIALOG/CICON/mono: the mono image cannot be removed
 
 === rm-img
 cmd --selfcheck -n $FIX/kinds.rsc -c 'rm /.images/LOGO' -c 'ls -l /.images'

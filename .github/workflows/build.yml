@@ -61,7 +61,9 @@ jobs:
 
   x32:
     name: Build for x32 with shared libaes
-    runs-on: ubuntu-latest
+    # The pinned pTOS boot fixture passed with this toolchain and OVMF.
+    # ubuntu-latest moved to 26.04 and faults in EFI before RCS starts.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:

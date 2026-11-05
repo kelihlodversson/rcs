@@ -1656,6 +1656,8 @@ out
 |bi-y: 0
 |color: 1
 |data-bytes: 264
+|image: 48x44 planes=1
+|mask: no
 
 === rcs-stat-button
 cmd $ROOT/src/atari/rcs.rsc stat /ABOUTREE/AOKITEM
@@ -1708,6 +1710,8 @@ out
 |text-box: 24,24,0,8
 |data-bytes: 192
 |mask-bytes: 192
+|image: 48x32 planes=1
+|mask: yes
 
 === rcs-stat-image
 cmd $ROOT/src/atari/rcs.rsc stat /.images/CLIPMPTY
@@ -1721,6 +1725,8 @@ out
 |bi-y: 0
 |color: 1
 |data-bytes: 264
+|image: 48x44 planes=1
+|mask: no
 
 === rcs-stat-string
 cmd $ROOT/src/atari/rcs.rsc stat /.strings/HIDEPART

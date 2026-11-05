@@ -20,6 +20,8 @@ out
 |bi-y: 2
 |color: 3
 |data-bytes: 12
+|image: 24x4 planes=1
+|mask: no
 
 === kinds-stat-frimg-name
 cmd $FIX/kinds.rsc stat /.images/LOGO
@@ -33,6 +35,8 @@ out
 |bi-y: 0
 |color: 1
 |data-bytes: 16
+|image: 16x8 planes=1
+|mask: no
 
 === kinds-stat-frstr
 cmd $FIX/kinds.rsc stat /.strings/#3
@@ -218,6 +222,8 @@ out
 |text-box: 0,32,72,8
 |data-bytes: 128
 |mask-bytes: 128
+|image: 32x32 planes=1
+|mask: yes
 
 === kinds-stat-obj13
 cmd $FIX/kinds.rsc stat /DIALOG/#13
@@ -460,6 +466,8 @@ out
 |bi-y: 0
 |color: 1
 |data-bytes: 16
+|image: 16x8 planes=1
+|mask: no
 
 === kinds-stat-obj4
 cmd $FIX/kinds.rsc stat /DIALOG/#4

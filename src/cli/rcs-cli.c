@@ -829,6 +829,9 @@ int main(int argc, char **argv)
 	}
 	else if (status == 0 && pl.out)
 		rcs_note("no edit command ran: %s was not written", esc(eb, sizeof eb, pl.out));
+	if (status == 0 && rcs_exports_flush(&ctx, pl.dry) != 0)
+		status = 1;
+	rcs_exports_free(&ctx);
 out:
 	if (fflush(stdout) != 0 && status == 0)
 	{

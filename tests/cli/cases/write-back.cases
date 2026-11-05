@@ -7609,3 +7609,208 @@ out
 |cell: file
 |vrsn: 0x0000
 |file in.dfn 450 bytes
+
+=== edit:wb-img-import
+out
+|exit status 1
+|rcs-cli: cp: host:$TMP/pnm/a16.pbm: the image is 16x8 but /ICONS/BM is 16x4 (use --resize to scale it)
+|/:
+|#0     ICONS        DIAL  8
+|-      .strings     DIR   0
+|-      .images      DIR   2
+|
+|/ICONS:
+|#1     IC16         G_ICON     - - 0,0,0,0
+|#2     IC20         G_ICON     - - 0,0,0,0
+|#3     BM           G_IMAGE    - - 0,0,0,0
+|#4     CIC          G_CICON    - - 0,0,0,0
+|#5     CIC0         G_CICON    - - 0,0,0,0
+|#6     CIC3         G_CICON    - - 0,0,0,0
+|#7     BOX          G_BOX      LASTOB - 0,0,0,0
+|
+|/ICONS/CIC:
+|mono      1 no
+|2         2 no
+|2.sel     2 yes
+|4         4 no
+|4.sel     4 yes
+|8         8 no
+|
+|/ICONS/CIC0:
+|mono      1 no
+|
+|/ICONS/CIC3:
+|mono      1 no
+|3         3 no
+|
+|/.strings:
+|
+|/.images:
+|#0     LOGO         16x4
+|#1     SMALL        8x4
+|/
+||-- #0 ICONS DIAL 8
+||   |-- #1 IC16 G_ICON - -
+||   |-- #2 IC20 G_ICON - -
+||   |-- #3 BM G_IMAGE - -
+||   |-- #4 CIC G_CICON - -
+||   |   |-- mono 1 no
+||   |   |-- 2 2 no
+||   |   |-- 2.sel 2 yes
+||   |   |-- 4 4 no
+||   |   |-- 4.sel 4 yes
+||   |   `-- 8 8 no
+||   |-- #5 CIC0 G_CICON - -
+||   |   `-- mono 1 no
+||   |-- #6 CIC3 G_CICON - -
+||   |   |-- mono 1 no
+||   |   `-- 3 3 no
+||   `-- #7 BOX G_BOX LASTOB -
+||-- - .strings DIR 0
+|`-- - .images DIR 2
+|    |-- #0 LOGO 16x4
+|    `-- #1 SMALL 8x4
+|path: /
+|trees: 1
+|strings: 0
+|images: 2
+|cell: file
+|vrsn: 0x0000
+|file in.dfn 156 bytes
+
+=== edit:wb-img-versions
+out
+|exit status 0
+|rcs-cli: note: cp: 120 pixels changed colour in the conversion to 2 planes
+|/:
+|#0     ICONS        DIAL  8
+|-      .strings     DIR   0
+|-      .images      DIR   2
+|
+|/ICONS:
+|#1     IC16         G_ICON     - - 0,0,0,0
+|#2     IC20         G_ICON     - - 0,0,0,0
+|#3     BM           G_IMAGE    - - 0,0,0,0
+|#4     CIC          G_CICON    - - 0,0,0,0
+|#5     CIC0         G_CICON    - - 0,0,0,0
+|#6     CIC3         G_CICON    - - 0,0,0,0
+|#7     BOX          G_BOX      LASTOB - 0,0,0,0
+|
+|/ICONS/CIC:
+|mono      1 no
+|4         4 no
+|8         8 no
+|
+|/ICONS/CIC0:
+|mono      1 no
+|8         8 no
+|8.sel     8 yes
+|2         2 no
+|
+|/ICONS/CIC3:
+|mono      1 no
+|3         3 no
+|
+|/.strings:
+|
+|/.images:
+|#0     LOGO         16x4
+|#1     SMALL        8x4
+|/
+||-- #0 ICONS DIAL 8
+||   |-- #1 IC16 G_ICON - -
+||   |-- #2 IC20 G_ICON - -
+||   |-- #3 BM G_IMAGE - -
+||   |-- #4 CIC G_CICON - -
+||   |   |-- mono 1 no
+||   |   |-- 4 4 no
+||   |   `-- 8 8 no
+||   |-- #5 CIC0 G_CICON - -
+||   |   |-- mono 1 no
+||   |   |-- 8 8 no
+||   |   |-- 8.sel 8 yes
+||   |   `-- 2 2 no
+||   |-- #6 CIC3 G_CICON - -
+||   |   |-- mono 1 no
+||   |   `-- 3 3 no
+||   `-- #7 BOX G_BOX LASTOB -
+||-- - .strings DIR 0
+|`-- - .images DIR 2
+|    |-- #0 LOGO 16x4
+|    `-- #1 SMALL 8x4
+|path: /
+|trees: 1
+|strings: 0
+|images: 2
+|cell: file
+|vrsn: 0x0000
+|file in.dfn 156 bytes
+
+=== edit:wb-img-set
+out
+|exit status 0
+|rcs-cli: note: set: iw=8: the AES draws a colour icon whose width is not a multiple of 16 wrongly
+|rcs-cli: note: set: iw=10 was rounded up to 16 (a bitmap is a whole number of bytes wide)
+|/:
+|#0     ICONS        DIAL  8
+|-      .strings     DIR   0
+|-      .images      DIR   2
+|
+|/ICONS:
+|#1     IC16         G_ICON     - - 0,0,0,0
+|#2     IC20         G_ICON     - - 0,0,0,0
+|#3     BM           G_IMAGE    - - 0,0,0,0
+|#4     CIC          G_CICON    - - 0,0,0,0
+|#5     CIC0         G_CICON    - - 0,0,0,0
+|#6     CIC3         G_CICON    - - 0,0,0,0
+|#7     BOX          G_BOX      LASTOB - 0,0,0,0
+|
+|/ICONS/CIC:
+|mono      1 no
+|2         2 no
+|2.sel     2 yes
+|4         4 no
+|4.sel     4 yes
+|8         8 no
+|
+|/ICONS/CIC0:
+|mono      1 no
+|
+|/ICONS/CIC3:
+|mono      1 no
+|3         3 no
+|
+|/.strings:
+|
+|/.images:
+|#0     LOGO         16x4
+|#1     SMALL        16x2
+|/
+||-- #0 ICONS DIAL 8
+||   |-- #1 IC16 G_ICON - -
+||   |-- #2 IC20 G_ICON - -
+||   |-- #3 BM G_IMAGE - -
+||   |-- #4 CIC G_CICON - -
+||   |   |-- mono 1 no
+||   |   |-- 2 2 no
+||   |   |-- 2.sel 2 yes
+||   |   |-- 4 4 no
+||   |   |-- 4.sel 4 yes
+||   |   `-- 8 8 no
+||   |-- #5 CIC0 G_CICON - -
+||   |   `-- mono 1 no
+||   |-- #6 CIC3 G_CICON - -
+||   |   |-- mono 1 no
+||   |   `-- 3 3 no
+||   `-- #7 BOX G_BOX LASTOB -
+||-- - .strings DIR 0
+|`-- - .images DIR 2
+|    |-- #0 LOGO 16x4
+|    `-- #1 SMALL 16x2
+|path: /
+|trees: 1
+|strings: 0
+|images: 2
+|cell: file
+|vrsn: 0x0000
+|file in.dfn 156 bytes

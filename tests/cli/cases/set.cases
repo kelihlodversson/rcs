@@ -248,7 +248,7 @@ cmd --selfcheck -n $FIX/kinds.rsc set /.strings/HELLO x=1
 rc 1
 out
 err
-|rcs-cli: set: /.strings/HELLO: only name= applies to a free string (and text=) or image
+|rcs-cli: set: /.strings/HELLO: only name= applies to a free string (and text=)
 
 === set-frstr-text
 cmd --selfcheck -n $FIX/kinds.rsc -c 'set /.strings/HELLO text=Bye' -c 'cat /.strings/HELLO'
@@ -395,7 +395,7 @@ cmd --selfcheck -n $FIX/kinds.rsc set /.images/LOGO text=x
 rc 1
 out
 err
-|rcs-cli: set: /.images/LOGO: only name= applies to a free string (and text=) or image
+|rcs-cli: set: /.images/LOGO: only name= applies to a free image (and iw= and ih=)
 
 === set-just
 cmd --selfcheck -n $FIX/kinds.rsc -c 'set /DIALOG/EDIT just=center' -c 'stat /DIALOG/EDIT'
@@ -930,6 +930,8 @@ out
 |text-box: 0,32,32,8
 |data-bytes: 128
 |mask-bytes: 128
+|image: 32x32 planes=1
+|mask: no
 err
 |rcs-cli: note: dry run: nothing written (would write $FIX/kinds.rsc, 13560 bytes, and the names to $FIX/kinds.dfn)
 

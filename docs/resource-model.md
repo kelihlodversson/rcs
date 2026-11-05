@@ -77,6 +77,15 @@ use `src/host/gem.h`.
   one or more directories (separated by `:`) it also reads every `*.dfn`,
   `*.def`, `*.rsd` and `*.hrd` in them with the `*.rsc` of the same base
   name, and requires that the check drops nothing.
+- `test_image` tests the section "Images as pictures": the palette tables
+  (hand-checked entries and the nearest search against a naive one), planar
+  words and pixels (all sizes 1x1 to 65x33 at 1 to 8 planes), conversions,
+  the PNM writer and parser (every header form, comments, error paths,
+  truncation sweeps, hostile dimensions and numbers, a random-byte fuzz),
+  export-import-export round trips, the images of a model object by object
+  (versions, selected images, odd `bi_wb`, the limits), a failing allocation
+  at every point of each call, and a trip through `rsc_atari_write` and
+  `rsc_atari_read`.
 
 ## The model
 
@@ -334,6 +343,133 @@ negative size; a cell size that is 0, 0 or 1 to `RSC_MAX_CELL` twice. What
 it accepts the writer writes, except that the classic part may exceed 65535
 bytes, which only a write can tell (`RSC_ETOOBIG`). Objects the root does not
 reach are not looked at, as in the writer.
+
+## Images as pictures
+
+Added for the image commands of `rcs-cli` (stage 4, #33): `src/rsc/rscimage.h`
+and `rscimage.c`, pure C99 with no I/O (they compile for the Atari and the
+Raspberry Pi as well as for the host). Error codes are the negative
+`enum rsc_img_error` (`RSC_IMG_E...`); every call that fails leaves what it was
+given as it was, also for a failed allocation, and clears its output.
+
+**Pixels.** A `struct rsc_pixmap` is an image with one byte per pixel
+(`pix[y * w + x]`, the pixel value, 0 to `(1 << planes) - 1`); at most
+`RSC_PIXMAP_MAX_PIXELS` (16 Mi) pixels and 32767 x 32767. The words of the
+model are the AES word layout of a `CICON`: `num_planes` planes one after the
+other, each plane `((w + 15) / 16) * h` words, row by row, bit 15 of a word
+the leftmost pixel and plane 0 the least significant bit of the value; the
+bits of a word beyond the width are ignored when reading and written as zero.
+One plane is black (1) on white (0), as the AES draws icons. The words are in
+the byte order of the machine as everywhere in the model, and the code works
+on word values, so no byte order shows. `rsc_plane_get` and `rsc_plane_put`
+address one pixel of a block of 1 to 8 planes, `rsc_planes_to_pixmap` and
+`rsc_pixmap_to_planes` convert a whole block (NULL data reads as a blank
+image). A `BITBLK` (`G_IMAGE` and free images) is one plane whose rows are
+`bi_wb` bytes of the file's byte stream, an odd `bi_wb` included (the odd
+last byte of such a block is kept as it is, as the reader keeps it).
+
+**The standard palette.** The pixel value of a colour version is an index
+into the VDI palette of its depth, through the pen-to-pixel mapping of the AES
+(the reverse of `MAP_COL` of the VDI). `rsc_palette_rgb(planes, pixel, &r, &g,
+&b)` gives the 8-bit colour (the thousandths of the VDI scaled by `v * 255 /
+1000`, rounded), `rsc_palette_nearest(planes, r, g, b)` the pixel of the
+nearest entry (least sum of squared differences of the three channels, the
+lowest pixel value among equals; so the second white or black of the 8-plane
+palette is never chosen). They support 1 plane (0 white, 1 black) and the
+depths 2, 4 and 8 (`rsc_depth_supported`); every other depth (3, 5 to 7, 9 to
+16) is kept by the model but has no palette and is `RSC_IMG_ENODEPTH`.
+
+| Planes | Pixel to pen | Colour of the pen |
+|---|---|---|
+| 2 | 0, 2, 3, 1 | pens 0-15 from `st_palette` |
+| 4 | 0, 2, 3, 6, 4, 7, 5, 8, 9, 10, 11, 14, 12, 15, 13, 1 | pens 0-15 from `st_palette` |
+| 8 | pixels 0-14 as at 4 planes, 15 is pen 255, 255 is pen 1, 16-254 are the pens of the same number | pens 0-15 from `tt_palette1`, pens 16-255 from `tt_palette2` |
+
+The pens are the 16 VDI colours (white, black, red, green, blue, cyan, yellow,
+magenta, light grey, grey, light red, light green, light blue, light cyan,
+light yellow, light magenta). The tables are copied from `vdi/vdi_col.c` of
+pTOS (commit 9f6a8a145859d79310d89dd9a36f41512e049c58 of the pTOS repository),
+which has them unchanged from upstream EmuTOS: `st_palette` (the default ST
+and 4-plane palette, light grey 714 and grey 428 thousandths), `tt_palette1`
+(the first 16 colours of the TT / Falcon 256-colour palette) and `tt_palette2`
+(pens 16 to 255, equal to `videl_palette2`); the pen mapping is
+`MAP_COL_ROM` of the same file with pen 1 at the last register of the depth
+(`init_colors`). The 8-plane palette has duplicate colours (white and black
+more than once); the lowest pixel value of a colour is the one an import
+chooses, and a second export is the same picture. The palette extension of a
+file is not used.
+
+**Depth conversion.** `rsc_pixmap_convert(in, planes, &out, &inexact)`: the
+same depth is a copy; from one plane a set pixel becomes the black of the
+depth (pen 1, the value `(1 << planes) - 1`) and a clear pixel 0 (white), for
+any depth 1 to 8; otherwise every pixel becomes the nearest colour (the
+source depth must be 2, 4 or 8, the target 1, 2, 4 or 8). `*inexact` counts
+the pixels whose colour is not the same afterwards. `rsc_pixmap_scale` is the
+nearest neighbour resampling used by a lossy resize.
+
+**PNM files.** `rsc_image_to_pbm(pm, ascii, &buf, &len)` writes a one-plane
+pixmap as `P4` (or `P1`), `rsc_image_to_ppm` any pixmap of 1, 2, 4 or 8 planes
+through the palette as `P6` (or `P3`), maxval 255; the header is `P4\nW H\n`
+(`P6\nW H\n255\n`), the ascii forms have lines of at most 70 characters and
+each row starts a line. `rsc_image_from_pnm(buf, len, max_pixels, &pnm)`
+reads `P1` to `P6`: white space and `#` comments between the header fields
+(in the text forms between samples too), exactly one white space byte before
+binary data, `maxval` 1 to 255 (0 is malformed, above 255 is
+`RSC_IMG_EMAXVAL`: 16-bit files are refused), a sample above `maxval` is
+malformed, bytes after the data are ignored. Hostile input costs nothing: the
+dimensions (1 to 32767, else `RSC_IMG_ETOOBIG`) and the product against the
+budget `max_pixels` (0: 4 Mi pixels) are checked before anything is
+allocated, and so is the number of bytes the file really has (a binary form
+needs them all, a `P1` form one per pixel, `P2` and `P3` two per sample less
+one), so the memory is bounded by the length of the file; numbers of any
+length are read in constant space (they saturate), and every loop is bounded
+by the buffer. `rsc_pnm_rgb` gives the 8-bit colour of a pixel of a decoded
+file (bitmaps: 1 is black), and `rsc_pnm_to_pixmap(pnm, planes, threshold,
+exact, &pm, &bad)` makes the pixmap of an image of `planes` planes: one plane
+(a mono image or a mask) sets the pixels that are at least `threshold`
+percent dark (0: 50), 2, 4 and 8 planes take the nearest palette entry, and
+with `exact` a colour that is not in the palette is `RSC_IMG_ENOTPAL` with the
+index of the first one in `*bad`.
+
+**The images of a model.** A `struct rsc_imgsel` selects an image: `tree` and
+`obj` (or `tree == RSC_IMG_FREE` and `obj` the free image number), `version`
+(`RSC_VER_MONO` for the image of the object itself or the mono icon of a
+colour icon, otherwise the index of the colour version as
+`rsc_cicon_version` numbers them), `sel` (the selected image of a version)
+and `mask` (the mask instead of the data). A `G_ICON`, a `G_IMAGE` (no mask:
+`RSC_IMG_ENOMASK`), a free image, a colour icon's mono icon and its versions
+have images; any other object, a bad version or a selected image that does not
+exist is `RSC_IMG_ENOIMAGE`, a bad index `RSC_IMG_EARG`. The colour data of a
+version needs a depth of 2, 4 or 8 (`RSC_IMG_ENODEPTH` for `get`, `set` and
+`copy`; its mask is one plane at any depth, and `rsc_image_info` works at any
+depth).
+
+- `rsc_image_info(r, &sel, &info)`: width, height, planes and whether the data
+  pointer is NULL (a blank image).
+- `rsc_image_get(r, &sel, &pm)`: the image as a pixmap.
+- `rsc_image_set(r, &sel, &pm)`: replaces the image; the pixmap has the size
+  of the icon (`RSC_IMG_ESIZE`) and the planes of the image (`RSC_IMG_EARG`).
+  Only the pointer of the image changes: sizes and the opaque file fields stay.
+  As a destination `version` may be `RSC_VER_NEW` with `planes` 2, 4 or 8: a
+  new colour version is created (`RSC_IMG_EEXIST` when the icon has the depth,
+  `RSC_IMG_ELIMIT` at `RSC_MAX_VERSIONS`), its data blank or the given pixels
+  and its mask a copy of the mono mask (or the given mask). `sel` on a version
+  without selected images creates them, the half not given a copy of the
+  normal one.
+- `rsc_image_copy(r, &from, &to, flags, &inexact)`: converts the image to the
+  depth of the destination and sets it; with `RSC_COPY_MASK` the mask of
+  `from` is copied to the mask of `to` as well (when both have one; the
+  `mask` fields of the selectors must be 0). The sizes must be equal.
+- `rsc_cicon_find_version(c, planes)`, `rsc_cicon_new_version(c, planes)` (a
+  blank version: data 0, mask a copy of the mono mask), `rsc_cicon_add_selected(c,
+  v)` (selected images copied from the normal ones), `rsc_cicon_drop_selected(c,
+  v)`; deleting a version is `rsc_cicon_remove_version`.
+
+Everything is all or nothing: the new blocks are allocated first and the
+pointers swapped last. The library writes the image pointers of the records
+itself (the one place that may, see "Direct access" in `rscmodel.h`); the
+blocks it installs come from `rsc_malloc` and have the sizes the size fields
+say.
 
 ## Errors
 
