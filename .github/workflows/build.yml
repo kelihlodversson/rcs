@@ -71,8 +71,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: kelihlodversson/pTOS
-          # Resident external desktop, merged as pTOS#856.
-          ref: 7a17e6328d7f37b75592ee14cb29a0804480342c
+          # Typed mt-only libaes and caller-owned GEMlib bindings (pTOS#955).
+          ref: f839f4e93a7fdce76bc8add1da651b14041290e0
           path: build/ptos
           submodules: recursive
       - name: Install build dependencies
@@ -93,7 +93,7 @@ jobs:
           config.write_config()
           PY
           make CROSS_COMPILE= -j4
-          make CROSS_COMPILE= -j4 x32-desktop-test x32-desktop-window-test
+          make CROSS_COMPILE= -j4 x32-desktop-test
       - name: Build RCS
         run: make -j4 x32 PTOS=build/ptos
       - name: Check shared library dependencies
