@@ -68,7 +68,7 @@ The GUI regression uses the same pTOS build's desktop test harness (its
 `pc-x86_64-desktop-tests-builtin-cli_defconfig`, with shared ELF and libaes
 enabled). It requires QEMU, OVMF, mtools and dosfstools:
 
-    make -C /path/to/pTOS CROSS_COMPILE= -j4 x32-desktop-test x32-desktop-window-test
+    make -C /path/to/pTOS CROSS_COMPILE= -j4 x32-desktop-test
     python3 tests/emulator/x32.py --ptos /path/to/pTOS \
         --ovmf-code /path/to/OVMF_CODE_4M.fd --ovmf-vars /path/to/OVMF_VARS_4M.fd
 
