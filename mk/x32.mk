@@ -45,12 +45,12 @@ $(X32_LIBCMINI): $(LIBCMINI_REV)
 	cp build/x32/libcmini/build/libcmini.a $@
 
 build/x32/$(PRG_NAME): $(X32_OBJ) $(X32_VDI_OBJ) $(X32_LIBCMINI) build/x32/lib/libptos-vdi.a \
-    $(PTOS)/obj/ldso/dyncrt.o $(PTOS)/obj/ldso/libptos.so $(PTOS)/obj/libaes/libaes.so
+    $(PTOS)/obj/ldso/dyncrt.o $(PTOS)/obj/ldso/libptos.so $(PTOS)/obj/libaes/libaes.so $(PTOS)/obj/gemlib/libgem.a
 	$(X32_CC) -mx32 -nostdlib -no-pie \
 	    -Wl,--hash-style=sysv,-z,now,-z,noexecstack,-e,_start \
 	    -Wl,--dynamic-linker,/GEMSYS/LIB/X32/LD.SO,-Ttext-segment=0x400000 \
 	    $(PTOS)/obj/ldso/dyncrt.o $(X32_OBJ) $(X32_VDI_OBJ) \
-	    -L$(PTOS)/obj/libaes -laes -L$(PTOS)/obj/ldso -lptos \
+	    $(PTOS)/obj/gemlib/libgem.a -L$(PTOS)/obj/libaes -laes -L$(PTOS)/obj/ldso -lptos \
 	    build/x32/lib/libptos-vdi.a $(X32_LIBCMINI) -o $@
 
 -include $(X32_OBJ:.o=.d) $(X32_VDI_OBJ:.o=.d)
