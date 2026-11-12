@@ -72,7 +72,7 @@ jobs:
         with:
           repository: kelihlodversson/pTOS
           # Typed mt-only libaes and caller-owned GEMlib bindings (pTOS#955).
-          ref: f839f4e93a7fdce76bc8add1da651b14041290e0
+          ref: 41e77f9d8bd1215207c511ebb318ada3eb1d6018
           path: build/ptos
           submodules: recursive
       - name: Install build dependencies
