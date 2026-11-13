@@ -63,7 +63,7 @@ jobs:
 
   x32:
     name: Build for x32 with shared libaes
-    # The pinned pTOS boot fixture passed with this toolchain and OVMF.
+    # Retain the pinned Ubuntu/OVMF boot fixture when changing compilers.
     # ubuntu-latest moved to 26.04 and faults in EFI before RCS starts.
     runs-on: ubuntu-24.04
     steps:

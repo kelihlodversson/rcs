@@ -6,7 +6,7 @@ X32_CC ?= $(X32_PREFIX)gcc
 X32_OBJCOPY ?= $(X32_PREFIX)objcopy
 X32_CFLAGS = $(STD) $(WARN) $(RCS_TEST_CFLAGS) -Os -mx32 -ffreestanding \
     -fPIC -fvisibility=hidden -fno-stack-protector -fno-builtin \
-    -Isrc/x32 -Isrc -I$(GEMLIB) -I$(LIBCMINI)/include -D__GEMLIB_OLDNAMES -MMD -MP
+    -Isrc/compat -Isrc/x32 -Isrc -I$(GEMLIB) -I$(LIBCMINI)/include -D__GEMLIB_OLDNAMES -MMD -MP
 X32_OBJ = $(patsubst %.c,build/x32/%.o,$(PRG_SRC))
 X32_LIBCMINI = build/x32/lib/libcmini.a
 X32_VDI_NAMES = rc_copy rc_grect_to_array v_bar v_clsvwk v_ellarc v_ellipse \
