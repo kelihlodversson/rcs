@@ -1,6 +1,6 @@
-/* GEMlib's compiler declarations for the native pTOS ABI. */
-#ifndef RCS_X32_COMPILER_H
-#define RCS_X32_COMPILER_H
+/* GEMlib's compiler declarations for the pTOS SDK stack/standard ABI. */
+#ifndef RCS_COMPAT_COMPILER_H
+#define RCS_COMPAT_COMPILER_H
 
 #ifdef __cplusplus
 #define __BEGIN_DECLS extern "C" {
