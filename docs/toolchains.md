@@ -39,15 +39,15 @@ Use a native x86-64 GCC and binutils with x32 support (`gcc -mx32`). A Linux
 x32 libc/sysroot is not needed: RCS uses the pinned libcmini headers and
 builds its library in `build/x32/libcmini`.
 
-First build the pTOS `epic/661-userspace-aes-cuis` branch (at least the merge
-of pTOS#856) with `CONF_WITH_ELF_SHARED=y`, `CONF_WITH_LIBAES=y`, and the
+First initialize pTOS's submodules and build pTOS with the native GEMlib
+binding split (pTOS#955) with `CONF_WITH_ELF_SHARED=y`, `CONF_WITH_LIBAES=y`, and the
 external desktop enabled. Then:
 
     make -j4 x32 PTOS=/path/to/pTOS
 
 `X32_CC` and `X32_OBJCOPY` override the native compiler and objcopy. The
 default `PTOS` is `../pTOS`. The pTOS build must provide `obj/ldso/dyncrt.o`,
-`obj/ldso/libptos.so`, `obj/libaes/libaes.so` and
+`obj/ldso/libptos.so`, `obj/libaes/libaes.so`, `obj/gemlib/libgem.a` and
 `obj/x32/libptos-vdi.a`, plus its public headers and generated configuration.
 
 Copy `build/x32/RCS.PRG`, `RCS.RSC`, `RCSLOW.RSC` and the two `.DFN` files
@@ -68,7 +68,7 @@ The GUI regression uses the same pTOS build's desktop test harness (its
 `pc-x86_64-desktop-tests-builtin-cli_defconfig`, with shared ELF and libaes
 enabled). It requires QEMU, OVMF, mtools and dosfstools:
 
-    make -C /path/to/pTOS CROSS_COMPILE= -j4 x32-desktop-test x32-desktop-window-test
+    make -C /path/to/pTOS CROSS_COMPILE= -j4 x32-desktop-test
     python3 tests/emulator/x32.py --ptos /path/to/pTOS \
         --ovmf-code /path/to/OVMF_CODE_4M.fd --ovmf-vars /path/to/OVMF_VARS_4M.fd
 
