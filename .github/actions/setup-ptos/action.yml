@@ -1,0 +1,66 @@
+name: Install pinned pTOS SDK
+description: Install a verified SDK from the signed pTOS APT repository
+inputs:
+  target:
+    description: Cross target (m68k, arm or x32)
+    required: true
+  version:
+    description: Debian SDK release version
+    default: '0.2.0'
+runs:
+  using: composite
+  steps:
+    - name: Install SDK and build tools
+      shell: bash
+      env:
+        SDK_TARGET: ${{ inputs.target }}
+        SDK_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        [[ $SDK_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+          echo 'SDK version must name an official stable release' >&2; exit 2;
+        }
+        dpkg --validate-version "$SDK_VERSION"
+        case $SDK_TARGET in
+          m68k) package=ptos-sdk-m68k; prefix=m68k-unknown-ptos-prgelf- ;;
+          arm) package=ptos-sdk-arm; prefix=arm-unknown-ptos-elf- ;;
+          x32) package=ptos-sdk-x86-64; prefix=x86_64-unknown-ptos-elfx32- ;;
+          *) echo "Unsupported SDK target: $SDK_TARGET" >&2; exit 2 ;;
+        esac
+        key="$RUNNER_TEMP/ptos-archive-keyring.gpg"
+        curl --fail --silent --show-error --location --retry 5 \
+          https://apt.ptos.dev/ptos-archive-keyring.gpg -o "$key"
+        sudo install -m 644 "$key" /usr/share/keyrings/ptos-archive-keyring.gpg
+        echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/ptos-archive-keyring.gpg] https://apt.ptos.dev stable main' |
+          sudo tee /etc/apt/sources.list.d/ptos.list
+        sudo apt-get -o Acquire::Retries=3 -o APT::Update::Error-Mode=any update
+        sudo apt-get -o Acquire::Retries=3 install -y build-essential binutils rsync python3-venv
+        if apt-cache show "$package=$SDK_VERSION" >/dev/null 2>&1; then
+          sudo apt-get -o Acquire::Retries=3 install -y "$package=$SDK_VERSION"
+        else
+          # Pages retains only recent versions; Releases permanently archive CI pins.
+          packages="$RUNNER_TEMP/ptos-release"
+          filename="${package}_${SDK_VERSION}_amd64.deb"
+          mkdir -p "$packages"
+          release="https://github.com/kelihlodversson/pTOS-toolchain/releases/download/v$SDK_VERSION"
+          for file in "$filename" SHA256SUMS; do
+            curl --fail --silent --show-error --location --retry 5 "$release/$file" -o "$packages/$file"
+          done
+          (cd "$packages" && awk -v file="$filename" \
+            '$2 == file { print; found=1 } END { exit !found }' SHA256SUMS | sha256sum --strict --check -)
+          sudo apt-get -o Acquire::Retries=3 install -y "$packages/$filename"
+        fi
+        test "$(dpkg-query -W -f='${Version}' "$package")" = "$SDK_VERSION"
+        test "$(dpkg-query -W -f='${Architecture}' "$package")" = amd64
+        test "$("${prefix}gcc" -dumpmachine)" = "${prefix%-}"
+        "${prefix}gcc" --version
+        case $SDK_TARGET in
+          m68k)
+            echo "M68K_PREFIX=$prefix" >> "$GITHUB_ENV"
+            echo 'M68K_LDFLAGS=-mmintelf' >> "$GITHUB_ENV" ;;
+          arm) echo "ARM_PREFIX=$prefix" >> "$GITHUB_ENV" ;;
+          x32) echo "X32_PREFIX=$prefix" >> "$GITHUB_ENV" ;;
+        esac
+        python3 -m venv "$RUNNER_TEMP/ptos-venv"
+        "$RUNNER_TEMP/ptos-venv/bin/pip" install kconfiglib==14.1.0
+        echo "$RUNNER_TEMP/ptos-venv/bin" >> "$GITHUB_PATH"

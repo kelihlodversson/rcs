@@ -69,6 +69,8 @@ build/%/RCSLOW.DFN: src/atari/rcslow.dfn
 
 M68K_PREFIX ?= m68k-atari-mintelf-
 M68K_CC      = $(M68K_PREFIX)gcc
+# The pTOS SDK defaults to ELF; CI selects -mmintelf for GEMDOS PRG output.
+M68K_LDFLAGS ?=
 
 GEMLIB_H     = $(GEMLIB)/mt_gem.h
 GEMLIB_A     = $(GEMLIB)/.lib68000/libgem.a
@@ -109,8 +111,8 @@ $(LIBCMINI_A): $(LIBCMINI_REV)
 	rm -rf build/m68k/libcmini
 	mkdir -p build/m68k/libcmini $(dir $@)
 	$(LIBCMINI_COPY) build/m68k/libcmini/
-	$(MAKE) -C build/m68k/libcmini mintelf_defconfig
-	$(MAKE) -C build/m68k/libcmini ONLY_68K=y dirs libs startups
+	$(MAKE) -C build/m68k/libcmini CROSSPREFIX=$(M68K_PREFIX) mintelf_defconfig
+	$(MAKE) -C build/m68k/libcmini CROSSPREFIX=$(M68K_PREFIX) ONLY_68K=y dirs libs startups
 	cp build/m68k/libcmini/build/libcmini.a build/m68k/libcmini/build/objs/crt0.o $(dir $@)
 
 $(LIBCMINI_CRT): $(LIBCMINI_A)
@@ -130,7 +132,7 @@ build/m68k/%.o: %.c $(GEMLIB_H)
 	$(M68K_CC) $(M68K_CFLAGS) -c $< -o $@
 
 build/m68k/$(PRG_NAME): $(M68K_OBJ) $(GEMLIB_A) $(LIBCMINI_A) $(LIBCMINI_CRT)
-	$(M68K_CC) -m68000 -nostdlib $(LIBCMINI_CRT) $(M68K_OBJ) \
+	$(M68K_CC) -m68000 $(M68K_LDFLAGS) -nostdlib $(LIBCMINI_CRT) $(M68K_OBJ) \
 	    -L$(GEMLIB)/.lib68000 -Lbuild/m68k/lib \
 	    -lcmini -lgem -lgcc -lcmini -o $@
 
@@ -151,7 +153,7 @@ ARM_CFLAGS = $(STD) $(WARN) $(RCS_TEST_CFLAGS) -O2 -ffreestanding $(ARM_ABI) \
 ARM_OBJ    = $(patsubst %.c,build/arm/%.o,$(PRG_SRC))
 
 $(ARM_LIBGEM): $(GEMLIB_H) FORCE
-	$(MAKE) -C $(GEMLIB) ARCH=arm .libarm/libgem.a
+	$(MAKE) -C $(GEMLIB) ARCH=arm CROSS_TOOL=$(patsubst %-,%,$(ARM_PREFIX)) .libarm/libgem.a
 	@mkdir -p $(dir $@)
 	@cmp -s $(GEMLIB)/.libarm/libgem.a $@ || cp $(GEMLIB)/.libarm/libgem.a $@
 
@@ -159,8 +161,8 @@ $(ARM_LIBCMINI): $(LIBCMINI_REV)
 	rm -rf build/arm/libcmini
 	mkdir -p build/arm/libcmini $(dir $@)
 	$(LIBCMINI_COPY) build/arm/libcmini/
-	$(MAKE) -C build/arm/libcmini ptos_arm_defconfig
-	$(MAKE) -C build/arm/libcmini dirs libs startups
+	$(MAKE) -C build/arm/libcmini CROSSPREFIX=$(ARM_PREFIX) ptos_arm_defconfig
+	$(MAKE) -C build/arm/libcmini CROSSPREFIX=$(ARM_PREFIX) dirs libs startups
 	cp build/arm/libcmini/build/libcmini.a build/arm/libcmini/build/objs/minicrt0.o $(dir $@)
 
 $(ARM_CRT): $(ARM_LIBCMINI)
